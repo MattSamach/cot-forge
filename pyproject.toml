@@ -6,7 +6,7 @@ authors = [
     {name = "Matthew Samach",email = "msamach94@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 dependencies = [
 ]
 
@@ -14,11 +14,10 @@ dependencies = [
 packages = [{include = "cot_forge", from = "src"}]
 
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+ruff = ">=0.9.9"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[dependency-groups]
-dev = [
-    "ruff>=0.9.9",
-]
