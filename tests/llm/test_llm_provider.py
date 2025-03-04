@@ -1,9 +1,8 @@
 import unittest
-from unittest.mock import patch, MagicMock, call
-import pytest
 from typing import Optional
+from unittest.mock import MagicMock, patch
 
-from src.cot_forge.llm.llm_provider import LLMProvider, GeminiLLMProvider
+from src.cot_forge.llm.llm_provider import GeminiLLMProvider, LLMProvider
 
 
 class TestLLMProviderInterface(unittest.TestCase):
@@ -25,8 +24,12 @@ class TestLLMProviderInterface(unittest.TestCase):
         
         # Create a minimal working concrete subclass
         class MinimalProvider(LLMProvider):
-            def generate(self, prompt: str, system_prompt: Optional[str] = None, 
-                        temperature: float = 0.7, max_tokens: Optional[int] = None, **kwargs) -> str:
+            def generate_completion(self, 
+                                    prompt: str,
+                                    system_prompt: Optional[str] = None,
+                                    temperature: float = 0.7,
+                                    max_tokens: Optional[int] = None,
+                                    **kwargs) -> str:
                 return "Test response"
                 
         # Should instantiate successfully
@@ -36,7 +39,7 @@ class TestLLMProviderInterface(unittest.TestCase):
     def test_generate_batch_not_implemented(self):
         """Verify generate_batch raises NotImplementedError by default."""
         class MinimalProvider(LLMProvider):
-            def generate(self, prompt: str, system_prompt: Optional[str] = None, 
+            def generate_completion(self, prompt: str, system_prompt: Optional[str] = None, 
                         temperature: float = 0.7, max_tokens: Optional[int] = None, **kwargs) -> str:
                 return "Test response"
         
