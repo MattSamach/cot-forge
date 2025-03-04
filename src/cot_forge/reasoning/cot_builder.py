@@ -3,10 +3,11 @@ Implementation of the CoTBuilder class, which is the main abstraction which
 is used to handle the control flow to create CoT using sampling and search.
 """
 
+from cot_forge.llm import LLMProvider
+
 from .search import Search
 from .strategies import StrategyRegistry
 
-from cot_forge.llm import LLMProvider
 
 class CoTBuilder:
     """
