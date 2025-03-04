@@ -43,3 +43,7 @@ select = [
 
 [tool.ruff]
 line-length = 110
+
+# Ignore E501 (line too long) in all prompts.py files
+[tool.ruff.lint.per-file-ignores]
+"**/prompts.py" = ["E501"]
