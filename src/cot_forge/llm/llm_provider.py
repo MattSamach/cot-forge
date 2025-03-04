@@ -63,8 +63,8 @@ class GeminiLLMProvider(LLMProvider):
     def __init__(self, 
                  model_name:str = "gemini-2.0-flash",
                  api_key: Optional[str] = None,
-                 min_wait: Optional[int] = 1,
-                 max_wait: Optional[int] = 60,
+                 min_wait: Optional[float] = 1.0,
+                 max_wait: Optional[float] = 60.0,
                  max_retries: Optional[int] = 5,
     ):
         """

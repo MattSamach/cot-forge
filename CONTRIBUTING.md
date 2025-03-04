@@ -26,6 +26,7 @@ The scope should be the component or module being modified:
 
 * **core**: Changes to core functionality affecting the project broadly
 * **llm**: Changes to LLM providers
+* **reasoning**: Changes to reasoning module
 * **problems**: Changes to problem generation module
 * **docs**: Documentation changes
 * **utils**: Utility functions
