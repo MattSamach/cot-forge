@@ -1,16 +1,17 @@
-import pytest
 from dataclasses import dataclass
 from typing import ClassVar
 
-from cot_forge.reasoning.strategies import (
-    Strategy, 
-    StrategyRegistry,
-    InitializeCoT,
-    Backtrack,
-    default_strategy_registry
-)
+import pytest
 
 from cot_forge.reasoning.prompts import backtrack_strategy_prompt
+from cot_forge.reasoning.strategies import (
+    Backtrack,
+    InitializeCoT,
+    Strategy,
+    StrategyRegistry,
+    default_strategy_registry,
+)
+
 
 class TestStrategy:
     def test_create_strategy(self):
@@ -23,7 +24,7 @@ class TestStrategy:
         
         assert test_strategy.name == "test_strategy"
         assert test_strategy.description == "A test strategy"
-        assert test_strategy.is_initial == True
+        assert test_strategy.is_initial
         
     def test_get_metadata(self):
         # Test metadata retrieval
@@ -31,7 +32,7 @@ class TestStrategy:
         
         assert metadata["name"] == "intialize"
         assert metadata["description"] == "initialize the chain of thought" 
-        assert metadata["is_initial"] == True
+        assert metadata["is_initial"]
         
     def test_build_prompt_initial_strategy(self):
         # Test prompt building for initial strategy
@@ -99,7 +100,7 @@ class TestStrategyRegistry:
         )
         
         assert registry.get_strategy("new_test_strategy") == new_strategy
-        assert new_strategy.is_initial == True
+        assert new_strategy.is_initial
         
     def test_get_strategy(self):
         # Test getting strategies by name
@@ -123,8 +124,8 @@ class TestStrategyRegistry:
         
         metadata = registry.get_all_strategies_metadata()
         assert len(metadata) == 2
-        assert metadata["intialize"]["is_initial"] == True
-        assert metadata["backtrack"]["is_initial"] == False
+        assert metadata["intialize"]["is_initial"]
+        assert not metadata["backtrack"]["is_initial"]
         
     def test_remove_strategy(self):
         # Test removing a strategy
@@ -156,7 +157,7 @@ class TestDefaultRegistry:
         original_count = len(default_strategy_registry.list_strategies())
         
         # Add a new strategy
-        custom_strategy = default_strategy_registry.create_and_register(
+        default_strategy_registry.create_and_register(
             name="custom_test_strategy",
             description="A custom test strategy",
             is_initial=False

@@ -77,14 +77,14 @@ class Strategy:
     @classmethod
     def build_prompt(cls,
                      question: str, 
-                     previous_cot: Optional[str] = None) -> str:
+                     previous_cot: str | None = None) -> str:
         """
         Dynamically build the prompt with strategy prompt template.
         
         Args:
-            question (str): The question to be answered.
-            strategy_description (str): Description of the strategy.
-            previous_cot (Optional[str]): Previous chain of thought. Required if not initial.
+            question: The question to be answered.
+            strategy_description: Description of the strategy.
+            previous_cot: Previous chain of thought. Required if not initial.
 
         Returns:
             str: Formatted prompt string
@@ -110,18 +110,18 @@ class Strategy:
 class StrategyRegistry:
     """ Registry for strategies. Allows quick lookup and registration of strategies. """
     
-    def __init__(self, strategies: Optional[list[Strategy]] = None):
+    def __init__(self, strategies: list[Strategy] | None = None):
         """ Initialize an empty strategy registry. 
         
         Args:
-            strategies (Optional[list[Strategy]], optional): List of initial strategies to register. Defaults to None.
+            strategies: List of initial strategies to register. Defaults to None.
         """
         if strategies is None:
             self._strategies = {}
         else:
             self._strategies = {strategy.name: strategy for strategy in strategies}
     
-    def register(self, strategy_class):
+    def register(self, strategy_class: type[Strategy]) -> type[Strategy]:
         """
         Register a Strategy class with this registry.
         Can be used as a decorator.
