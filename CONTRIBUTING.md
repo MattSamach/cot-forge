@@ -24,7 +24,6 @@ We encourage you to follow the commit message schema below when contributing to 
 ### Scope
 The scope should be the component or module being modified:
 
-* **core**: Changes to core functionality affecting the project broadly
 * **llm**: Changes to LLM providers
 * **reasoning**: Changes to reasoning module
 * **problems**: Changes to problem generation module
@@ -46,11 +45,7 @@ fix(llm): correct token limit handling in Gemini provider
 ```
 
 ```
-refactor(core): simplify prompt construction logic
-```
-
-```
-test(llm): add unit tests for LLMProvider abstract class
+refactor(reasoning): simplify prompt construction logic
 ```
 
 ### Rules to Follow
