@@ -12,11 +12,9 @@ import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
 
-from .search_algorithm import (ReasoningStep, SearchResult, StrategySelector,
-                               TerminationChecker)
+from .search_algorithm import ReasoningStep, SearchResult, StrategySelector, TerminationChecker
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +164,7 @@ def extract_final_answer(response: str) -> str:
             if action.get("action") == "Final Conclusion":
                 return action.get("content", "")
             
-    except json.JSONDecodeError:
-        raise ValueError("Invalid JSON response")
+    except json.JSONDecodeError as err:
+        raise ValueError("Invalid JSON response") from err
 
     return "No final answer found"

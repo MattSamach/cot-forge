@@ -9,8 +9,7 @@ import logging
 from typing import Any, Optional, Protocol, TypedDict
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
 
 logger = logging.getLogger(__name__)
 
