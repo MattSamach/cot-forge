@@ -48,6 +48,6 @@ Strictly follow the JSON structure below. You do not need to repeat your previou
 
 initialize_cot_prompt = "Please respond to the above question <question> using the Chain of Thought (CoT) reasoning method."
 backtrack_strategy_prompt = "Refine the reasoning using **backtracking** to revisit earlier points of reasoning."
-explore_new_paths_strategy_prompt = "Refine the reasoning by exploring new approaches to solving this problem."
+explore_new_paths_strategy_prompt = "Refine the reasoning by **exploring new approaches** to solving this problem."
 correction_strategy_prompt = "Refine the reasoning by making precise **corrections** to address prior flaws."
 validation_strategy_prompt = "Refine the reasoning by conducting a thorough **validation** process to ensure validity."
