@@ -4,24 +4,22 @@ Naïve sequential search for reasoning chains.
 Logical flow:
 1. Initialize chain with Initialize strategy.
 2. Randomly select a strategy from the registry.
-3. Continue until termination condition is met or max depth is reached.
+3. Continue until verifier returns true or max depth is reached.
 """
-import json
+
 import logging
 import random
 from typing import Any
-from cot_forge.utils.parsing import extract_curly_bracket_content, parse_reasoning_response
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
-                                            default_strategy_registry)
-
-from .search_algorithm import ReasoningNode, SearchResult, TerminationChecker
+from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
+from cot_forge.reasoning.types import ReasoningNode, SearchResult
+from cot_forge.reasoning.verifiers import default_verifier
+from cot_forge.utils.parsing import extract_cot, extract_final_answer_from_cot
 
 logger = logging.getLogger(__name__)
 
 def random_strategy_selector(
-    question: str, 
     node: ReasoningNode,
     registry: StrategyRegistry
 ) -> Strategy:
@@ -38,58 +36,19 @@ def random_strategy_selector(
                          if registry.get_strategy(name).is_initial]
         
     if not strategy_names:
-        raise ValueError(f"No appropriate strategies found for {'initial' if node is None else 'continuation'} step")
+        step_type = "initial" if node is None else "continuation"
+        raise ValueError(f"No appropriate strategies found for {step_type} step")
 
     selected_name = random.choice(strategy_names)
     logger.debug(f"Selected strategy: {selected_name}")
     
     return registry.get_strategy(selected_name)
 
-# TODO: Move to verifiers folder
-def is_correct_answer(node: ReasoningNode, 
-                      question: str,
-                      ground_truth_answer: str,
-                      llm_provider: LLMProvider,
-                      llm_kwargs: dict[str, Any] | None) -> bool:
-    """Default termination checker that looks for 'correct' in verification step."""
-    
-    if not node:
-        return False
-    
-    final_answer = extract_final_answer(node.response)
-    
-    if not final_answer:
-        return False
-    
-    # LLM as judge verifier checks if the final answer is correct
-    # TODO: Move to verifiers.prompts.py file
-    try:
-        response = llm_provider.generate(
-            prompt=f"""You are an answer judge.
-            Verify if the provided answer below is equivalent to the ground truth answer.
-            Answer simply with "yes" or "no".
-            
-            Provided answer: {final_answer}
-            Ground truth answer: {ground_truth_answer}
-            """,
-            **llm_kwargs
-        )
-        response = response.strip().lower()
-        
-        if not response:
-            raise ValueError("Empty response from LLM")
-        
-        return response.strip().lower() == "yes"
-    
-    except Exception as e:
-        logger.error(f"Error generating verification response: {e}")
-        return False
-
 def naive_linear_search(
     question: str,
     ground_truth_answer: str,
     llm_provider: LLMProvider,
-    termination_checker: TerminationChecker = is_correct_answer,
+    verifier = default_verifier,
     strategy_registry: StrategyRegistry = default_strategy_registry,
     llm_kwargs: dict[str, Any] | None = None,
     **kwargs
@@ -101,7 +60,7 @@ def naive_linear_search(
         question: The question to answer.
         ground_truth_answer: The true answer to the question.
         llm_provider: The LLM provider to use.
-        termination_checker: Function to check if search should terminate.
+        verifier: The verifier to use for checking correctness.
         strategy_registry: Registry of available strategies.
         llm_kwargs: Additional kwargs for LLM provider.
         **kwargs: Additional kwargs for search algorithm.
@@ -117,10 +76,10 @@ def naive_linear_search(
     
     for depth in range(max_depth):
         # Select next strategy
-        strategy = random_strategy_selector(question, current_node, strategy_registry)
+        strategy = random_strategy_selector(current_node, strategy_registry)
         
         # Build prompt based on selected strategy
-        current_cot = parse_reasoning_response(current_node.response) if current_node else None
+        current_cot = current_node.cot if current_node else None
         prompt = strategy.build_prompt(question, str(current_cot))
         
         # Generate response
@@ -145,24 +104,24 @@ def naive_linear_search(
             strategy=strategy,
             prompt=prompt,
             response=response,
+            cot = extract_cot(response),
             parent=previous_node
         )
         
         if previous_node:
             previous_node.add_child(current_node)
         
-        # Check for termination
-        if termination_checker(node=current_node,
-                               question=question,
-                               ground_truth_answer=ground_truth_answer,
-                               llm_provider=llm_provider,
-                               llm_kwargs=llm_kwargs):
-            current_node.is_final = True
+        # Check for termination condition by verifier
+        if verifier.verify(node=current_node,
+                           question=question,
+                           ground_truth_answer=ground_truth_answer,
+                           llm_provider=llm_provider,
+                           llm_kwargs=llm_kwargs):
             return SearchResult(
                 final_node=current_node,
                 all_terminal_nodes=[current_node],
                 success=True,
-                final_answer=extract_final_answer(current_node.response),
+                final_answer=extract_final_answer_from_cot(current_node.cot),
                 metadata={"depth": depth + 1, "reason": "termination_checker"}
             )
     
@@ -171,20 +130,6 @@ def naive_linear_search(
         final_node=current_node,
         all_terminal_nodes=[current_node],
         success=False,
-        final_answer=extract_final_answer(current_node.response) if current_node else None,
+        final_answer=extract_final_answer_from_cot(current_node.cot) if current_node else None,
         metadata={"depth": max_depth, "reason": "max_depth_reached"}
     )
-    
-# TODO: Move to utils
-def extract_final_answer(response: str) -> str:
-    """Extract the final answer from a response."""
-    try:
-        data = parse_reasoning_response(response)
-        
-        for action in reversed(data.get("CoT", [])):
-            if action.get("action") == "Final Conclusion":
-                return action.get("content", "")
-            
-    except json.JSONDecodeError as err:
-        logger.error(f"Error decoding JSON: {err}")
-        return "No final answer found"
