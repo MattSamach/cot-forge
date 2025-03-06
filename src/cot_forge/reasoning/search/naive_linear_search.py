@@ -10,6 +10,7 @@ import json
 import logging
 import random
 from typing import Any
+from cot_forge.utils.parsing import extract_curly_bracket_content, parse_reasoning_response
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
@@ -119,8 +120,8 @@ def naive_linear_search(
         strategy = random_strategy_selector(question, current_node, strategy_registry)
         
         # Build prompt based on selected strategy
-        previous_cot = current_node.parent.response if current_node and current_node.parent else None
-        prompt = strategy.build_prompt(question, previous_cot)
+        current_cot = parse_reasoning_response(current_node.response) if current_node else None
+        prompt = strategy.build_prompt(question, str(current_cot))
         
         # Generate response
         try:
@@ -178,13 +179,12 @@ def naive_linear_search(
 def extract_final_answer(response: str) -> str:
     """Extract the final answer from a response."""
     try:
-        data = json.loads(response)
+        data = parse_reasoning_response(response)
         
         for action in reversed(data.get("CoT", [])):
             if action.get("action") == "Final Conclusion":
                 return action.get("content", "")
             
     except json.JSONDecodeError as err:
-        raise ValueError("Invalid JSON response") from err
-
-    return "No final answer found"
+        logger.error(f"Error decoding JSON: {err}")
+        return "No final answer found"
