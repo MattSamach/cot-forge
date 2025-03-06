@@ -3,10 +3,15 @@ Implementation of the CoTBuilder class, which is the main abstraction which
 is used to handle the control flow to create CoT using sampling and search.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
+
+from tqdm import tqdm
+
 from cot_forge.llm import LLMProvider
 
-from .search import Search
-from .strategies import StrategyRegistry
+from .search.search_algorithm import SearchAlgorithm, SearchResult
+from .strategies import StrategyRegistry, default_strategy_registry
 
 
 class CoTBuilder:
@@ -22,11 +27,164 @@ class CoTBuilder:
     
     def __init__(self,
                  llm: LLMProvider,
-                 search: Search,
-                 strategy_reg: StrategyRegistry):
-        
-        self.cot = []
+                 search: SearchAlgorithm,
+                 strategy_reg: StrategyRegistry = default_strategy_registry):
+        """
+        Initialize the CoTBuilder with an LLM provider, search algorithm,
+        and strategy registry.
+        Args:
+            llm: LLM provider to use for generating responses
+            search: Search algorithm to use for constructing CoT
+            strategy_reg: Registry of strategies to sample from
+        """
         self.llm = llm
         self.strategy_reg = strategy_reg
         self.search = search
         
+    def build(self,
+              question: str,
+              ground_truth_answer: str,
+              llm_kwargs: dict[str, Any] | None = None,
+              **kwargs) -> SearchResult:
+        """
+        Execute the search algorithm to build a CoT.
+        
+        Args:
+            question: The question to be answered
+            ground_truth_answer: The true answer to the question
+            llm_kwargs: Additional kwargs for LLM provider
+            **kwargs: Additional kwargs for search algorithm
+        
+        Returns:
+            A SearchResult containing the chain of thought and metadata
+        """
+        return self.search(
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            llm_provider=self.llm,
+            llm_kwargs=llm_kwargs,
+            strategy_registry=self.strategy_reg,
+            **kwargs
+        )
+        
+    def build_batch(self,
+                    questions: list[str],
+                    ground_truth_answers: list[str],
+                    llm_kwargs: dict[str, Any] | None = None,
+                    multi_thread: bool = False,
+                    progress_bar: bool = True,
+                    max_workers: int | None = 4,
+                    **kwargs) -> list[SearchResult]:
+        """
+        Execute the search algorithm to build a CoT for a batch of questions.
+        
+        Args:
+            questions: List of questions to be answered
+            ground_truth_answers: List of true answers to the questions
+            llm_kwargs: Additional kwargs for LLM provider
+            multi_thread: Whether to run the search in multi-thread mode
+            progress_bar: Whether to show a progress bar
+            max_workers: Number of workers for multi-thread execution, required if multi_thread is True
+            **kwargs: Additional kwargs for search algorithm
+        
+        Returns:
+            A list of SearchResult containing the chain of thought and metadata
+        """
+        
+        if len(questions) != len(ground_truth_answers):
+            raise ValueError("Questions and ground truth answers must have the same length.")
+        if multi_thread and max_workers is None:
+            raise ValueError("max_workers must be specified when multi_thread is True.")
+
+        total_pairs = len(questions)
+        qa_iterator = iter(zip(questions, ground_truth_answers))
+            
+        if multi_thread:
+            return self._multi_thread_batch_build(
+                qa_iterator=qa_iterator,
+                llm=self.llm,
+                progress_bar=progress_bar,
+                max_workers=max_workers,
+                llm_kwargs=llm_kwargs,
+                **kwargs
+            )
+        else:
+            return self._single_threaded_batch_build(
+                qa_iterator=qa_iterator,
+                llm=self.llm,
+                progress_bar=progress_bar,
+                total_pairs=total_pairs,
+                llm_kwargs=llm_kwargs,
+                **kwargs
+            )    
+    
+    def _single_threaded_batch_build(self,
+                                     qa_iterator: iter[tuple[str, str]],
+                                     llm: LLMProvider,
+                                     progress_bar: bool,
+                                     total_pairs: int,
+                                     llm_kwargs: dict[str, Any] | None = None,
+                                     **kwargs) -> list[SearchResult]:
+        """Execute the search algorithm to build a CoT for a batch of questions in single-threaded mode."""
+        results = []
+        if progress_bar:
+                qa_iterator = tqdm(
+                    qa_iterator,
+                    total=total_pairs,
+                    desc="Singgle-threaded processing question and ground truth answer pairs.",
+                    unit="pair"
+                )
+                
+        for q, gt in qa_iterator:
+            results.append(
+                self.build(
+                    question=q,
+                    ground_truth_answer=gt,
+                    llm_kwargs=llm_kwargs,
+                    **kwargs
+                    )
+                )
+            
+        return results
+    
+    def _multi_thread_batch_build(self,
+                                  qa_iterator: iter[tuple[str, str]],
+                                  llm: LLMProvider,
+                                  progress_bar: bool,
+                                  max_workers: int,
+                                  llm_kwargs: dict[str, Any] | None = None,
+                                  **kwargs) -> list[SearchResult]:
+            """Execute the search algorithm to build a CoT for a batch of questions in multi-thread mode."""
+            
+            results = []
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(
+                        self.build,
+                        question=q,
+                        ground_truth_answer=gt,
+                        llm_kwargs=llm_kwargs,
+                        **kwargs
+                    )
+                    for q, gt in qa_iterator
+                ]
+                
+                future_iterator = futures
+                if progress_bar:
+                    future_iterator = tqdm(
+                        futures,
+                        total=len(futures),
+                        desc="Multi-thread processing question and ground truth answer pairs.",
+                        unit="pair"
+                    )
+                
+                for future in future_iterator:
+                    results.append(future.result())
+            return results
+
+
+    def __repr__(self) -> str:
+        return f"CoTBuilder(llm={self.llm}, search={self.search})"
+    
+    def __str__(self) -> str:
+        return f"CoTBuilder with LLM: {self.llm}, Search Algorithm: {self.search}"
