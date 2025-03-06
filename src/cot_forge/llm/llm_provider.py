@@ -1,5 +1,8 @@
 """
-LLM provider base class implementation.
+This module defines an abstract base class for LLM providers and a concrete implementation for the Gemini LLM.
+The `LLMProvider` class provides a common interface for interacting with different LLMs, 
+including methods for generating text, managing token usage, and handling rate limits. 
+It uses the `tenacity` library for retrying failed requests.
 """
 
 import logging
@@ -68,6 +71,10 @@ class LLMProvider(ABC):
             "total_tokens": self.input_tokens + self.output_tokens
         }
         
+    def get_total_tokens(self) -> int:
+        """Calculate the total number of tokens used."""
+        return self.input_tokens + self.output_tokens
+        
     def check_token_limits(self) -> bool:
         """Check if the token limits are exceeded."""
         if self.input_token_limit is not None and self.input_tokens > self.input_token_limit:
@@ -76,8 +83,8 @@ class LLMProvider(ABC):
         if self.output_token_limit is not None and self.output_tokens > self.output_token_limit:
             logger.warning(f"Output token limit exceeded: {self.output_tokens} > {self.output_token_limit}")
             return False
-        if self.total_token_limit is not None and (self.input_tokens + self.output_tokens) > self.total_token_limit:
-            logger.warning(f"Total token limit exceeded: {self.input_tokens + self.output_tokens} > {self.total_token_limit}")
+        if self.total_token_limit is not None and (self.get_total_tokens()) > self.total_token_limit:
+            logger.warning(f"Total tokens exceeded: {self.get_total_tokens()} > {self.total_token_limit}")
             return False
         return True
     

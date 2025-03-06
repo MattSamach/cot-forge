@@ -3,8 +3,9 @@ Implementation of the CoTBuilder class, which is the main abstraction which
 is used to handle the control flow to create CoT using sampling and search.
 """
 
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Iterable
+from typing import Any
 
 from tqdm import tqdm
 

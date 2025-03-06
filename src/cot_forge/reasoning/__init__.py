@@ -38,6 +38,7 @@ __all__ = [
     "naive_linear_search",
     "Strategy",
     "StrategyRegistry",
-    "default_strategy_registry"
-    "CoTBuilder"
+    default_strategy_registry,
+    "CoTBuilder",
+    naive_linear_search
 ]
