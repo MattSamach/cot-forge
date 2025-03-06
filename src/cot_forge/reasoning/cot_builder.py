@@ -4,7 +4,7 @@ is used to handle the control flow to create CoT using sampling and search.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, Iterable
 
 from tqdm import tqdm
 
@@ -119,7 +119,7 @@ class CoTBuilder:
             )    
     
     def _single_threaded_batch_build(self,
-                                     qa_iterator: iter[tuple[str, str]],
+                                     qa_iterator: Iterable[tuple[str, str]],
                                      llm: LLMProvider,
                                      progress_bar: bool,
                                      total_pairs: int,
@@ -148,7 +148,7 @@ class CoTBuilder:
         return results
     
     def _multi_thread_batch_build(self,
-                                  qa_iterator: iter[tuple[str, str]],
+                                  qa_iterator: Iterable[tuple[str, str]],
                                   llm: LLMProvider,
                                   progress_bar: bool,
                                   max_workers: int,

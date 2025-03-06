@@ -1,6 +1,7 @@
 import json
 import re
 
+
 def extract_curly_bracket_content(text: str) -> str:
     """Extracts the curly bracketed json content within a string."""
     pattern = r"\{.*\}"
