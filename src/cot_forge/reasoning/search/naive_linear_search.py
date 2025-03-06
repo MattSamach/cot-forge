@@ -12,48 +12,56 @@ import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
+from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
+                                            default_strategy_registry)
 
-from .search_algorithm import ReasoningStep, SearchResult, StrategySelector, TerminationChecker
+from .search_algorithm import ReasoningNode, SearchResult, TerminationChecker
 
 logger = logging.getLogger(__name__)
 
 def random_strategy_selector(
     question: str, 
-    chain: list[ReasoningStep], 
+    node: ReasoningNode,
     registry: StrategyRegistry
-    
 ) -> Strategy:
     """Select a random strategy from the registry."""
     strategy_names = registry.list_strategies()
     
     # Filter out initial strategies if not the first step
-    if chain:
+    if node:
         strategy_names = [name for name in strategy_names 
                          if not registry.get_strategy(name).is_initial]
     else:
         # First step must be an initial strategy
         strategy_names = [name for name in strategy_names 
                          if registry.get_strategy(name).is_initial]
-    
+        
+    if not strategy_names:
+        raise ValueError(f"No appropriate strategies found for {'initial' if node is None else 'continuation'} step")
+
     selected_name = random.choice(strategy_names)
+    logger.debug(f"Selected strategy: {selected_name}")
+    
     return registry.get_strategy(selected_name)
 
-def is_correct_answer(chain: list[ReasoningStep], 
+# TODO: Move to verifiers folder
+def is_correct_answer(node: ReasoningNode, 
                       question: str,
                       ground_truth_answer: str,
                       llm_provider: LLMProvider,
                       llm_kwargs: dict[str, Any] | None) -> bool:
     """Default termination checker that looks for 'correct' in verification step."""
-    if not chain:
+    
+    if not node:
         return False
     
-    final_answer = extract_final_answer(chain[-1]["response"])
+    final_answer = extract_final_answer(node.response)
     
     if not final_answer:
         return False
     
     # LLM as judge verifier checks if the final answer is correct
+    # TODO: Move to verifiers.prompts.py file
     try:
         response = llm_provider.generate(
             prompt=f"""You are an answer judge.
@@ -65,6 +73,10 @@ def is_correct_answer(chain: list[ReasoningStep],
             """,
             **llm_kwargs
         )
+        response = response.strip().lower()
+        
+        if not response:
+            raise ValueError("Empty response from LLM")
         
         return response.strip().lower() == "yes"
     
@@ -72,27 +84,24 @@ def is_correct_answer(chain: list[ReasoningStep],
         logger.error(f"Error generating verification response: {e}")
         return False
 
-def naive_search(
+def naive_linear_search(
     question: str,
     ground_truth_answer: str,
     llm_provider: LLMProvider,
     termination_checker: TerminationChecker = is_correct_answer,
-    strategy_selector: StrategySelector = random_strategy_selector,
     strategy_registry: StrategyRegistry = default_strategy_registry,
     llm_kwargs: dict[str, Any] | None = None,
     **kwargs
 ) -> SearchResult:
     """
-    Perform a sequential search to generate a chain of thought.
+    Perform a naive/random sequential search to generate a chain of thought.
     
     Args:
         question: The question to answer.
         ground_truth_answer: The true answer to the question.
         llm_provider: The LLM provider to use.
-        max_depth: Maximum depth of the search.
         termination_checker: Function to check if search should terminate.
         strategy_registry: Registry of available strategies.
-        strategy_selector: Function to select the next strategy.
         llm_kwargs: Additional kwargs for LLM provider.
         **kwargs: Additional kwargs for search algorithm.
     
@@ -103,14 +112,14 @@ def naive_search(
     # Get max_depth either from kwargs or default to 3
     max_depth = kwargs.get("max_depth", 3)
     
-    chain: list[ReasoningStep] = []
+    current_node = None
     
     for depth in range(max_depth):
         # Select next strategy
-        strategy = strategy_selector(question, chain, strategy_registry)
+        strategy = random_strategy_selector(question, current_node, strategy_registry)
         
         # Build prompt based on selected strategy
-        previous_cot = chain[-1]["response"] if chain else None
+        previous_cot = current_node.parent.response if current_node and current_node.parent else None
         prompt = strategy.build_prompt(question, previous_cot)
         
         # Generate response
@@ -122,39 +131,50 @@ def naive_search(
         except Exception as e:
             logger.error(f"Error generating response: {e}")
             return SearchResult(
-                chain=chain,
+                final_node=current_node,
+                all_terminal_nodes=[current_node],
                 success=False,
                 final_answer=None,
                 metadata={"error": str(e), "depth": depth}
             )
         
-        # Add step to chain
-        step = ReasoningStep(
+        # Create new reasoning node and incorporate into graph
+        previous_node = current_node if current_node else None
+        current_node = ReasoningNode(
             strategy=strategy,
             prompt=prompt,
             response=response,
-            is_final=False
+            parent=previous_node
         )
-        chain.append(step)
+        
+        if previous_node:
+            previous_node.add_child(current_node)
         
         # Check for termination
-        if termination_checker(chain, question):
-            chain[-1]["is_final"] = True
+        if termination_checker(node=current_node,
+                               question=question,
+                               ground_truth_answer=ground_truth_answer,
+                               llm_provider=llm_provider,
+                               llm_kwargs=llm_kwargs):
+            current_node.is_final = True
             return SearchResult(
-                chain=chain,
+                final_node=current_node,
+                all_terminal_nodes=[current_node],
                 success=True,
-                final_answer=extract_final_answer(chain[-1]["response"]),
-                metadata={"depth": depth + 1}
+                final_answer=extract_final_answer(current_node.response),
+                metadata={"depth": depth + 1, "reason": "termination_checker"}
             )
     
     # Max depth reached without success
     return SearchResult(
-        chain=chain,
+        final_node=current_node,
+        all_terminal_nodes=[current_node],
         success=False,
-        final_answer=extract_final_answer(chain[-1]["response"]) if chain else None,
+        final_answer=extract_final_answer(current_node.response) if current_node else None,
         metadata={"depth": max_depth, "reason": "max_depth_reached"}
     )
     
+# TODO: Move to utils
 def extract_final_answer(response: str) -> str:
     """Extract the final answer from a response."""
     try:

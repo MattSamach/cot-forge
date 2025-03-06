@@ -13,33 +13,45 @@ from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_s
 
 logger = logging.getLogger(__name__)
 
-class ReasoningStep(TypedDict):
-    """Represents a step in the chain of thought reasoning process."""
-    strategy: Strategy
-    prompt: str
-    response: str
-    is_final: bool
+class ReasoningNode:
+    """A node in the reasoning graph/tree/chain."""
+    def __init__(self, 
+                 strategy: Strategy,
+                 prompt: str,
+                 response: str,
+                 parent: Optional['ReasoningNode'] = None):
+        self.strategy = strategy
+        self.prompt = prompt
+        self.response = response
+        self.parent = parent
+        self.children: list['ReasoningNode'] = []
+        self.is_final = False
+        self.metadata: dict[str, Any] = {}
+
+    def add_child(self, child: 'ReasoningNode'):
+        self.children.append(child)
+        
+    def get_full_chain(self):
+        """Get the complete chain from the root to this node."""
+        chain = []
+        current_node = self
+        while current_node:
+            chain.append(current_node)
+            current_node = current_node.parent
+        return list(reversed(chain))
 
 class SearchResult(TypedDict):
     """Represents the result of a search algorithm."""
-    chain: list[ReasoningStep]
+    final_node: ReasoningNode
+    all_terminal_nodes: list[ReasoningNode] | None
     success: bool
     final_answer: Optional[str]
     metadata: dict[str, Any]
 
-class StrategySelector(Protocol):
-    """Protocol for strategy selection functions."""
-    def __call__(self, 
-                 question: str, 
-                 chain: list[ReasoningStep], 
-                 registry: StrategyRegistry) -> Strategy:
-        """Select the next strategy to use."""
-        ...
-
 class TerminationChecker(Protocol):
     """Protocol for termination checking functions."""
     def __call__(self, 
-                chain: list[ReasoningStep],
+                node: ReasoningNode,
                 question: str,
                 ground_truth_answer: str,
                 llm_provider: LLMProvider,
@@ -56,7 +68,6 @@ class SearchAlgorithm(Protocol):
         ground_truth_answer: str,
         llm_provider: LLMProvider,
         termination_checker: TerminationChecker,
-        strategy_selector: StrategySelector,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
         llm_kwargs: dict[str, Any] | None = None,
         **kwargs
