@@ -17,18 +17,24 @@ class LLMJudgeVerifier(BaseVerifier):
         """Initialize with custom prompt template if desired."""
         self.prompt_template = prompt_template
     
-    def verify(self, 
+    def verify(self,
                node: ReasoningNode,
                question: str,
                ground_truth_answer: str,
                llm_provider: LLMProvider,
                llm_kwargs: dict[str, Any] | None = None) -> bool:
         """Use LLM to verify if the answer is correct."""
-        if not node:
+        if not node or not node.cot:
+            logger.error("Node or CoT is None")
             return False
         
         final_answer = extract_final_answer_from_cot(node.cot)
-        if not final_answer:
+        if final_answer is None:
+            logger.warning("No Final Conclusion found in response")
+            node.metadata = {
+                **(node.metadata or {}),
+                "warning": "missing_final_conclusion"
+            }
             return False
         
         try:

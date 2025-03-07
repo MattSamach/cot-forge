@@ -24,7 +24,7 @@ class SearchAlgorithm(Protocol):
         llm_provider: LLMProvider,
         verifier: BaseVerifier,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
-        llm_kwargs: dict[str, Any] | None = None,
+        llm_kwargs: dict[str, Any] = None,
         **kwargs
     ) -> SearchResult:
         """

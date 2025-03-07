@@ -50,7 +50,7 @@ def naive_linear_search(
     llm_provider: LLMProvider,
     verifier = default_verifier,
     strategy_registry: StrategyRegistry = default_strategy_registry,
-    llm_kwargs: dict[str, Any] | None = None,
+    llm_kwargs: dict[str, Any] = None,
     **kwargs
 ) -> SearchResult:
     """
@@ -82,11 +82,11 @@ def naive_linear_search(
         current_cot = current_node.cot if current_node else None
         prompt = strategy.build_prompt(question, str(current_cot))
         
-        # Generate response
+        # Generate response. Case where response generation fails, return failure response
         try:
             response = llm_provider.generate(
                 prompt=prompt, 
-                **llm_kwargs
+                **(llm_kwargs or {})
             )
         except Exception as e:
             logger.error(f"Error generating response: {e}")
@@ -98,31 +98,44 @@ def naive_linear_search(
                 metadata={"error": str(e), "depth": depth}
             )
         
+        # Case where parsing cot fails, return failure response
+        try:
+            cot = extract_cot(response)
+        except Exception as e:
+            logger.error(f"Error extracting CoT: {e}")
+            return SearchResult(
+                final_node=current_node,
+                all_terminal_nodes=[current_node],
+                success=False,
+                final_answer=None,
+                metadata={"error": str(e), "depth": depth}
+            )
+        
         # Create new reasoning node and incorporate into graph
-        previous_node = current_node if current_node else None
+        previous_node = current_node if current_node else None    
         current_node = ReasoningNode(
             strategy=strategy,
             prompt=prompt,
             response=response,
-            cot = extract_cot(response),
+            cot = cot,
             parent=previous_node
         )
         
         if previous_node:
             previous_node.add_child(current_node)
         
-        # Check for termination condition by verifier
+        # Check for success condition by verifier
         if verifier.verify(node=current_node,
                            question=question,
                            ground_truth_answer=ground_truth_answer,
                            llm_provider=llm_provider,
-                           llm_kwargs=llm_kwargs):
+                           llm_kwargs=llm_kwargs or {}):
             return SearchResult(
                 final_node=current_node,
                 all_terminal_nodes=[current_node],
                 success=True,
                 final_answer=extract_final_answer_from_cot(current_node.cot),
-                metadata={"depth": depth + 1, "reason": "termination_checker"}
+                metadata={"depth": depth + 1, "reason": "verifier_success"}
             )
     
     # Max depth reached without success
