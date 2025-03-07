@@ -1,5 +1,8 @@
 """
-LLM provider base class implementation.
+This module defines an abstract base class for LLM providers and a concrete implementation for the Gemini LLM.
+The `LLMProvider` class provides a common interface for interacting with different LLMs, 
+including methods for generating text, managing token usage, and handling rate limits. 
+It uses the `tenacity` library for retrying failed requests.
 """
 
 import logging
@@ -19,15 +22,22 @@ class LLMProvider(ABC):
                 min_wait: float = 0.0,
                 max_wait: float = 0.0,
                 max_retries: int = 0,
-                rate_limit_exceptions: tuple[Exception] | None = None):
+                rate_limit_exceptions: tuple[Exception] | None = None,
+                input_token_limit: int | None = None,
+                output_token_limit: int | None = None,
+                total_token_limit: int | None = None,
+                ):
         """
         Initialize an LLM provider instance.
 
         Args:
-            min_wait: Minimum wait time between retries in seconds. Defaults to 0.0.
-            max_wait: Maximum wait time between retries in seconds. Defaults to 0.0.
-            max_retries: Maximum retries for failed requests. Defaults to 0.
+            min_wait: Minimum wait time between retries in seconds.
+            max_wait: Maximum wait time between retries in seconds.
+            max_retries: Maximum retries for failed requests.
             rate_limit_exceptions: List of exceptions to retry on.
+            input_token_limit: Maximum number of input tokens, for cost control.
+            output_token_limit: Maximum number of output tokens, for cost control.
+            total_token_limit: Maximum number of total tokens (input + output).
         """        
         # Retry settings for handling rate limits
         self.retry_settings = {}
@@ -37,6 +47,46 @@ class LLMProvider(ABC):
             self.retry_settings["stop"] = tenacity.stop_after_attempt(max_retries)
         self.retry_settings["retry"] = tenacity.retry_if_exception_type(
             rate_limit_exceptions or [tenacity.RetryError])
+        self.input_token_limit = input_token_limit
+        self.output_token_limit = output_token_limit
+        self.total_token_limit = total_token_limit
+        self.input_tokens = 0
+        self.output_tokens = 0
+
+    def __str__(self):
+        """String representation of the LLM provider."""
+        return f"""{self.__class__.__name__}
+        (input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})"""
+        
+    def __repr__(self):
+        """String representation of the LLM provider."""
+        return f"""{self.__class__.__name__}
+        (input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})"""
+        
+    def get_token_usage(self):
+        """Get the token usage information."""
+        return {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.input_tokens + self.output_tokens
+        }
+        
+    def get_total_tokens(self) -> int:
+        """Calculate the total number of tokens used."""
+        return self.input_tokens + self.output_tokens
+        
+    def check_token_limits(self) -> bool:
+        """Check if the token limits are exceeded."""
+        if self.input_token_limit is not None and self.input_tokens > self.input_token_limit:
+            logger.warning(f"Input token limit exceeded: {self.input_tokens} > {self.input_token_limit}")
+            return False
+        if self.output_token_limit is not None and self.output_tokens > self.output_token_limit:
+            logger.warning(f"Output token limit exceeded: {self.output_tokens} > {self.output_token_limit}")
+            return False
+        if self.total_token_limit is not None and (self.get_total_tokens()) > self.total_token_limit:
+            logger.warning(f"Total tokens exceeded: {self.get_total_tokens()} > {self.total_token_limit}")
+            return False
+        return True
     
     @abstractmethod
     def generate_completion(self,
@@ -70,27 +120,28 @@ class LLMProvider(ABC):
         Uses the generate_completion method of the subclass LLM provider."""
         
         @tenacity.retry(**self.retry_settings)
-        def _generate_with_retry():
+        def _generate_with_retry():                
             return self.generate_completion(prompt, system_prompt, temperature, max_tokens, **kwargs)
         return _generate_with_retry()
     
+    def update_token_usage(self,
+                           input_tokens: int,
+                           output_tokens: int
+                           ) -> None:
+        """Update the token usage information."""
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+        if not self.check_token_limits():
+            raise ValueError("Token limits exceeded.")
     
     def generate_batch(self,
-                     prompts: list[str],
-                     temperature: float = 0.7,
-                     max_tokens: int | None = None,
-                     **kwargs
-                    ) -> list[str]:
-        """Generate text from the LLM in batch based on a list of prompts.
+                       prompts: list[str],
+                       temperature: float = 0.7,
+                       max_tokens: int | None = None,
+                       **kwargs
+                       ) -> list[str]:
+        """Implementation would use the provider's native batch API if available"""
 
-        Args:
-            prompts: The input prompts for the model.
-            temperature: Controls randomness in generation. Defaults to 0.7.
-            max_tokens: Maximum number of tokens to generate. Defaults to None.
-
-        Returns:
-            NotImplementedError: Batch generation is planned for future implementation.
-        """
         raise NotImplementedError("Batch generation is planned for future implementation.")
     
 class GeminiLLMProvider(LLMProvider):
@@ -163,6 +214,13 @@ class GeminiLLMProvider(LLMProvider):
                 **config_data
             ),
             contents=[prompt]
+        )
+        
+        # Update token usage, check limits and raise error if exceeded
+        usage_metadata = response.usage_metadata
+        self.update_token_usage(
+            input_tokens=usage_metadata.prompt_token_count,
+            output_tokens=usage_metadata.candidates_token_count
         )
 
         return response.text            
