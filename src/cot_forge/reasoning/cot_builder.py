@@ -132,15 +132,15 @@ class CoTBuilder:
                 qa_iterator = tqdm(
                     qa_iterator,
                     total=total_pairs,
-                    desc="Singgle-threaded processing question and ground truth answer pairs.",
+                    desc="Single-threaded processing question and ground truth answer pairs.",
                     unit="pair"
                 )
                 
-        for q, gt in qa_iterator:
+        for q, a in qa_iterator:
             results.append(
                 self.build(
                     question=q,
-                    ground_truth_answer=gt,
+                    ground_truth_answer=a,
                     llm_kwargs=llm_kwargs,
                     **kwargs
                     )
@@ -163,11 +163,11 @@ class CoTBuilder:
                     executor.submit(
                         self.build,
                         question=q,
-                        ground_truth_answer=gt,
+                        ground_truth_answer=a,
                         llm_kwargs=llm_kwargs,
                         **kwargs
                     )
-                    for q, gt in qa_iterator
+                    for q, a in qa_iterator
                 ]
                 
                 future_iterator = futures
