@@ -8,6 +8,7 @@ It uses the `tenacity` library for retrying failed requests.
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional
+from threading import RLock
 
 import tenacity
 
@@ -52,6 +53,7 @@ class LLMProvider(ABC):
         self.total_token_limit = total_token_limit
         self.input_tokens = 0
         self.output_tokens = 0
+        self._lock = RLock()
 
     def __str__(self):
         """String representation of the LLM provider."""
@@ -128,11 +130,12 @@ class LLMProvider(ABC):
                            input_tokens: int,
                            output_tokens: int
                            ) -> None:
-        """Update the token usage information."""
-        self.input_tokens += input_tokens
-        self.output_tokens += output_tokens
-        if not self.check_token_limits():
-            raise ValueError("Token limits exceeded.")
+        """Thread-safe token usage update."""
+        with self._lock:
+            self.input_tokens += input_tokens
+            self.output_tokens += output_tokens
+            if not self.check_token_limits():
+                raise ValueError("Token limits exceeded.")
     
     def generate_batch(self,
                        prompts: list[str],
