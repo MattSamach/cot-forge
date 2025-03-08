@@ -46,8 +46,16 @@ Strictly follow the JSON structure below. You do not need to repeat your previou
 }
 ```"""
 
+# Default strategy prompts
 initialize_cot_prompt = "Please respond to the above question <question> using the Chain of Thought (CoT) reasoning method."
 backtrack_strategy_prompt = "Refine the reasoning using **backtracking** to revisit earlier points of reasoning."
 explore_new_paths_strategy_prompt = "Refine the reasoning by **exploring new approaches** to solving this problem."
 correction_strategy_prompt = "Refine the reasoning by making precise **corrections** to address prior flaws."
 validation_strategy_prompt = "Refine the reasoning by conducting a thorough **validation** process to ensure validity."
+
+# Additional strategy prompts
+perspective_shift_strategy_prompt = "Refine the reasoning by adopting multiple **different perspectives** (expert, novice, critic, etc.) to analyze the problem from various angles."
+analogical_reasoning_prompt = "Refine the reasoning by using **analogies or metaphors** to map the problem to a better-understood domain, then transfer insights back to the original problem."
+decomposition_strategy_prompt = "Refine the reasoning by **breaking down the problem** into smaller, more manageable sub-problems, solving each one systematically."
+counterfactual_strategy_prompt = "Refine the reasoning by exploring **what-if scenarios** and considering how outcomes might change under different conditions or assumptions."
+first_principles_strategy_prompt = "Refine the reasoning by breaking down the problem into its **fundamental principles** and building a solution from the ground up."

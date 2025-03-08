@@ -217,4 +217,42 @@ default_strategies = [
     Correction,
     Validation
 ]
+
+# Default strategy registry for export
 default_strategy_registry = StrategyRegistry(strategies=default_strategies)
+
+# Additional strategies
+@dataclass(frozen=True)
+class PerspectiveShift(Strategy):
+    "Refine the reasoning by adopting multiple different perspectives (expert, novice, critic, etc.) to analyze the problem from various angles."
+    name: ClassVar[str] = "perspective_shift"
+    description: ClassVar[str] = prompts.perspective_shift_strategy_prompt
+    is_initial: ClassVar[bool] = False
+
+@dataclass(frozen=True)
+class AnalogicalReasoning(Strategy):
+    "Refine the reasoning by using analogies or metaphors to map the problem to a better-understood domain, then transfer insights back to the original problem."
+    name: ClassVar[str] = "analogical_reasoning"
+    description: ClassVar[str] = prompts.analogical_reasoning_prompt
+    is_initial: ClassVar[bool] = False
+    
+@dataclass(frozen=True)
+class Decomposition(Strategy):
+    "Refine the reasoning by breaking down the problem into smaller, more manageable sub-problems, solving each one systematically."
+    name: ClassVar[str] = "decomposition"
+    description: ClassVar[str] = prompts.decomposition_strategy_prompt
+    is_initial: ClassVar[bool] = False
+
+@dataclass(frozen=True)
+class Counterfactual(Strategy):
+    "Refine the reasoning by exploring what-if scenarios and considering how outcomes might change under different conditions or assumptions."
+    name: ClassVar[str] = "counterfactual"
+    description: ClassVar[str] = prompts.counterfactual_strategy_prompt
+    is_initial: ClassVar[bool] = False
+    
+@dataclass(frozen=True)
+class FirstPrinciples(Strategy):
+    "Refine the reasoning by breaking down the problem into its fundamental principles and building a solution from the ground up."
+    name: ClassVar[str] = "first_principles"
+    description: ClassVar[str] = prompts.first_principles_strategy_prompt
+    is_initial: ClassVar[bool] = False

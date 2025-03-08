@@ -30,7 +30,11 @@ cot = builder.build(
 from .cot_builder import CoTBuilder
 from .search.naive_linear_search import naive_linear_search
 from .search.search_algorithm import SearchAlgorithm, SearchResult
-from .strategies import Strategy, StrategyRegistry, default_strategy_registry
+from .strategies import (AnalogicalReasoning, Backtrack, Correction,
+                         Counterfactual, Decomposition, ExploreNewPaths,
+                         FirstPrinciples, InitializeCoT, PerspectiveShift,
+                         Strategy, StrategyRegistry, Validation,
+                         default_strategy_registry)
 
 __all__ = [
     "SearchAlgorithm",
@@ -40,5 +44,15 @@ __all__ = [
     "StrategyRegistry",
     default_strategy_registry,
     "CoTBuilder",
-    naive_linear_search
+    naive_linear_search,
+    "AnalogicalReasoning",
+    "Backtrack",
+    "Correction",
+    "Counterfactual",
+    "Decomposition",
+    "ExploreNewPaths",
+    "FirstPrinciples",
+    "InitializeCoT",
+    "PerspectiveShift",
+    "Validation"
 ]
