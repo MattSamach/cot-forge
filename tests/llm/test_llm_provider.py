@@ -181,44 +181,58 @@ class TestTokenLimits(unittest.TestCase):
     def setUp(self):
         """Set up a minimal provider for testing token limits."""
         class TestProvider(LLMProvider):
-            def generate_completion(self, prompt: str, **kwargs):
+            def generate_completion(self, 
+                                prompt: str,
+                                system_prompt: Optional[str] = None,
+                                temperature: float = 0.7,
+                                max_tokens: Optional[int] = None,
+                                **kwargs) -> str:
+                # Simple implementation that just returns test response
                 return "Test response"
                 
         self.provider = TestProvider(
             input_token_limit=100,
             output_token_limit=50,
-            total_token_limit=120
         )
     
     def test_token_limit_checks(self):
         """Test that token limit checks work correctly."""
         # Should start with no tokens
-        self.assertEqual(self.provider.get_total_tokens(), 0)
+        usage = self.provider.get_token_usage()
+        self.assertEqual(usage["input_tokens"], 0)
+        self.assertEqual(usage["output_tokens"], 0)
         
         # Update within limits should work
         self.provider.update_token_usage(50, 25)
-        self.assertTrue(self.provider.check_token_limits())
+        self.assertTrue(self.provider.check_token_limits(prompt="Test prompt", max_tokens=10))
         
         # Verify token counts
         usage = self.provider.get_token_usage()
         self.assertEqual(usage["input_tokens"], 50)
         self.assertEqual(usage["output_tokens"], 25)
-        self.assertEqual(usage["total_tokens"], 75)
         
     def test_input_token_limit_exceeded(self):
         """Test that exceeding input token limit raises error."""
         with self.assertRaises(ValueError) as context:
-            self.provider.update_token_usage(150, 10)
-        self.assertIn("Token limits exceeded", str(context.exception))
+            self.provider.generate(prompt="a" * 404)  # Exceeding input token limit
+        self.assertIn("Estimated input token limit exceeded", str(context.exception))
+        
+        # Should not be able to update token usage if limits are exceeded
+        self.provider.update_token_usage(99, 0)
+        with self.assertRaises(ValueError) as context:
+            self.provider.generate(prompt="a" * 8)
+        self.assertIn("Estimated input token limit exceeded", str(context.exception))
         
     def test_output_token_limit_exceeded(self):
         """Test that exceeding output token limit raises error."""
         with self.assertRaises(ValueError) as context:
-            self.provider.update_token_usage(10, 60)
-        self.assertIn("Token limits exceeded", str(context.exception))
+            self.provider.generate(prompt="a" * 1, max_tokens=100)
+        self.assertIn("Estimated output token limit exceeded", str(context.exception))
         
-    def test_total_token_limit_exceeded(self):
-        """Test that exceeding total token limit raises error."""
+        # Should not be able to update token usage if limits are exceeded
+        self.provider.update_token_usage(0, 100)
         with self.assertRaises(ValueError) as context:
-            self.provider.update_token_usage(80, 45)  # Total would be 125
-        self.assertIn("Token limits exceeded", str(context.exception))
+            self.provider.generate(prompt="a" * 1)
+        self.assertIn("Estimated output token limit exceeded", str(context.exception))
+        
+        
