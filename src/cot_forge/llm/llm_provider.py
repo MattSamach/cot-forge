@@ -26,7 +26,6 @@ class LLMProvider(ABC):
                 rate_limit_exceptions: tuple[Exception] | None = None,
                 input_token_limit: int | None = None,
                 output_token_limit: int | None = None,
-                total_token_limit: int | None = None,
                 ):
         """
         Initialize an LLM provider instance.
@@ -38,7 +37,6 @@ class LLMProvider(ABC):
             rate_limit_exceptions: List of exceptions to retry on.
             input_token_limit: Maximum number of input tokens, for cost control.
             output_token_limit: Maximum number of output tokens, for cost control.
-            total_token_limit: Maximum number of total tokens (input + output).
         """        
         # Retry settings for handling rate limits
         self.retry_settings = {}
@@ -47,10 +45,9 @@ class LLMProvider(ABC):
         if max_retries is not None:
             self.retry_settings["stop"] = tenacity.stop_after_attempt(max_retries)
         self.retry_settings["retry"] = tenacity.retry_if_exception_type(
-            rate_limit_exceptions or [tenacity.RetryError])
+            rate_limit_exceptions or (tenacity.RetryError,))
         self.input_token_limit = input_token_limit
         self.output_token_limit = output_token_limit
-        self.total_token_limit = total_token_limit
         self.input_tokens = 0
         self.output_tokens = 0
         self._lock = RLock()
@@ -70,24 +67,29 @@ class LLMProvider(ABC):
         return {
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
-            "total_tokens": self.input_tokens + self.output_tokens
         }
-        
-    def get_total_tokens(self) -> int:
-        """Calculate the total number of tokens used."""
-        return self.input_tokens + self.output_tokens
-        
-    def check_token_limits(self) -> bool:
+    
+    def estimate_input_tokens(self, prompt: str) -> int:
+        """Estimate the number of input tokens for a given prompt."""
+        return len(prompt) / 4 
+
+    def check_token_limits(self, prompt = None, system_prompt = None, max_tokens = None) -> bool:
         """Check if the token limits are exceeded."""
-        if self.input_token_limit is not None and self.input_tokens > self.input_token_limit:
-            logger.warning(f"Input token limit exceeded: {self.input_tokens} > {self.input_token_limit}")
-            return False
-        if self.output_token_limit is not None and self.output_tokens > self.output_token_limit:
-            logger.warning(f"Output token limit exceeded: {self.output_tokens} > {self.output_token_limit}")
-            return False
-        if self.total_token_limit is not None and (self.get_total_tokens()) > self.total_token_limit:
-            logger.warning(f"Total tokens exceeded: {self.get_total_tokens()} > {self.total_token_limit}")
-            return False
+        # Estimate input token usage
+        input_tokens = int(self.estimate_input_tokens(prompt))
+        
+        # Estimate max allowable output size
+        if not max_tokens and self.output_token_limit is not None:
+            # Calculate max tokens based on output token limit
+            max_tokens = self.output_token_limit - self.output_tokens
+        
+        if self.input_token_limit is not None and self.input_tokens + input_tokens > self.input_token_limit:
+            raise ValueError(f"Estimated input token limit exceeded: {self.input_tokens + input_tokens} > {self.input_token_limit}")
+        elif self.output_token_limit is not None and max_tokens <= 0:
+            raise ValueError(f"Estimated output token limit exceeded: {self.output_tokens + max_tokens} > {self.output_token_limit}")
+        elif self.output_token_limit is not None and self.output_tokens + max_tokens > self.output_token_limit:
+            raise ValueError(f"Estimated output token limit exceeded: {self.output_tokens + max_tokens} > {self.output_token_limit}")
+        
         return True
     
     @abstractmethod
@@ -119,10 +121,13 @@ class LLMProvider(ABC):
                  **kwargs):
         """Tenacity attempts multiple retries of generate text when 
         blocked by rate limit / resource overuse exceptions.
-        Uses the generate_completion method of the subclass LLM provider."""
+        Uses the generate_completion method of the subclass LLM provider.
+        Also checks token limits before generating text.
+        """
         
         @tenacity.retry(**self.retry_settings)
-        def _generate_with_retry():                
+        def _generate_with_retry():
+            self.check_token_limits(prompt, system_prompt, max_tokens)
             return self.generate_completion(prompt, system_prompt, temperature, max_tokens, **kwargs)
         return _generate_with_retry()
     
@@ -134,9 +139,8 @@ class LLMProvider(ABC):
         with self._lock:
             self.input_tokens += input_tokens
             self.output_tokens += output_tokens
-            if not self.check_token_limits():
-                raise ValueError("Token limits exceeded.")
-    
+            logger.debug(f"Token usage updated: {self.input_tokens} input, {self.output_tokens} output") 
+               
     def generate_batch(self,
                        prompts: list[str],
                        temperature: float = 0.7,
@@ -205,12 +209,13 @@ class GeminiLLMProvider(LLMProvider):
                             **kwargs):
         """
         Generate text using the Gemini LLM API.
-        """
+        """        
         config_data = {"system_instruction": system_prompt} if system_prompt else {}
         config_data["temperature"] = temperature
         config_data["max_output_tokens"] = max_tokens
         config_data.update(kwargs)
-            
+        
+        # Generate content using the Gemini API    
         response = self.client.models.generate_content(
             model=self.model_name,
             config=self.types.GenerateContentConfig(
