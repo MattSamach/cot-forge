@@ -7,8 +7,8 @@ It uses the `tenacity` library for retrying failed requests.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 from threading import RLock
+from typing import Optional
 
 import tenacity
 
@@ -84,11 +84,11 @@ class LLMProvider(ABC):
             max_tokens = self.output_token_limit - self.output_tokens
         
         if self.input_token_limit is not None and self.input_tokens + input_tokens > self.input_token_limit:
-            raise ValueError(f"Estimated input token limit exceeded: {self.input_tokens + input_tokens} > {self.input_token_limit}")
-        elif self.output_token_limit is not None and max_tokens <= 0:
-            raise ValueError(f"Estimated output token limit exceeded: {self.output_tokens + max_tokens} > {self.output_token_limit}")
-        elif self.output_token_limit is not None and self.output_tokens + max_tokens > self.output_token_limit:
-            raise ValueError(f"Estimated output token limit exceeded: {self.output_tokens + max_tokens} > {self.output_token_limit}")
+            raise ValueError("Estimated input token limit exceeded")
+        elif self.output_token_limit is not None and \
+                (max_tokens <= 0 or self.output_tokens + max_tokens > self.output_token_limit):
+            raise ValueError("Estimated output token limit exceeded")
+            
         
         return True
     

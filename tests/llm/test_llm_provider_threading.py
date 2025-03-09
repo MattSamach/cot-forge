@@ -1,8 +1,7 @@
-import unittest
-from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
-from unittest.mock import patch, MagicMock
+import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from cot_forge.llm.llm_provider import LLMProvider
 
@@ -20,7 +19,11 @@ class TestLLMProviderThreading(unittest.TestCase):
                 )
                 self.call_count = 0
                 
-            def generate_completion(self, prompt, system_prompt=None, temperature=0.7, max_tokens=None, **kwargs):
+            def generate_completion(self,
+                                    prompt,
+                                    system_prompt=None,
+                                    temperature=0.7,
+                                    max_tokens=None, **kwargs):
                 # Simulate token usage for testing
                 input_tokens = len(prompt.split())
                 # Generate fewer output tokens to stay within limits
@@ -52,7 +55,7 @@ class TestLLMProviderThreading(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = [executor.submit(self.test_provider.generate, prompt) for prompt in prompts]
             
-            # Wait for all futures to complete
+            # Wait for all futures to completej
             for future in futures:
                 future.result()
         
@@ -92,7 +95,8 @@ class TestLLMProviderThreading(unittest.TestCase):
             futures = [executor.submit(process_prompt, prompt) for prompt in prompts]
             
             # Wait for all futures to complete
-            results = [future.result() for future in futures]
+            for future in futures:
+                future.result()
         
         # Verify some succeeded and others failed due to limit
         self.assertGreater(success_count, 0)
@@ -153,7 +157,8 @@ class TestLLMProviderThreading(unittest.TestCase):
         # Run concurrent updates with lock
         with ThreadPoolExecutor(max_workers=threads) as executor:
             futures = [
-                executor.submit(lambda: self.test_provider.update_token_usage(input_per_thread, output_per_thread)) 
+                executor.submit(lambda: self.test_provider.update_token_usage(input_per_thread,
+                                                                              output_per_thread)) 
                 for _ in range(threads)
             ]
             for future in futures:

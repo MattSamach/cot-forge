@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.cot_builder import CoTBuilder
-from cot_forge.reasoning.types import SearchResult, ReasoningNode
 from cot_forge.reasoning.strategies import StrategyRegistry
+from cot_forge.reasoning.types import ReasoningNode, SearchResult
 
 
 class TestCoTBuilder(unittest.TestCase):
