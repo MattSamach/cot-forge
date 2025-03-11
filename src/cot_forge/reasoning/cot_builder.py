@@ -14,7 +14,7 @@ from cot_forge.llm import LLMProvider
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
-
+# TODO: Give options to assign different LLMs to different roles (e.g. reasoner, verifier, scorer)
 class CoTBuilder:
     """
     This class contains states and logic to use LLMs to construct 

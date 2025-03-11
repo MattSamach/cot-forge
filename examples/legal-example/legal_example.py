@@ -19,7 +19,7 @@ The key legal issues presented in the case are:
 2. "Do the provisions of section 1042 of the Revised Statutes have any force in the territory of Alaska, in view of the sections of the Compiled Laws of Alaska regarding imprisonment for non-payment of fines?" 
 """
 
-llm = GeminiLLMProvider(api_key="AIzaSyBnavXjXB9AjF5Fs51IJNzD-SQI_3iBZhg")
+llm = GeminiLLMProvider(api_key="fake_api_key")
 
 builder = CoTBuilder(
     llm=llm,

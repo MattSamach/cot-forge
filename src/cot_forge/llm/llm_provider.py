@@ -86,7 +86,7 @@ class LLMProvider(ABC):
         if self.input_token_limit is not None and self.input_tokens + input_tokens > self.input_token_limit:
             raise ValueError("Estimated input token limit exceeded")
         elif self.output_token_limit is not None and \
-                (max_tokens <= 0 or self.output_tokens + max_tokens > self.output_token_limit):
+            (max_tokens <= 0 or self.output_tokens + max_tokens > self.output_token_limit):
             raise ValueError("Estimated output token limit exceeded")
             
         
