@@ -49,13 +49,17 @@ def extract_final_answer_from_str(response: str) -> str:
     
 def extract_final_answer_from_cot(data: list[dict]) -> str:
     """Extract the final answer from a cot."""
+    # Handle error case where data is not a list
+    if not isinstance(data, list):
+        return None
+        
     try:
         for item in reversed(data):
             if item.get("action") == "Final Conclusion":
                 return item.get("content", "")
             
-    except KeyError as err:
-        logger.error(f"Key error: {err}")
+    except (KeyError, AttributeError) as err:
+        logger.error(f"Error extracting final answer: {err}")
         return None
     
     return None
