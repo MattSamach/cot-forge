@@ -177,7 +177,7 @@ class StrategyRegistry:
 @dataclass(frozen=True)
 class InitializeCoT(Strategy):
     "Required strategy that kicks off CoT generation"
-    name: ClassVar[str] = "intialize"
+    name: ClassVar[str] = "initialize"
     description: ClassVar[str] = "initialize the chain of thought"
     is_initial: ClassVar[bool] = True
     
