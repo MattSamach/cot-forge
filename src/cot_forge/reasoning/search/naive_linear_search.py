@@ -12,10 +12,12 @@ import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
+from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
+                                            default_strategy_registry)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
-from cot_forge.reasoning.verifiers import default_verifier
+from cot_forge.reasoning.verifiers import default_verifier, BaseVerifier
 from cot_forge.utils.parsing import extract_cot, extract_final_answer_from_cot
+from cot_forge.utils.search_utils import create_error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +33,8 @@ def random_strategy_selector(
         strategy_names = [name for name in strategy_names 
                          if not registry.get_strategy(name).is_initial]
     else:
-        # First step must be an initial strategy
-        strategy_names = [name for name in strategy_names 
-                         if registry.get_strategy(name).is_initial]
+        # First step must be the initial strategy
+        strategy_names = ["initialize"]
         
     if not strategy_names:
         step_type = "initial" if node is None else "continuation"
@@ -48,7 +49,7 @@ def naive_linear_search(
     question: str,
     ground_truth_answer: str,
     llm_provider: LLMProvider,
-    verifier = default_verifier,
+    verifier: BaseVerifier = default_verifier,
     strategy_registry: StrategyRegistry = default_strategy_registry,
     llm_kwargs: dict[str, Any] = None,
     **kwargs
@@ -69,6 +70,9 @@ def naive_linear_search(
         A SearchResult containing the chain of thought and metadata.
     """
     
+    # Helper functions to manage errors
+    handle_error = create_error_handler(logger)
+
     # Get max_depth either from kwargs or default to 3
     max_depth = kwargs.get("max_depth", 3)
     
@@ -77,39 +81,28 @@ def naive_linear_search(
     for depth in range(max_depth):
         # Select next strategy
         strategy = random_strategy_selector(current_node, strategy_registry)
+        print(strategy)
         
         # Build prompt based on selected strategy
         current_cot = current_node.cot if current_node else None
         prompt = strategy.build_prompt(question, str(current_cot))
         
         # Generate response. Case where response generation fails, return failure response
-        try:
-            response = llm_provider.generate(
-                prompt=prompt, 
-                **(llm_kwargs or {})
-            )
-        except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            return SearchResult(
-                final_node=current_node,
-                all_terminal_nodes=[current_node],
-                success=False,
-                final_answer=None,
-                metadata={"error": str(e), "depth": depth}
-            )
-        
-        # Case where parsing cot fails, return failure response
-        try:
-            cot = extract_cot(response)
-        except Exception as e:
-            logger.error(f"Error extracting CoT: {e}")
-            return SearchResult(
-                final_node=current_node,
-                all_terminal_nodes=[current_node],
-                success=False,
-                final_answer=None,
-                metadata={"error": str(e), "depth": depth}
-            )
+        response = handle_error(func=llm_provider.generate,
+                                node=current_node,
+                                metadata={"depth": depth},
+                                prompt=prompt,
+                                llm_kwargs=llm_kwargs)
+        if isinstance(response, dict) and "success" in response and not response["success"]:
+            return response
+            
+        # Extract CoT from response with error handling
+        cot = handle_error(func=extract_cot,
+                           node=current_node,
+                           metadata={"depth": depth},
+                           response=response)
+        if isinstance(cot, dict) and "success" in cot and not cot["success"]:
+            return cot
         
         # Create new reasoning node and incorporate into graph
         previous_node = current_node if current_node else None    
