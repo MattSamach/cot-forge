@@ -235,6 +235,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
             verifier=mock_verifier
         )
         
+        print('HOWDY', result)
+
         # Check result indicates failure
         self.assertFalse(result['success'])
         self.assertEqual(len(result['all_terminal_nodes']), 1)
@@ -261,7 +263,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             llm_provider=mock_llm_provider,
             verifier=mock_verifier
         )
-        
+                                
         # Check result indicates failure
         self.assertFalse(result['success'])
         self.assertEqual(len(result['all_terminal_nodes']), 1)

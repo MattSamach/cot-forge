@@ -30,7 +30,7 @@ class TestStrategy:
         # Test metadata retrieval
         metadata = InitializeCoT.get_metadata()
         
-        assert metadata["name"] == "intialize"
+        assert metadata["name"] == "initialize"
         assert metadata["description"] == "initialize the chain of thought" 
         assert metadata["is_initial"]
         
@@ -74,7 +74,7 @@ class TestStrategyRegistry:
         # Test creating a registry with initial strategies
         registry = StrategyRegistry([InitializeCoT, Backtrack])
         assert len(registry._strategies) == 2
-        assert registry.get_strategy("intialize") == InitializeCoT
+        assert registry.get_strategy("initialize") == InitializeCoT
         assert registry.get_strategy("backtrack") == Backtrack
         
     def test_register_decorator(self):
@@ -106,7 +106,7 @@ class TestStrategyRegistry:
         # Test getting strategies by name
         registry = StrategyRegistry([InitializeCoT])
         
-        assert registry.get_strategy("intialize") == InitializeCoT
+        assert registry.get_strategy("initialize") == InitializeCoT
         assert registry.get_strategy("non_existent") is None
         
     def test_list_strategies(self):
@@ -115,7 +115,7 @@ class TestStrategyRegistry:
         
         strategy_names = registry.list_strategies()
         assert len(strategy_names) == 2
-        assert "intialize" in strategy_names
+        assert "initialize" in strategy_names
         assert "backtrack" in strategy_names
         
     def test_get_all_strategies_metadata(self):
@@ -124,7 +124,7 @@ class TestStrategyRegistry:
         
         metadata = registry.get_all_strategies_metadata()
         assert len(metadata) == 2
-        assert metadata["intialize"]["is_initial"]
+        assert metadata["initialize"]["is_initial"]
         assert not metadata["backtrack"]["is_initial"]
         
     def test_remove_strategy(self):
@@ -146,7 +146,7 @@ class TestStrategyRegistry:
 class TestDefaultRegistry:
     def test_default_registry_initialization(self):
         # Test that default registry is properly initialized with default strategies
-        assert default_strategy_registry.get_strategy("intialize") is not None
+        assert default_strategy_registry.get_strategy("initialize") is not None
         assert default_strategy_registry.get_strategy("backtrack") is not None
         assert default_strategy_registry.get_strategy("explore_new_paths") is not None
         assert default_strategy_registry.get_strategy("correction") is not None
