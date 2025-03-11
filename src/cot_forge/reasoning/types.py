@@ -34,7 +34,7 @@ class ReasoningNode:
 
 class SearchResult(TypedDict):
     """Represents the result of a search algorithm."""
-    final_node: ReasoningNode
+    final_node: ReasoningNode | None
     all_terminal_nodes: list[ReasoningNode] | None
     success: bool
     final_answer: Optional[str]

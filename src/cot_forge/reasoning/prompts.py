@@ -54,8 +54,12 @@ correction_strategy_prompt = "Refine the reasoning by making precise **correctio
 validation_strategy_prompt = "Refine the reasoning by conducting a thorough **validation** process to ensure validity."
 
 # Additional strategy prompts
-perspective_shift_strategy_prompt = "Refine the reasoning by adopting multiple **different perspectives** (expert, novice, critic, etc.) to analyze the problem from various angles."
-analogical_reasoning_prompt = "Refine the reasoning by using **analogies or metaphors** to map the problem to a better-understood domain, then transfer insights back to the original problem."
-decomposition_strategy_prompt = "Refine the reasoning by **breaking down the problem** into smaller, more manageable sub-problems, solving each one systematically."
-counterfactual_strategy_prompt = "Refine the reasoning by exploring **what-if scenarios** and considering how outcomes might change under different conditions or assumptions."
-first_principles_strategy_prompt = "Refine the reasoning by breaking down the problem into its **fundamental principles** and building a solution from the ground up."
+# Additional strategy prompts - revised for iteration emphasis
+perspective_shift_strategy_prompt = "Refine the existing reasoning by **re-examining your prior conclusions** from multiple perspectives (expert, novice, critic)."
+analogical_reasoning_prompt = "Continuing from your previous chain of thought, use **analogies or metaphors** to reinterpret challenging aspects of your reasoning."
+decomposition_strategy_prompt = "Building on your work so far, identify any complex remaining issues and **break them down into smaller sub-problems**. Address these components while preserving the valid portions of your previous reasoning."
+counterfactual_strategy_prompt = "Use counterfactuals to test the robustness of your reasoning by exploring **what-if scenarios** for any questionable assumptions or conclusions. Use these counterfactuals to refine your analysis."
+first_principles_strategy_prompt = "Examine your existing reasoning chain to identify which underlying **foundational principles** need reconsideration. Revise those specific elements while building upon the valid aspects of your prior work."
+progressive_refinement_prompt = "Refine your reasoning through **progressive approximation**, keeping what works while making increasingly subtle adjustments to the problematic elements."
+constraint_analysis_prompt = "Build upon your existing reasoning by identifying and **temporarily relaxing key constraints** that may be limiting your analysis, then reincorporating them with newfound insights."
+evidence_reweighting_prompt = "Review your reasoning chain and **reassess the relative importance** of different pieces of evidence, adjusting your conclusions based on this reweighted analysis."
