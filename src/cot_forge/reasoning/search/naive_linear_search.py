@@ -7,9 +7,6 @@ Logical flow:
 3. Continue until verifier returns true or max depth is reached.
 """
 
-#TODO: Checker for at what depth different strategies are available
-#TODO: Sort out depth tracking
-
 import logging
 import random
 from typing import Any
@@ -80,6 +77,7 @@ def naive_linear_search(
     # Helper functions to manage errors
     handle_error = create_error_handler(logger)
 
+    # TODO: Figure out how to get out of kwargs into function parameters
     # Get max_depth either from kwargs or default to 3
     max_depth = kwargs.get("max_depth", 3)
     

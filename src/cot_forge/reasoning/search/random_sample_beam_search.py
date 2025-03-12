@@ -27,8 +27,7 @@ from cot_forge.reasoning.strategies import (InitializeCoT, Strategy,
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier, default_verifier
 from cot_forge.utils.parsing import extract_cot, extract_final_answer_from_cot
-from cot_forge.utils.search_utils import (create_error_handler,
-                                          intialize_blank_node)
+from cot_forge.utils.search_utils import (intialize_blank_node)
 
 logger = logging.getLogger(__name__)
 
