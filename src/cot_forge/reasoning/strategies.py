@@ -83,7 +83,7 @@ class Strategy:
     
     @classmethod
     def build_prompt(cls,
-                     question: str, 
+                     question: str,
                      previous_cot: str | None = None) -> str:
         """
         Dynamically build the prompt with strategy prompt template.

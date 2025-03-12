@@ -88,8 +88,8 @@ def naive_linear_search(
         strategy = random_strategy_selector(current_node, strategy_registry, depth)
         
         # Build prompt based on selected strategy
-        current_cot = current_node.cot if current_node else None
-        prompt = strategy.build_prompt(question, str(current_cot))
+        full_cot = current_node.get_full_cot() if current_node else None
+        prompt = strategy.build_prompt(question, str(full_cot))
         
         # Generate response. Case where response generation fails, return failure response
         response = handle_error(func=llm_provider.generate,
@@ -129,6 +129,9 @@ def naive_linear_search(
             llm_provider=llm_provider,
             llm_kwargs=llm_kwargs or {}
         )
+        
+        # DEBUG
+        # verification_result, explanation = False, "Verification unsuccessful"
         
         # Append the verification explanation to the node's cot
         current_node.cot.append({"action": "verification", "content": explanation})

@@ -38,7 +38,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             llm_provider=mock_llm_provider,
             verifier=mock_verifier
         )
-                
+                        
         # Verify LLM was called with correct parameters
         mock_llm_provider.generate.assert_called_once()
         # Check the prompt contains the question
@@ -300,7 +300,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertFalse(result['success'])
         all(
             node.metadata.get('warning') == 'missing_final_conclusion' 
-            for node in result['final_node'].get_full_chain()
+            for node in result['final_node'].get_full_node_chain()
         )
         self.assertIsNone(result['final_answer'])
         # Chain should have gone to max depth

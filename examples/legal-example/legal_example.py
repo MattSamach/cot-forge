@@ -34,7 +34,7 @@ builder = CoTBuilder(
 def main():
     search_result = builder.build(question=legal_facts_question,
                         ground_truth_answer=ground_truth_answer,
-                        max_depth=4)
+                        max_depth=2)
     return search_result
 
 if __name__ == "__main__":
