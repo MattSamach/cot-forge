@@ -79,7 +79,7 @@ class LLMJudgeVerifier(BaseVerifier):
 
         except Exception as e:
             logger.error(f"Error during verification: {e}")
-            return False
+            return False, None
 
 # Create a default instance for easy importing
 default_verifier = LLMJudgeVerifier()
