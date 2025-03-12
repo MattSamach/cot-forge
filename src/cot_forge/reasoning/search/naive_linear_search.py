@@ -122,12 +122,20 @@ def naive_linear_search(
             previous_node.add_child(current_node)
         
         # Check for success condition by verifier
-        continue
-        if verifier.verify(node=current_node,
-                           question=question,
-                           ground_truth_answer=ground_truth_answer,
-                           llm_provider=llm_provider,
-                           llm_kwargs=llm_kwargs or {}):
+        verification_result, explanation = verifier.verify(
+            node=current_node,
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            llm_provider=llm_provider,
+            llm_kwargs=llm_kwargs or {}
+        )
+        
+        verification_result, explanation = False, "Verification failed because key elements were missing."
+        # Append the verification explanation to the node's cot
+        current_node.cot.append({"action": "verification", "content": explanation})
+        
+        # If verification is successful, return the result
+        if verification_result:
             return SearchResult(
                 final_node=current_node,
                 all_terminal_nodes=[current_node],
