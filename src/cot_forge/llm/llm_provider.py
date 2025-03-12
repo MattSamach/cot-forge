@@ -213,7 +213,8 @@ class GeminiLLMProvider(LLMProvider):
         config_data = {"system_instruction": system_prompt} if system_prompt else {}
         config_data["temperature"] = temperature
         config_data["max_output_tokens"] = max_tokens
-        config_data.update(kwargs)
+        llm_kwargs = kwargs.get("llm_kwargs", {})
+        config_data.update(llm_kwargs)
         
         # Generate content using the Gemini API    
         response = self.client.models.generate_content(

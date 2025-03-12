@@ -45,7 +45,7 @@ class CoTBuilder:
     def build(self,
               question: str,
               ground_truth_answer: str,
-              llm_kwargs: dict[str, Any] | None = None,
+              llm_kwargs: dict[str, Any] = {},
               **kwargs) -> SearchResult:
         """
         Execute the search algorithm to build a CoT.
