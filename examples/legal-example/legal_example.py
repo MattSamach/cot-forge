@@ -1,5 +1,8 @@
+import os
+
 from cot_forge.llm import GeminiLLMProvider
-from cot_forge.reasoning import CoTBuilder, default_strategy_registry, naive_linear_search
+from cot_forge.reasoning import (CoTBuilder, default_strategy_registry,
+                                 naive_linear_search)
 
 legal_facts_question = """
 Below are the facts of a legal case. Based on these facts, please answer the following question:
@@ -19,7 +22,8 @@ The key legal issues presented in the case are:
 2. "Do the provisions of section 1042 of the Revised Statutes have any force in the territory of Alaska, in view of the sections of the Compiled Laws of Alaska regarding imprisonment for non-payment of fines?" 
 """
 
-llm = GeminiLLMProvider(api_key="fake_api_key")
+api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
+llm = GeminiLLMProvider(api_key=api_key)
 
 builder = CoTBuilder(
     llm=llm,
