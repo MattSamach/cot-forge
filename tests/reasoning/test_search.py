@@ -26,14 +26,10 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 {
                     "action": "Final Conclusion",
                     "content": "The answer is 4."
-                },
-                {
-                    "action": "Verification",
-                    "content": "The answer is correct because 2 + 2 = 4."
                 }
             ]
         }"""
-        mock_verifier.verify.return_value = True
+        mock_verifier.verify.return_value = True, "The answer is correct."
 
         # Run the search algorithm
         result = naive_linear_search(
@@ -42,7 +38,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             llm_provider=mock_llm_provider,
             verifier=mock_verifier
         )
-        
+                
         # Verify LLM was called with correct parameters
         mock_llm_provider.generate.assert_called_once()
         # Check the prompt contains the question
@@ -87,7 +83,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 }
             ]
         }"""
-        mock_verifier.verify.return_value = False
+        mock_verifier.verify.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with default max_depth=1
         result = naive_linear_search(
@@ -122,10 +118,6 @@ class TestNaiveLinearSearch(unittest.TestCase):
                     {
                         "action": "Final Conclusion",
                         "content": "The answer is 5."
-                    },
-                    {
-                        "action": "Verification",
-                        "content": "The answer is correct because 2 + 2 = 5."
                     }
                 ]
             }""",
@@ -139,16 +131,15 @@ class TestNaiveLinearSearch(unittest.TestCase):
                     {
                         "action": "Final Conclusion",
                         "content": "The answer is 4."
-                    },
-                    {
-                        "action": "Verification",
-                        "content": "The answer is correct because 2 + 2 = 4."
                     }
                 ]
             }"""
         ]
         mock_llm_provider.generate.side_effect = mock_responses
-        mock_verifier.verify.side_effect = [False, True]
+        mock_verifier.verify.side_effect = [
+            (False, "The answer is incorrect."),
+            (True, "The answer is correct.")
+            ]
 
         # Run the search algorithm with max_depth=2
         result = naive_linear_search(
@@ -196,7 +187,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             ]
         }"""
         mock_llm_provider.generate.return_value = incorrect_response
-        mock_verifier.verify.return_value = False
+        mock_verifier.verify.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with max_depth=3
         result = naive_linear_search(
@@ -235,8 +226,6 @@ class TestNaiveLinearSearch(unittest.TestCase):
             verifier=mock_verifier
         )
         
-        print('HOWDY', result)
-
         # Check result indicates failure
         self.assertFalse(result['success'])
         self.assertEqual(len(result['all_terminal_nodes']), 1)
