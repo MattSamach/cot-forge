@@ -42,13 +42,15 @@ class Strategy:
         name (str): Name of the strategy.
         description (str): Description of the strategy.
         is_initial (bool): Indicates if this is an initial strategy.
+        minimum_depth (int): Minimum depth required for this strategy.
     """
     name: ClassVar[str]
     description: ClassVar[str]
     is_initial: ClassVar[bool]
+    minimum_depth: ClassVar[int] = 0
     
     @classmethod
-    def create_strategy(cls, name: str, description: str, is_initial: bool = False):
+    def create_strategy(cls, name: str, description: str, is_initial: bool = False, minimum_depth: int = 0) -> type['Strategy']:
         """
         Factory method to create custom Strategy subclasses.
         
@@ -58,6 +60,7 @@ class Strategy:
             name="explore_alternatives",
             description="Explore alternative approaches to the problem",
             is_initial=False
+            minimum_depth=2
         )
         
         print(ExploreAlternatives.build_prompt("What is the capital of France?"))
@@ -67,6 +70,7 @@ class Strategy:
             "name": name,
             "description": description,
             "is_initial": is_initial,
+            "minimum_depth": minimum_depth,
             "__doc__": description
         })
     
@@ -74,7 +78,8 @@ class Strategy:
     def get_metadata(cls) -> dict[str, Any]:
         return {"name": cls.name, 
                 "description": cls.description, 
-                "is_initial": cls.is_initial}
+                "is_initial": cls.is_initial,
+                "minimum_depth": cls.minimum_depth}
     
     @classmethod
     def build_prompt(cls,
@@ -139,7 +144,9 @@ class StrategyRegistry:
     
     def create_and_register(self, name: str, 
                             description: str, 
-                            is_initial: bool = False) -> Strategy:
+                            is_initial: bool = False, 
+                            minimum_depth: int = 0
+                            ) -> Strategy:
         """
         Create and register a new strategy at the same time.
 
@@ -149,11 +156,12 @@ class StrategyRegistry:
         registry.create_and_register(
             name="explore_alternatives",
             description="Explore alternative approaches to the problem",
-            is_initial=False
+            is_initial=False,
+            minimum_depth=2
         )
         ```
         """
-        strategy = Strategy.create_strategy(name, description, is_initial)
+        strategy = Strategy.create_strategy(name, description, is_initial, minimum_depth)
         self._strategies[name] = strategy
         return strategy
     
@@ -189,6 +197,7 @@ class Backtrack(Strategy):
     name: ClassVar[str] = "backtrack"
     description: ClassVar[str] = prompts.backtrack_strategy_prompt
     is_initial: ClassVar[bool] = False
+    minimum_depth: ClassVar[int] = 2
     
 @dataclass(frozen=True)
 class ExploreNewPaths(Strategy):

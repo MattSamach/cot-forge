@@ -26,15 +26,19 @@ logger = logging.getLogger(__name__)
 
 def random_strategy_selector(
     node: ReasoningNode,
-    registry: StrategyRegistry
+    registry: StrategyRegistry,
+    depth: int = 0
 ) -> Strategy:
     """Select a random strategy from the registry."""
     strategy_names = registry.list_strategies()
     
     # Filter out initial strategies if not the first step
     if node:
-        strategy_names = [name for name in strategy_names 
-                         if not registry.get_strategy(name).is_initial]
+        strategy_names = [
+            name for name in strategy_names 
+            if not registry.get_strategy(name).is_initial
+            and depth >= registry.get_strategy(name).minimum_depth
+        ]
     else:
         # First step must be the initial strategy
         strategy_names = ["initialize"]
@@ -83,7 +87,7 @@ def naive_linear_search(
     
     for depth in range(max_depth):
         # Select next strategy
-        strategy = random_strategy_selector(current_node, strategy_registry)
+        strategy = random_strategy_selector(current_node, strategy_registry, depth)
         
         # Build prompt based on selected strategy
         current_cot = current_node.cot if current_node else None
@@ -120,6 +124,7 @@ def naive_linear_search(
             previous_node.add_child(current_node)
         
         # Check for success condition by verifier
+        continue
         if verifier.verify(node=current_node,
                            question=question,
                            ground_truth_answer=ground_truth_answer,
