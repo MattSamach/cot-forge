@@ -1,4 +1,8 @@
-# src/cot_forge/reasoning/verifiers/llm_verifiers.py
+"""
+This module contains LLM verifiers that use a language model to verify the correctness of answers.
+The LLMJudgeVerifier class is a specific implementation that uses 
+an LLM to judge the correctness of an answer.
+"""
 import logging
 from typing import Any
 

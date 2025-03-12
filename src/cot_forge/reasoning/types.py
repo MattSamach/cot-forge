@@ -6,7 +6,7 @@ from cot_forge.reasoning.strategies import Strategy
 class ReasoningNode:
     """A node in the reasoning graph/tree/chain."""
     def __init__(self, 
-                 strategy: Strategy,
+                 strategy: Strategy | None,
                  prompt: str,
                  response: str,
                  cot: dict[str, Any] | None = None,

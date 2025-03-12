@@ -20,6 +20,8 @@ class BaseVerifier(ABC):
                 node: ReasoningNode,
                 question: str,
                 ground_truth_answer: str,
+                llm_provider: LLMProvider | None,
+                llm_kwargs: dict[str, Any] | None,
                 **kwargs: Any) -> bool:
         """Verify if the answer is correct."""
         pass
@@ -28,7 +30,8 @@ class BaseVerifier(ABC):
                  node: ReasoningNode,
                  question: str,
                  ground_truth_answer: str,
-                 llm_provider: LLMProvider,
+                 llm_provider: LLMProvider = None,
+                 llm_kwargs: dict[str, Any] = None,
                  **kwargs: Any) -> bool:
         """Call the verify method."""
-        return self.verify(node, question, ground_truth_answer, **kwargs)
+        return self.verify(node, question, ground_truth_answer, llm_provider, llm_kwargs, **kwargs)

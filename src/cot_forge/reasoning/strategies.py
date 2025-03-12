@@ -24,6 +24,8 @@ class MyCustomStrategy(Strategy):
 ```
 """
 
+# TODO: Add depth requirements to strategies
+
 from dataclasses import dataclass
 from typing import Any, ClassVar, Optional
 

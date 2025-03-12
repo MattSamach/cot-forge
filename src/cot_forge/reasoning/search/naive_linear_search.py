@@ -7,6 +7,9 @@ Logical flow:
 3. Continue until verifier returns true or max depth is reached.
 """
 
+#TODO: Checker for at what depth different strategies are available
+#TODO: Sort out depth tracking
+
 import logging
 import random
 from typing import Any
@@ -81,7 +84,6 @@ def naive_linear_search(
     for depth in range(max_depth):
         # Select next strategy
         strategy = random_strategy_selector(current_node, strategy_registry)
-        print(strategy)
         
         # Build prompt based on selected strategy
         current_cot = current_node.cot if current_node else None
