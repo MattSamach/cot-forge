@@ -130,7 +130,6 @@ def naive_linear_search(
             llm_kwargs=llm_kwargs or {}
         )
         
-        verification_result, explanation = False, "Verification failed because key elements were missing."
         # Append the verification explanation to the node's cot
         current_node.cot.append({"action": "verification", "content": explanation})
         

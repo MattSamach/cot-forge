@@ -32,12 +32,11 @@ builder = CoTBuilder(
 )
 
 def main():
-    cot = builder.build(question=legal_facts_question,
+    search_result = builder.build(question=legal_facts_question,
                         ground_truth_answer=ground_truth_answer,
                         max_depth=4)
-    return cot
+    return search_result
 
 if __name__ == "__main__":
-    cot = main()
-    print(cot)
-    
+    search_result = main()
+    print(search_result)
