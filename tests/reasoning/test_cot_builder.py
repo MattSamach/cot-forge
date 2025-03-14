@@ -5,6 +5,7 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.cot_builder import CoTBuilder
 from cot_forge.reasoning.strategies import StrategyRegistry
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
+from cot_forge.reasoning.verifiers import default_verifier
 
 
 class TestCoTBuilder(unittest.TestCase):
@@ -58,6 +59,8 @@ class TestCoTBuilder(unittest.TestCase):
             llm_provider=self.mock_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.mock_strategy_reg,
+            verifier=default_verifier,
+            scorer=None,
             max_depth=3,
             custom_param='value'
         )

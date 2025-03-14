@@ -6,11 +6,13 @@ Branching factor options are chosen at random.
 
 Logical flow:
 1. Initialize the chain with an initial cot.
-2. Randomly select beam_width x branching_factor strategies from the registry.
-3. Use a scoring mechanism to select the most promising paths.
-4. Expand each beam by choosing the best strategy for the current node.
-5. Continue until a termination condition is met or max depth is reached.
-6. Return the best chain(s) found.
+2. Initialize beams with distinct strategies (only reuse if beam_width > number_available_strategies).
+3. Generate the next step in the reasoning chain using a strategy.
+4. Use a scoring mechanism to select the most promising paths.
+5. Check if the generated chain is valid using a verifier. If valid, mark it as final.
+6. Expand each beam by choosing the best strategy for the current node.
+7. Continue until a termination condition is met or max depth is reached.
+8. Return all beams.
 """
 #TODO: Experiment with multithreading in beam generation
 
@@ -32,9 +34,8 @@ logger = logging.getLogger(__name__)
 
 def get_strategy_options(
     registry: StrategyRegistry,
+    depth: int,
     branching_factor: int = None,
-    depth: int = None,
-    **kwargs: Any,
 ) -> list[Strategy]:
     """
     Selects a set of strategies options for a beam to consider.
@@ -100,14 +101,14 @@ def initialize_cot(
         )
     except Exception as e:
         logger.error(f"Error in generating initial response: {e}")
-        return None
+        raise ValueError("Failed to generate initial response")
         
     current_node.response = response
         
     try:
         cot = extract_cot(response)
     except Exception as e:
-        return None
+        raise ValueError(f"Failed to extract CoT from response: {e}")
     
     current_node.cot = cot
     
@@ -174,42 +175,47 @@ def initialize_beams(initial_node: ReasoningNode,
     strategies_tracker = defaultdict(dict)
     for strat_name in strategy_options:
         strategy = strategy_registry.get_strategy(strat_name)
-        response, cot, prompt = generate_cot(
-            node=initial_node,
-            strategy=strategy,
-            llm_provider=llm_provider,
-            llm_kwargs=llm_kwargs
-        )
-        # If response or cot is None, indicates an error. Skip this option.
-        if response is None or cot is None:
+        try:
+            response, cot, prompt = generate_cot(
+                node=initial_node,
+                strategy=strategy,
+                llm_provider=llm_provider,
+                llm_kwargs=llm_kwargs
+            )
+        except Exception as e:
+            logger.error(f"Error in generating response: {e}")
             continue
+
         # Store the strategy, response, and cot in the strategies tracker
         strategies_tracker[strat_name]['response'] = response
         strategies_tracker[strat_name]['cot'] = cot
         strategies_tracker[strat_name]['prompt'] = prompt
         strategies_tracker[strat_name]['strategy'] = strategy
         
-    # Score all options at once
     if not strategies_tracker:
         logger.error("No valid strategies found")
-        return []
+        raise ValueError("No valid strategies found")
 
     # Create cot_list in the format expected by the scorer
     cot_list = [
             {"strategy_name": strat_name, "cot": strat_data['cot']}
             for strat_name, strat_data in strategies_tracker.items()
         ]
-                
+
     # Score each option using the provided scorer
     # scores should be dictionary of form {"strategy_name": score...}
-    scores = scorer(
-        cot_list=cot_list,
-        question=question,
-        ground_truth_answer=ground_truth_answer,
-        llm_provider=llm_provider,
-        llm_kwargs=llm_kwargs
-    )
-    
+    try:
+        scores = scorer(
+            cot_list=cot_list,
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            llm_provider=llm_provider,
+            llm_kwargs=llm_kwargs
+        )
+    except Exception as e:
+        logger.error(f"Error in scoring: {e}")
+        raise ValueError("Failed to score strategies")
+
     # Update scores
     for name, score in scores.items():
         strategies_tracker[name]['score'] = score
@@ -227,7 +233,7 @@ def initialize_beams(initial_node: ReasoningNode,
         if i >= len(sorted_strategies):
             i = 0
             
-    # Create beams with blank nodes and initial node as parent
+    # Create beams with initial node as parent
     beams = []
     for strategy_name in selected_strategies:
         strat_data = strategies_tracker[strategy_name]
@@ -244,13 +250,18 @@ def initialize_beams(initial_node: ReasoningNode,
         
     # Check if the new node is a terminal node with verifier
     for beam in beams:
-        verification_result, explanation = verifier(
-            node=beam,
-            question=question,
-            ground_truth_answer=ground_truth_answer,
-            llm_provider=llm_provider,
-            llm_kwargs=llm_kwargs or {}
-        )
+        try:
+            verification_result, explanation = verifier(
+                node=beam,
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                llm_provider=llm_provider,
+                llm_kwargs=llm_kwargs or {}
+            )
+        except Exception as e:
+            logger.error(f"Error in verification: {e}")
+            verification_result = False
+            explanation = ""
             
         # Append the verification explanation to the node's cot
         beam.cot.append({"action": "verification", "content": explanation})
@@ -258,10 +269,9 @@ def initialize_beams(initial_node: ReasoningNode,
         # If verification is successful, mark the node as final
         # and add it to the terminal nodes
         if verification_result:
-            beam.is_success = True
+            beam.success = True
             beam.is_final = True
-            continue
-        
+
     return beams
 
 def simple_beam_search(
@@ -272,7 +282,9 @@ def simple_beam_search(
     verifier: BaseVerifier = default_verifier,
     strategy_registry: StrategyRegistry = default_strategy_registry,
     llm_kwargs: dict[str, Any] = None,
-    **kwargs
+    max_depth: int = 3,
+    beam_width: int = 3,
+    branching_factor: int = 2,
 ) -> SearchResult:
     """
     Perform a beam search to generate possible chains of thought.
@@ -285,29 +297,21 @@ def simple_beam_search(
         verifier: The verifier to use for checking correctness of final answers.
         strategy_registry: Registry of available strategies.
         llm_kwargs: Additional kwargs for LLM provider.
+        max_depth: Maximum depth of the search tree (default: 3).
+        beam_width: Number of beams to maintain at each step (default: 3).
+        branching_factor: Number of strategy options to consider at each step (default: 3).
         **kwargs: Additional kwargs for search algorithm.
         
     Returns:
         A SearchResult containing terminal nodes of beams.
     """
-    
-    # TODO: Consider how to get these out of kwargs and into parameters, including in naive linear search
-    # Get max_depth either from kwargs or default to 3
-    max_depth = kwargs.get("max_depth", 3)
-    
-    # Try to get beam_width from kwargs, default to 3
-    beam_width = kwargs.get("beam_width", 3)
-    
-    # Try to get branching_factor from kwargs, default to 3
-    branching_factor = kwargs.get("branching_factor", 3)
-    
     # Create initial node
-    current_node = initialize_cot(question=question,
+    try:
+        initial_node = initialize_cot(question=question,
                                    llm_provider=llm_provider,
                                    llm_kwargs=llm_kwargs)
-    
-    if current_node is None:
-        logger.error("Failed to initialize CoT. Exiting.")
+    except Exception as e:
+        logger.error(f"Error in initializing CoT: {e}")
         return SearchResult(all_terminal_nodes=None, 
                             question=question,
                             ground_truth_answer=ground_truth_answer,
@@ -317,7 +321,7 @@ def simple_beam_search(
     # Initialize the beams
     try:
         beams = initialize_beams(
-            initial_node=current_node,
+            initial_node=initial_node,
             strategy_registry=strategy_registry,
             llm_provider=llm_provider,
             llm_kwargs=llm_kwargs,
@@ -358,12 +362,16 @@ def simple_beam_search(
             strategies_tracker = defaultdict(dict)
             for strat_name in strategy_options:
                 strategy = strategy_registry.get_strategy(strat_name)
-                response, cot, prompt = generate_cot(
-                    node=beam,
-                    strategy=strategy,
-                    llm_provider=llm_provider,
-                    llm_kwargs=llm_kwargs
-                )
+                try:
+                    response, cot, prompt = generate_cot(
+                        node=beam,
+                        strategy=strategy,
+                        llm_provider=llm_provider,
+                        llm_kwargs=llm_kwargs
+                    )
+                except Exception as e:
+                    logger.error(f"Error in generating response: {e}")
+                    continue
                 # If response or cot is None, indicates an error. Skip this option.
                 if response is None or cot is None:
                     continue
@@ -384,13 +392,18 @@ def simple_beam_search(
             
             # Score each option using the provided scorer
             # scores should be dictionary of form {"strategy_name": score...}
-            scores = scorer(
-                cot_list=cot_list,
-                question=question,
-                ground_truth_answer=ground_truth_answer,
-                llm_provider=llm_provider,
-                llm_kwargs=llm_kwargs
-            )
+            # If the scorer fails, skip this beam in this iteration
+            try:
+                scores = scorer(
+                    cot_list=cot_list,
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    llm_provider=llm_provider,
+                    llm_kwargs=llm_kwargs
+                )
+            except Exception as e:
+                logger.error(f"Error in scoring: {e}")
+                continue
             
             if not scores:
                 logger.error("No valid scores found")
@@ -417,28 +430,35 @@ def simple_beam_search(
             beams[i] = new_node
             
             # Check if the new node is a terminal node with verifier
-            verification_result, explanation = verifier(
-                node=new_node,
-                question=question,
-                ground_truth_answer=ground_truth_answer,
-                llm_provider=llm_provider,
-                llm_kwargs=llm_kwargs or {}
-            )
+            # If the verification fails, continue with the beam search
+            verification_result = False
+            explanation = None
+            try: 
+                verification_result, explanation = verifier(
+                    node=new_node,
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    llm_provider=llm_provider,
+                    llm_kwargs=llm_kwargs or {}
+                )
+            except Exception as e:
+                logger.error(f"Error in verification: {e}")
+                continue
                 
             # Append the verification explanation to the node's cot
-            new_node.cot.append({"action": "verification", "content": explanation})
+            new_node.cot.append({"action": "verification", "content": explanation or ""})
         
             # If verification is successful, mark the node as final
             # and add it to the terminal nodes
             if verification_result:
-                new_node.is_success = True
+                new_node.success = True
                 new_node.is_final = True
                 continue
             
     result = SearchResult(
         final_node=None,
         all_terminal_nodes=beams,
-        success=any(node.is_success for node in beams),
+        success=any(node.success for node in beams),
         final_answer=None,
         metadata={}
     )
