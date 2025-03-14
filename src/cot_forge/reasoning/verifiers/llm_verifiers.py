@@ -12,7 +12,7 @@ from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers.base import BaseVerifier
 from cot_forge.reasoning.verifiers.prompts import (DEFAULT_VERIFICATION_PROMPT,
                                                    VERIFICATION_FORMAT_PROMPT)
-from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_reasoning_response
+from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class LLMJudgeVerifier(BaseVerifier):
     def parse_response(self, response: str) -> str:
         """Parse the LLM response to extract the final answer."""
         try:            
-            response_json = parse_reasoning_response(response)
+            response_json = parse_json_response(response)
             verification_result = response_json.get("verification", {}).get("result").strip().lower()
             explanation = response_json.get("verification", {}).get("explanation")
             return verification_result, explanation
@@ -50,8 +50,8 @@ class LLMJudgeVerifier(BaseVerifier):
                llm_provider: LLMProvider,
                llm_kwargs: dict[str, Any] | None = None) -> tuple[bool, str]:
         """Use LLM to verify if the answer is correct."""
-        if not node or not node.cot:
-            logger.error("Node or CoT is None")
+        if not node.cot:
+            logger.error("Node.cot is None")
             return False, None
         
         final_answer = extract_final_answer_from_cot(node.cot)

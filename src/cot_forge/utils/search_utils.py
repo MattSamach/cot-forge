@@ -47,7 +47,7 @@ def create_error_handler(logger: logging.Logger) -> Callable:
     
     return handle_error
 
-def intialize_blank_node(parent: ReasoningNode) -> ReasoningNode:
+def initialize_blank_node(parent: ReasoningNode) -> ReasoningNode:
     """Initialize a blank reasoning node pointing to a given parent
     
     Args:

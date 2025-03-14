@@ -11,7 +11,7 @@ def extract_curly_bracket_content(text: str) -> str:
     match = re.search(pattern, text, re.DOTALL)
     return match.group(0) if match else None
 
-def parse_reasoning_response(response: str) -> Any:
+def parse_json_response(response: str) -> Any:
     """Extracts json formatting from a reasoning response."""
     try:
         data = json.loads(extract_curly_bracket_content(response))
@@ -26,7 +26,7 @@ def extract_cot(response: str) -> Any:
     a python object (combo of list/dict).
     """
     try:
-        data = parse_reasoning_response(response)
+        data = parse_json_response(response)
         return data.get("CoT", "")
     except AttributeError as err:
         logger.error(f"Attribute error: {err}")
@@ -35,7 +35,7 @@ def extract_cot(response: str) -> Any:
 def extract_final_answer_from_str(response: str) -> str:
     """Extract the final answer from a response."""
     try:
-        data = parse_reasoning_response(response)
+        data = parse_json_response(response)
         
         for action in reversed(data.get("CoT", [])):
             if action.get("action") == "Final Conclusion":
