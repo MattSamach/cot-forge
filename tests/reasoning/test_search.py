@@ -29,7 +29,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 }
             ]
         }"""
-        mock_verifier.verify.return_value = True, "The answer is correct."
+        mock_verifier.return_value = True, "The answer is correct."
 
         # Run the search algorithm
         result = naive_linear_search(
@@ -45,9 +45,9 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertIn(question, mock_llm_provider.generate.call_args[1]['prompt'])
         
         # Verify the verifier was called with correct parameters
-        mock_verifier.verify.assert_called_once()
+        mock_verifier.assert_called_once()
         # Check that the node was passed to verifier
-        verify_args = mock_verifier.verify.call_args
+        verify_args = mock_verifier.call_args
         self.assertEqual(verify_args[1]['question'], question)
         self.assertEqual(verify_args[1]['ground_truth_answer'], ground_truth_answer)
         
@@ -83,7 +83,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 }
             ]
         }"""
-        mock_verifier.verify.return_value = False, "The answer is incorrect."
+        mock_verifier.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with default max_depth=1
         result = naive_linear_search(
@@ -136,7 +136,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             }"""
         ]
         mock_llm_provider.generate.side_effect = mock_responses
-        mock_verifier.verify.side_effect = [
+        mock_verifier.side_effect = [
             (False, "The answer is incorrect."),
             (True, "The answer is correct.")
             ]
@@ -152,7 +152,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check LLM was called twice
         self.assertEqual(mock_llm_provider.generate.call_count, 2)
-        self.assertEqual(mock_verifier.verify.call_count, 2)
+        self.assertEqual(mock_verifier.call_count, 2)
         
         # Check result indicates success
         self.assertTrue(result['success'])
@@ -187,7 +187,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             ]
         }"""
         mock_llm_provider.generate.return_value = incorrect_response
-        mock_verifier.verify.return_value = False, "The answer is incorrect."
+        mock_verifier.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with max_depth=3
         result = naive_linear_search(
@@ -200,7 +200,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check LLM was called exactly 3 times
         self.assertEqual(mock_llm_provider.generate.call_count, 3)
-        self.assertEqual(mock_verifier.verify.call_count, 3)
+        self.assertEqual(mock_verifier.call_count, 3)
         
         # Check result indicates failure
         self.assertFalse(result['success'])
