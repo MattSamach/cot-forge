@@ -26,7 +26,16 @@ def random_strategy_selector(
     registry: StrategyRegistry,
     depth: int = 0
 ) -> Strategy:
-    """Select a random strategy from the registry."""
+    """Select a random strategy from the registry.
+    
+    Args:
+        node: The current reasoning node.
+        registry: The strategy registry.
+        depth: The current depth in the reasoning chain.
+        
+    Returns:
+        A randomly selected strategy.
+    """
     strategy_names = registry.list_strategies()
     
     # Filter out initial strategies if not the first step
@@ -122,7 +131,7 @@ def naive_linear_search(
             previous_node.add_child(current_node)
         
         # Check for success condition by verifier
-        verification_result, explanation = verifier.verify(
+        verification_result, explanation = verifier(
             node=current_node,
             question=question,
             ground_truth_answer=ground_truth_answer,
@@ -138,6 +147,8 @@ def naive_linear_search(
         
         # If verification is successful, return the result
         if verification_result:
+            current_node.is_final = True
+            current_node.success = True
             return SearchResult(
                 final_node=current_node,
                 all_terminal_nodes=[current_node],
