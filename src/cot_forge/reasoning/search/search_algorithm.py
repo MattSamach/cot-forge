@@ -12,6 +12,7 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
+from cot_forge.reasoning.scorers import BaseScorer
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class SearchAlgorithm(Protocol):
         ground_truth_answer: str,
         llm_provider: LLMProvider,
         verifier: BaseVerifier,
+        scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
         llm_kwargs: dict[str, Any] = None,
         **kwargs
@@ -35,6 +37,7 @@ class SearchAlgorithm(Protocol):
             ground_truth_answer: The true answer to the question.
             llm_provider: An instance of LLM provider to use for generation.
             verifier: An instance of a verifier to check if the answer is correct.
+            scorer: An instance of a scorer to evaluate different paths.
             strategy_selector: Function to select the next strategy.
             chain_initializer: Function to initialize the chain of thought.
             strategy_registry: Registry of available strategies.

@@ -10,20 +10,19 @@ from typing import Any
 from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
+from cot_forge.reasoning.scorers import BaseScorer
+from cot_forge.reasoning.verifiers import BaseVerifier, default_verifier
 
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Give options to assign different LLMs to different roles (e.g. reasoner, verifier, scorer)
+
 class CoTBuilder:
     """
     This class contains states and logic to use LLMs to construct 
     chains of thought (CoT) that, through reasoning, connect premises
     to ground truth answers.
-    
-    Args:
-        search: Search algorithm used to construct chain of thought
-        strategy_registry: Registry of strategies that can be sampled from
     """
     
     def __init__(self,
@@ -45,6 +44,8 @@ class CoTBuilder:
     def build(self,
               question: str,
               ground_truth_answer: str,
+              verifier: BaseVerifier = default_verifier,
+              scorer: BaseScorer = None,
               llm_kwargs: dict[str, Any] = {},
               **kwargs) -> SearchResult:
         """
@@ -53,6 +54,8 @@ class CoTBuilder:
         Args:
             question: The question to be answered
             ground_truth_answer: The true answer to the question
+            verifier: An instance of a verifier to check if the answer is correct
+            scorer: An instance of a scorer to evaluate different paths
             llm_kwargs: Additional kwargs for LLM provider
             **kwargs: Additional kwargs for search algorithm
         
@@ -62,6 +65,8 @@ class CoTBuilder:
         return self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
+            verifier=verifier,
+            scorer=scorer,
             llm_provider=self.llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.strategy_reg,
