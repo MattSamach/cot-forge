@@ -3,14 +3,10 @@ from typing import ClassVar
 
 import pytest
 
-from cot_forge.reasoning.prompts import backtrack_strategy_prompt
-from cot_forge.reasoning.strategies import (
-    Backtrack,
-    InitializeCoT,
-    Strategy,
-    StrategyRegistry,
-    default_strategy_registry,
-)
+from cot_forge.reasoning.strategies import (Backtrack, InitializeCoT, Strategy,
+                                            StrategyRegistry,
+                                            backtrack_strategy_prompt,
+                                            default_strategy_registry)
 
 
 class TestStrategy:

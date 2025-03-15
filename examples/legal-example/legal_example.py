@@ -2,7 +2,8 @@ import os
 
 from cot_forge.llm import GeminiLLMProvider
 from cot_forge.reasoning import (CoTBuilder, default_strategy_registry,
-                                 naive_linear_search)
+                                 naive_linear_search, simple_beam_search)
+from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 
 legal_facts_question = """
 Below are the facts of a legal case. Based on these facts, please answer the following question:
@@ -27,14 +28,18 @@ llm = GeminiLLMProvider(api_key=api_key)
 
 builder = CoTBuilder(
     llm=llm,
-    search=naive_linear_search,
+    search=simple_beam_search,
     strategy_reg=default_strategy_registry,
 )
 
 def main():
     search_result = builder.build(question=legal_facts_question,
                         ground_truth_answer=ground_truth_answer,
-                        max_depth=2)
+                        max_depth=3,
+                        beam_width=3,
+                        branching_factor=2,
+                        scorer=ProbabilityFinalAnswerScorer()
+                    )
     return search_result
 
 if __name__ == "__main__":

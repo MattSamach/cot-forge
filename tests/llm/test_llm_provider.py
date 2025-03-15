@@ -118,7 +118,7 @@ class TestRetryLogic(unittest.TestCase):
         """Test retry logic when API returns ResourceExhausted error."""
         # Import the exception directly in the test
         from google.api_core.exceptions import ResourceExhausted
-        
+
         # Set up a side_effect sequence - fail twice then succeed
         mock_response = MagicMock()
         mock_response.text = "Success after retry"

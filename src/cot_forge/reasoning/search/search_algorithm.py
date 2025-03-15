@@ -9,10 +9,11 @@ import logging
 from typing import Any, Protocol
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_registry
+from cot_forge.reasoning.scorers import BaseScorer
+from cot_forge.reasoning.strategies import (StrategyRegistry,
+                                            default_strategy_registry)
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.reasoning.scorers import BaseScorer
 
 logger = logging.getLogger(__name__)
 
