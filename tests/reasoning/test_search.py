@@ -586,8 +586,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         )
         
         # Verify that max depth was reached with correct number of verifier calls
-        # Should be called twice at each depth (depth 2, depth 3, depth 4) = 6 times
-        self.assertEqual(mock_verifier.call_count, 2 * (max_depth-1))
+        # Should be called once for initialization and twice at each depth (depth 2, depth 3, depth 4) = 6 + 1 =7 times
+        self.assertEqual(mock_verifier.call_count, 1 + 2 * (max_depth-1))
         self.assertFalse(result['success'])
 
     @patch('cot_forge.reasoning.search.simple_beam_search.initialize_cot')

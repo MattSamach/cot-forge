@@ -3,7 +3,7 @@ from typing import ClassVar
 
 import pytest
 
-from cot_forge.reasoning.strategies import backtrack_strategy_prompt
+from cot_forge.reasoning.strategies import backtrack_strategy_prompt, initialize_cot_prompt
 from cot_forge.reasoning.strategies import (Backtrack, InitializeCoT, Strategy,
                                             StrategyRegistry,
                                             backtrack_strategy_prompt,
@@ -28,7 +28,7 @@ class TestStrategy:
         metadata = InitializeCoT.get_metadata()
         
         assert metadata["name"] == "initialize"
-        assert metadata["description"] == "initialize the chain of thought" 
+        assert metadata["description"] == initialize_cot_prompt
         assert metadata["is_initial"]
         
     def test_build_prompt_initial_strategy(self):

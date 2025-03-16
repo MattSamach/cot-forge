@@ -39,15 +39,16 @@ def random_strategy_selector(
     strategy_names = registry.list_strategies()
     
     # Filter out initial strategies if not the first step
-    if node:
+    if depth == 0:
+        # First step must be the initial strategy
+        strategy = registry.get_strategy("initialize")
+        return strategy
+    else:
         strategy_names = [
             name for name in strategy_names 
             if not registry.get_strategy(name).is_initial
             and depth >= registry.get_strategy(name).minimum_depth
         ]
-    else:
-        # First step must be the initial strategy
-        strategy_names = ["initialize"]
         
     if not strategy_names:
         step_type = "initial" if node is None else "continuation"
@@ -106,6 +107,7 @@ def naive_linear_search(
                                 metadata={"depth": depth},
                                 prompt=prompt,
                                 llm_kwargs=llm_kwargs)
+        # TODO: This error handling is confusing, improve it
         if isinstance(response, dict) and "success" in response and not response["success"]:
             return response
             
@@ -114,6 +116,7 @@ def naive_linear_search(
                            node=current_node,
                            metadata={"depth": depth},
                            response=response)
+        # TODO: See above TODO
         if isinstance(cot, dict) and "success" in cot and not cot["success"]:
             return cot
         
@@ -138,12 +141,9 @@ def naive_linear_search(
             llm_provider=llm_provider,
             llm_kwargs=llm_kwargs or {}
         )
-        
-        # DEBUG
-        # verification_result, explanation = False, "Verification unsuccessful"
-        
+                
         # Append the verification explanation to the node's cot
-        current_node.cot.append({"action": "verification", "content": explanation})
+        current_node.metadata.update({"verification": explanation})
         
         # If verification is successful, return the result
         if verification_result:
@@ -154,7 +154,7 @@ def naive_linear_search(
                 all_terminal_nodes=[current_node],
                 success=True,
                 final_answer=extract_final_answer_from_cot(current_node.cot),
-                metadata={"depth": depth + 1, "reason": "verifier_success"}
+                metadata={"depth": depth + 1, "reason": "verifier_success", "question": question, "ground_truth_answer": ground_truth_answer},
             )
     
     # Max depth reached without success
@@ -163,5 +163,5 @@ def naive_linear_search(
         all_terminal_nodes=[current_node],
         success=False,
         final_answer=extract_final_answer_from_cot(current_node.cot) if current_node else None,
-        metadata={"depth": max_depth, "reason": "max_depth_reached"}
+        metadata={"depth": max_depth, "reason": "max_depth_reached", "question": question, "ground_truth_answer": ground_truth_answer}
     )
