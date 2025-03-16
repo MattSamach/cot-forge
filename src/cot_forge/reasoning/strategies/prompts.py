@@ -17,7 +17,10 @@ Your response must include the following steps, each composed of three types of 
 1. **Review**: Review the previous reasoning and identify any flaws or errors. This should be a brief summary of the previous reasoning.
 2. **Inner Thinking**: Break down the reasoning process into multiple concise steps. Each step should start with a brief title to clarify its purpose.
 3. **Final Conclusion**: Summarize the correct reasoning from all previous 'Inner Thinking' steps and provide the final answer. No title is needed for this section.
-</response_requirements>\n\n"""
+
+You may skip the **Review** step if you are starting a new reasoning chain.
+</response_requirements>
+\n\n"""
 
     @staticmethod
     def create_initial_instruction() -> str:
@@ -47,7 +50,7 @@ Strictly follow the JSON structure below. You do not need to repeat your previou
 ```"""
 
 # Default strategy prompts
-initialize_cot_prompt = "Please respond to the above question <question> using the Chain of Thought (CoT) reasoning method. Because there is no prior reasoning, do not start with the `Review` step. Instead, begin with the `Inner Thinking` step and then conclude with the `Final Conclusion` step."
+initialize_cot_prompt = "responding to the above question <question> using the Chain of Thought (CoT) reasoning method. Because this is the initial reasoning, do not start with the `Review` step. Instead, begin with the `Inner Thinking` step and then conclude with the `Final Conclusion` step."
 backtrack_strategy_prompt = "refining the reasoning using **backtracking** to revisit earlier points of reasoning."
 explore_new_paths_strategy_prompt = "refining the reasoning by **exploring new approaches** to solving this problem."
 correction_strategy_prompt = "refining the reasoning by making precise **corrections** to address prior flaws."

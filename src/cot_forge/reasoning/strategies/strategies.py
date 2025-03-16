@@ -186,7 +186,7 @@ class StrategyRegistry:
 class InitializeCoT(Strategy):
     "Required strategy that kicks off CoT generation"
     name: ClassVar[str] = "initialize"
-    description: ClassVar[str] = "initialize the chain of thought"
+    description: ClassVar[str] = prompts.initialize_cot_prompt
     is_initial: ClassVar[bool] = True
     
 @dataclass(frozen=True)

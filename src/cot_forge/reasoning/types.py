@@ -11,7 +11,8 @@ class ReasoningNode:
              response: str,
              cot: list[dict[str, Any]] | None = None,  # Changed from dict to list[dict]
              parent: Optional['ReasoningNode'] = None,
-             metadata: dict[str, Any] = {}):
+             metadata: dict[str, Any] = None,
+             ):
         self.strategy = strategy
         self.prompt = prompt
         self.response = response
@@ -20,7 +21,7 @@ class ReasoningNode:
         self.children: list[ReasoningNode] = []
         self.is_final = False
         self.success = False
-        self.metadata = metadata
+        self.metadata = {} if metadata is None else metadata
 
     def add_child(self, child: 'ReasoningNode'):
         self.children.append(child)

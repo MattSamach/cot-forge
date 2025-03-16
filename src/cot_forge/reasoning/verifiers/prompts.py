@@ -12,7 +12,7 @@ VERIFICATION_FORMAT_PROMPT = """Strictly follow the JSON structure below.
 ```json
 {
 "verification": {
-    "result": ...,
-    "explanation": ...
+    "explanation": ...,
+    "result": ...
 }
 }"""
