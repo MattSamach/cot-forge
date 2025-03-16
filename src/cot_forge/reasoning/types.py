@@ -6,12 +6,12 @@ from cot_forge.reasoning.strategies import Strategy
 class ReasoningNode:
     """A node in the reasoning graph/tree/chain."""
     def __init__(self, 
-                 strategy: Strategy | None,
-                 prompt: str,
-                 response: str,
-                 cot: dict[str, Any] | None = None,
-                 parent: Optional['ReasoningNode'] = None,
-                 metadata: dict[str, Any] = {}):
+             strategy: Strategy | None,
+             prompt: str,
+             response: str,
+             cot: list[dict[str, Any]] | None = None,  # Changed from dict to list[dict]
+             parent: Optional['ReasoningNode'] = None,
+             metadata: dict[str, Any] = {}):
         self.strategy = strategy
         self.prompt = prompt
         self.response = response
@@ -34,15 +34,14 @@ class ReasoningNode:
             current_node = current_node.parent
         return list(reversed(chain))
     
-    def get_full_cot(self):
+    def get_full_cot(self) -> list[dict[str, Any]]:
         """Get the complete chain of thought (CoT) from the root to this node."""
-        chain = []
-        current_node = self
-        while current_node:
-            if current_node.cot:
-                chain.extend(current_node.cot)
-            current_node = current_node.parent
-        return list(chain)
+        nodes = self.get_full_node_chain()  # Already in root-to-current order
+        result = []
+        for node in nodes:
+            if node.cot:
+                result.extend(node.cot)
+        return result
     
     def __repr__(self):
         return f"ReasoningNode(strategy={self.strategy}, prompt={self.prompt}, response={self.response})"
