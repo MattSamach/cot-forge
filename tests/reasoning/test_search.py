@@ -236,7 +236,6 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertIsNone(result['final_node'])
         self.assertIsNone(result['all_terminal_nodes'][0])
         self.assertIsNone(result['final_answer'])
-        self.assertIn('error', result['metadata'])
         
     
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
@@ -263,8 +262,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertIsNone(result['final_node'])
         self.assertIsNone(result['all_terminal_nodes'][0])
         self.assertIsNone(result['final_answer'])
-        self.assertIn('error', result['metadata'])
-        self.assertIn('API error', result['metadata']['error'])
+        self.assertIn('error', result['metadata']['reason'])
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
     @patch('cot_forge.llm.LLMProvider')

@@ -17,7 +17,7 @@ from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier, default_verifier
 from cot_forge.utils.parsing import extract_cot, extract_final_answer_from_cot
-from cot_forge.utils.search_utils import create_error_handler
+from cot_forge.utils.search_utils import create_error_handler, try_operation
 
 logger = logging.getLogger(__name__)
 
@@ -102,23 +102,43 @@ def naive_linear_search(
         prompt = strategy.build_prompt(question, str(full_cot))
         
         # Generate response. Case where response generation fails, return failure response
-        response = handle_error(func=llm_provider.generate,
-                                node=current_node,
-                                metadata={"depth": depth},
-                                prompt=prompt,
-                                llm_kwargs=llm_kwargs)
-        # TODO: This error handling is confusing, improve it
-        if isinstance(response, dict) and "success" in response and not response["success"]:
-            return response
+        response, error = try_operation(
+            "LLM generation",
+            llm_provider.generate,
+            kwargs={"node": current_node, "prompt": prompt, 'llm_kwargs': (llm_kwargs or {})},
+            error_action="return",
+            logger=logger
+        )
+        # response = handle_error(func=llm_provider.generate,
+        #                         node=current_node,
+        #                         metadata={"depth": depth},
+        #                         prompt=prompt,
+        #                         llm_kwargs=llm_kwargs)
+        if error:
+            return SearchResult(
+                final_node=current_node,
+                all_terminal_nodes=[current_node],
+                success=False,
+                final_answer=None,
+                metadata={"depth": depth, "reason": "llm_generation_error", "question": question, "ground_truth_answer": ground_truth_answer}
+            )
             
         # Extract CoT from response with error handling
-        cot = handle_error(func=extract_cot,
-                           node=current_node,
-                           metadata={"depth": depth},
-                           response=response)
-        # TODO: See above TODO
-        if isinstance(cot, dict) and "success" in cot and not cot["success"]:
-            return cot
+        cot, error = try_operation(
+            "CoT extraction",
+            extract_cot,
+            kwargs={"response": response},
+            error_action="return",
+            logger=logger
+        )
+        if error:
+            return SearchResult(
+                final_node=current_node,
+                all_terminal_nodes=[current_node],
+                success=False,
+                final_answer=None,
+                metadata={"depth": depth, "reason": "cot_extraction_error", "question": question, "ground_truth_answer": ground_truth_answer}
+            )
         
         # Create new reasoning node and incorporate into graph
         previous_node = current_node if current_node else None    

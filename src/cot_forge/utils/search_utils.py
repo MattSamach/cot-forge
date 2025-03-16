@@ -63,3 +63,51 @@ def initialize_blank_node(parent: ReasoningNode) -> ReasoningNode:
         cot=None,
         parent=parent
     )
+    
+def try_operation(
+    operation_name: str,
+    operation_func: callable,
+    args: tuple = (),
+    kwargs: dict = None,
+    fallback_value = None,
+    fallback_function: Callable[[Exception, dict], Any] = None,
+    error_action: str = "log",  # "log", "raise", "return",
+    logger: logging.Logger = logging.getLogger(__name__),
+    *,
+    context: dict = None
+) -> tuple[Any, str | None]:
+    """
+    Execute an operation with standardized error handling based on context.
+    
+    Args:
+        operation_name: Name of the operation for logging purposes
+        operation_func: Function to execute
+        args: Positional arguments for the function
+        kwargs: Keyword arguments for the function
+        fallback_value: Value to return if operation fails
+        fallback_function: Function to call if operation fails
+        error_action: What to do on error - log, raise, or return
+        context: Additional context that might affect error handling
+    
+    Returns:
+        tuple[result, error_msg]: Result of operation and error message if any
+    """
+    kwargs = kwargs or {}
+    context = context or {}
+    
+    try:
+        result = operation_func(*args, **kwargs)
+        return result, None
+    except Exception as e:
+        error_msg = f"Error in {operation_name}: {e}"
+        logger.error(error_msg)
+        
+        # Context-specific handling with fallback function
+        if fallback_function:
+            return fallback_function(e, context), error_msg
+            
+        # General error handling based on error_action
+        if error_action == "raise":
+            raise ValueError(error_msg)
+        
+        return fallback_value, error_msg  # For both "log" and "return"
