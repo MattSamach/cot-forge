@@ -3,6 +3,7 @@ from typing import ClassVar
 
 import pytest
 
+from cot_forge.reasoning.strategies import backtrack_strategy_prompt
 from cot_forge.reasoning.strategies import (Backtrack, InitializeCoT, Strategy,
                                             StrategyRegistry,
                                             backtrack_strategy_prompt,
@@ -37,7 +38,7 @@ class TestStrategy:
         assert "<question>" in prompt
         assert "What is 2+2?" in prompt
         assert "initialize the chain of thought" not in prompt  # Initial doesn't include strategy description
-        assert "<response requirements>" in prompt
+        assert "<response_requirements>" in prompt
         
     def test_build_prompt_non_initial_strategy(self):
         # Test prompt building for non-initial strategy
@@ -49,10 +50,10 @@ class TestStrategy:
         
         assert "<question>" in prompt
         assert "What is 2+2?" in prompt
-        assert "<previous reasoning>" in prompt
+        assert "<previous_reasoning>" in prompt
         assert "I think the answer is 4." in prompt
         assert backtrack_strategy_prompt in prompt  # Strategy description included
-        assert "<response requirements>" in prompt
+        assert "<response_requirements>" in prompt
         
     def test_build_prompt_missing_previous_cot(self):
         # Test validation of required previous_cot for non-initial strategies
