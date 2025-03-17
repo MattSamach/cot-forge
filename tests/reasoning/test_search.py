@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from cot_forge.reasoning import naive_linear_search
+from cot_forge.llm import LLMProvider
+from cot_forge.reasoning import NaiveLinearSearch
 from cot_forge.reasoning.scorers import BaseScorer
 from cot_forge.reasoning.search.simple_beam_search import (initialize_beams,
                                                            simple_beam_search)
@@ -12,15 +13,19 @@ from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 class TestNaiveLinearSearch(unittest.TestCase):
     """Test that the naive linear search algorithm works as expected."""
     
-    @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
-    @patch('cot_forge.llm.LLMProvider')
-    def test_verification_success(self, mock_llm_provider, mock_verifier):
+    def setUp(self):
+        """Set up test fixtures."""
+        self.llm_provider = MagicMock(spec=LLMProvider)
+        self.verifier = MagicMock(spec=LLMJudgeVerifier)
+        self.search = NaiveLinearSearch()
+    
+    def test_verification_success(self):
         """Test that the search algorithm returns a successful result."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
-        
+
         # Set up the mock response
-        mock_llm_provider.generate.return_value = """{
+        self.llm_provider.generate.return_value = """{
             "CoT": [
                 {
                     "action": "Inner Thinking",
@@ -33,25 +38,25 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 }
             ]
         }"""
-        mock_verifier.return_value = True, "The answer is correct."
+        self.verifier.return_value = True, "The answer is correct."
 
         # Run the search algorithm
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
-            verifier=mock_verifier
+            reasoning_llm=self.llm_provider,
+            verifier=self.verifier
         )
                         
         # Verify LLM was called with correct parameters
-        mock_llm_provider.generate.assert_called_once()
+        self.llm_provider.generate.assert_called_once()
         # Check the prompt contains the question
-        self.assertIn(question, mock_llm_provider.generate.call_args[1]['prompt'])
+        self.assertIn(question, self.llm_provider.generate.call_args[1]['prompt'])
         
         # Verify the verifier was called with correct parameters
-        mock_verifier.assert_called_once()
+        self.verifier.assert_called_once()
         # Check that the node was passed to verifier
-        verify_args = mock_verifier.call_args
+        verify_args = self.verifier.call_args
         self.assertEqual(verify_args[1]['question'], question)
         self.assertEqual(verify_args[1]['ground_truth_answer'], ground_truth_answer)
         
@@ -62,15 +67,13 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertEqual(len(result['all_terminal_nodes']), 1)
         self.assertIn('depth', result['metadata'])
         
-    @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
-    @patch('cot_forge.llm.LLMProvider')
-    def test_verification_failure(self, mock_llm_provider, mock_verifier):
+    def test_verification_failure(self):
         """Test handling of verification failure."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         
         # Set up the mock response with an incorrect answer
-        mock_llm_provider.generate.return_value = """{
+        self.llm_provider.generate.return_value = """{
             "CoT": [
                 {
                     "action": "Inner Thinking",
@@ -87,14 +90,14 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 }
             ]
         }"""
-        mock_verifier.return_value = False, "The answer is incorrect."
+        self.verifier.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with default max_depth=1
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
-            verifier=mock_verifier
+            reasoning_llm=self.llm_provider,
+            verifier=self.verifier
         )
         
         # Check result indicates failure
@@ -146,10 +149,10 @@ class TestNaiveLinearSearch(unittest.TestCase):
             ]
 
         # Run the search algorithm with max_depth=2
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
+            reasoning_llm=mock_llm_provider,
             verifier=mock_verifier,
             max_depth=2
         )
@@ -183,23 +186,20 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 {
                     "action": "Final Conclusion",
                     "content": "The answer is 5."
-                },
-                {
-                    "action": "Verification",
-                    "content": "The answer is correct because 2 + 2 = 5."
                 }
             ]
         }"""
         mock_llm_provider.generate.return_value = incorrect_response
+        # mock_llm_provider.generate.return_value = incorrect_response
         mock_verifier.return_value = False, "The answer is incorrect."
 
         # Run the search algorithm with max_depth=3
-        result = naive_linear_search(
-            question=question,
-            ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
-            verifier=mock_verifier,
-            max_depth=3
+        self.search.max_depth = 3
+        result = self.search(
+            question = question,
+            ground_truth_answer = ground_truth_answer,
+            reasoning_llm = mock_llm_provider,
+            verifier = mock_verifier,
         )
         
         # Check LLM was called exactly 3 times
@@ -223,11 +223,12 @@ class TestNaiveLinearSearch(unittest.TestCase):
         mock_llm_provider.generate.return_value = """{ "CoT": [ this is not valid JSON """
         
         # Run the search algorithm
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
             llm_provider=mock_llm_provider,
-            verifier=mock_verifier
+            verifier=mock_verifier,
+            reasoning_llm=mock_llm_provider,
         )
         
         # Check result indicates failure
@@ -249,11 +250,12 @@ class TestNaiveLinearSearch(unittest.TestCase):
         mock_llm_provider.generate.side_effect = Exception("API error")
         
         # Run the search algorithm
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
             llm_provider=mock_llm_provider,
-            verifier=mock_verifier
+            verifier=mock_verifier,
+            reasoning_llm=mock_llm_provider
         )
                                 
         # Check result indicates failure
@@ -265,16 +267,16 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertIn('error', result['metadata']['reason'])
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
-    @patch('cot_forge.llm.LLMProvider')
-    def test_missing_final_conclusion(self, mock_llm_provider, mock_verifier):
+    def test_missing_final_conclusion(self, mock_verifier):
         """Test handling of LLM response without Final Conclusion."""
         
-        verifier = LLMJudgeVerifier()
+        mock_verifier.return_value = (False, "Error: No Final Conclusion found in response")
+
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         
         # Set up the mock response without Final Conclusion
-        mock_llm_provider.generate.return_value = """{
+        self.llm_provider.generate.return_value = """{
             "CoT": [
                 {
                     "action": "Inner Thinking",
@@ -289,12 +291,13 @@ class TestNaiveLinearSearch(unittest.TestCase):
         }"""
         
         max_depth = 5
+        self.search.max_depth = max_depth
         # Run the search algorithm
-        result = naive_linear_search(
+        result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
-            verifier=verifier,
+            reasoning_llm=self.llm_provider,
+            verifier=mock_verifier,
             max_depth=max_depth
         )
     
@@ -536,6 +539,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         max_depth = 4
+        
         
         # Set up mock responses for initial CoT + all depths
         mock_responses = ["Initial thinking"] + ["Beam response"] * (2 * max_depth)

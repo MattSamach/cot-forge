@@ -11,12 +11,13 @@ from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
-from cot_forge.reasoning.verifiers import BaseVerifier, default_verifier
+from cot_forge.reasoning.verifiers import BaseVerifier
 
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Give options to assign different LLMs to different roles (e.g. reasoner, verifier, scorer)
+# TODO: Add write to file methods and, logging, and checkpoints
 
 class CoTBuilder:
     """
@@ -26,26 +27,34 @@ class CoTBuilder:
     """
     
     def __init__(self,
-                 llm: LLMProvider,
+                 reasoning_llm: LLMProvider,
                  search: SearchAlgorithm,
-                 strategy_reg: StrategyRegistry = default_strategy_registry):
+                 verifier: BaseVerifier,
+                 scorer: BaseScorer = None,
+                 strategy_reg: StrategyRegistry = default_strategy_registry,
+                 search_llm_kwargs: dict[str, Any] = None,
+                 ):
         """
         Initialize the CoTBuilder with an LLM provider, search algorithm,
         and strategy registry.
         Args:
-            llm: LLM provider to use for generating responses
+            reasoning_llm: LLM provider to use for generating cot responses
             search: Search algorithm to use for constructing CoT
+            verifier: An instance of a verifier to check if the answer is correct
+            scorer: An instance of a scorer to evaluate different paths
             strategy_reg: Registry of strategies to sample from
+            search_llm_kwargs: Additional kwargs for LLM provider used in search
         """
-        self.llm = llm
+        self.reasoning_llm = reasoning_llm
+        self.search_llm_kwargs = search_llm_kwargs or {}
         self.strategy_reg = strategy_reg
         self.search = search
+        self.verifier = verifier
+        self.scorer = scorer
         
     def build(self,
               question: str,
               ground_truth_answer: str,
-              verifier: BaseVerifier = default_verifier,
-              scorer: BaseScorer = None,
               llm_kwargs: dict[str, Any] = {},
               **kwargs) -> SearchResult:
         """
@@ -54,8 +63,6 @@ class CoTBuilder:
         Args:
             question: The question to be answered
             ground_truth_answer: The true answer to the question
-            verifier: An instance of a verifier to check if the answer is correct
-            scorer: An instance of a scorer to evaluate different paths
             llm_kwargs: Additional kwargs for LLM provider
             **kwargs: Additional kwargs for search algorithm
         
@@ -65,9 +72,9 @@ class CoTBuilder:
         return self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            verifier=verifier,
-            scorer=scorer,
-            llm_provider=self.llm,
+            verifier=self.verifier,
+            scorer=self.scorer,
+            reasoning_llm=self.reasoning_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.strategy_reg,
             **kwargs
@@ -108,7 +115,7 @@ class CoTBuilder:
         if multi_thread:
             return self._multi_thread_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.llm,
+                llm=self.reasoning_llm,
                 progress_bar=progress_bar,
                 max_workers=max_workers,
                 llm_kwargs=llm_kwargs,
@@ -117,7 +124,7 @@ class CoTBuilder:
         else:
             return self._single_threaded_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.llm,
+                llm=self.reasoning_llm,
                 progress_bar=progress_bar,
                 total_pairs=total_pairs,
                 llm_kwargs=llm_kwargs,
@@ -190,7 +197,7 @@ class CoTBuilder:
 
 
     def __repr__(self) -> str:
-        return f"CoTBuilder(llm={self.llm}, search={self.search})"
+        return f"CoTBuilder(llm={self.reasoning_llm}, search={self.search}, verifier={self.verifier}, scorer={self.scorer})"
     
     def __str__(self) -> str:
-        return f"CoTBuilder with LLM: {self.llm}, Search Algorithm: {self.search}"
+        return f"CoTBuilder with LLM: {self.reasoning_llm}, Search Algorithm: {self.search}, Verifier: {self.verifier}, Scorer: {self.scorer}"

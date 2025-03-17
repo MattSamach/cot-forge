@@ -28,7 +28,7 @@ cot = builder.build(
 """
 
 from .cot_builder import CoTBuilder
-from .search.naive_linear_search import naive_linear_search
+from .search.naive_linear_search import NaiveLinearSearch
 from .search.search_algorithm import SearchAlgorithm
 from .search.simple_beam_search import simple_beam_search
 from .strategies import (AnalogicalReasoning, Backtrack, Correction,
@@ -41,12 +41,11 @@ from .types import ReasoningNode, SearchResult
 __all__ = [
     "SearchAlgorithm",
     "SearchResult",
-    "naive_linear_search",
+    "NiaveLinearSearch",
     "Strategy",
     "StrategyRegistry",
     default_strategy_registry,
     "CoTBuilder",
-    naive_linear_search,
     "AnalogicalReasoning",
     "Backtrack",
     "Correction",

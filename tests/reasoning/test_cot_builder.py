@@ -5,8 +5,7 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.cot_builder import CoTBuilder
 from cot_forge.reasoning.strategies import StrategyRegistry
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
-from cot_forge.reasoning.verifiers import default_verifier
-
+from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
 class TestCoTBuilder(unittest.TestCase):
     """Tests for the CoTBuilder class."""
@@ -16,6 +15,7 @@ class TestCoTBuilder(unittest.TestCase):
         self.mock_llm = Mock(spec=LLMProvider)
         self.mock_search = Mock()
         self.mock_strategy_reg = Mock(spec=StrategyRegistry)
+        self.mock_verifier = Mock(spec=LLMJudgeVerifier)
         
         # Create a mock search result to be returned by the search algorithm
         self.mock_search_result: SearchResult = {
@@ -31,9 +31,10 @@ class TestCoTBuilder(unittest.TestCase):
         
         # Create the CoTBuilder with mocked dependencies
         self.cot_builder = CoTBuilder(
-            llm=self.mock_llm,
+            reasoning_llm=self.mock_llm,
             search=self.mock_search,
-            strategy_reg=self.mock_strategy_reg
+            strategy_reg=self.mock_strategy_reg,
+            verifier=self.mock_verifier
         )
 
     def test_build(self):
@@ -56,10 +57,10 @@ class TestCoTBuilder(unittest.TestCase):
         self.mock_search.assert_called_once_with(
             question=question,
             ground_truth_answer=ground_truth,
-            llm_provider=self.mock_llm,
+            reasoning_llm=self.mock_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.mock_strategy_reg,
-            verifier=default_verifier,
+            verifier=self.mock_verifier,
             scorer=None,
             max_depth=3,
             custom_param='value'
@@ -91,7 +92,7 @@ class TestCoTBuilder(unittest.TestCase):
         first_call_args = self.mock_search.call_args_list[0][1]
         self.assertEqual(first_call_args['question'], questions[0])
         self.assertEqual(first_call_args['ground_truth_answer'], ground_truths[0])
-        self.assertEqual(first_call_args['llm_provider'], self.mock_llm)
+        self.assertEqual(first_call_args['reasoning_llm'], self.mock_llm)
         self.assertEqual(first_call_args['llm_kwargs'], llm_kwargs)
         
         # Check parameters passed for second call

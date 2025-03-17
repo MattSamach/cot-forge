@@ -2,9 +2,10 @@ import os
 
 from cot_forge.llm import GeminiLLMProvider
 from cot_forge.reasoning import (CoTBuilder, default_strategy_registry,
-                                 naive_linear_search, simple_beam_search)
+                                 NaiveLinearSearch, simple_beam_search)
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
-# TODO: Verifier may allow for cheating
+from cot_forge.reasoning.verifiers import LLMJudgeVerifier
+
 legal_facts_question = """
 To help alleviate the burdens of poverty and perhaps to help cut the welfare rolls, the state legislature of Margate passed legislation establishing State Family Counseling Centers throughout the state. 
 The legislature recognized that much of the \"welfare and poverty problem\" was centered on poor single-parent households headed by a woman.
@@ -31,19 +32,21 @@ api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 llm = GeminiLLMProvider(api_key=api_key)
 
 builder = CoTBuilder(
-    llm=llm,
-    search=simple_beam_search,
+    reasoning_llm=llm,
+    search=NaiveLinearSearch(max_depth=3),
+    verifier=LLMJudgeVerifier(llm),
     strategy_reg=default_strategy_registry,
+    scorer=ProbabilityFinalAnswerScorer()
 )
 
 def main():
-    search_result = builder.build(question=legal_facts_question,
-                        ground_truth_answer=ground_truth_answer,
-                        max_depth=3,
-                        beam_width=3,
-                        branching_factor=2,
-                        scorer=ProbabilityFinalAnswerScorer()
-                    )
+    search_result = builder.build(
+        question=legal_facts_question,
+        ground_truth_answer=ground_truth_answer,
+        max_depth=3,
+        beam_width=3,
+        branching_factor=2,
+    )
     return search_result
 
 if __name__ == "__main__":
