@@ -186,7 +186,7 @@ class GeminiLLMProvider(LLMProvider):
             
             rate_limit_exceptions = (
                 exceptions.TooManyRequests,
-                exceptions.TooManyRequests
+                exceptions.ResourceExhausted
             )
             
         except ImportError as err:
@@ -217,6 +217,7 @@ class GeminiLLMProvider(LLMProvider):
         config_data["max_output_tokens"] = max_tokens
         llm_kwargs = kwargs.get("llm_kwargs", {})
         config_data.update(llm_kwargs)
+        
         
         # Generate content using the Gemini API    
         response = self.client.models.generate_content(
