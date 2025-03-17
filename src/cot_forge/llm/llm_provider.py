@@ -137,8 +137,10 @@ class LLMProvider(ABC):
                            ) -> None:
         """Thread-safe token usage update."""
         with self._lock:
-            self.input_tokens += input_tokens
-            self.output_tokens += output_tokens
+            if input_tokens is not None:
+                self.input_tokens += input_tokens
+            if output_tokens is not None:
+                self.output_tokens += output_tokens
             logger.debug(f"Token usage updated: {self.input_tokens} input, {self.output_tokens} output") 
                
     def generate_batch(self,
