@@ -12,14 +12,23 @@ from cot_forge.llm import LLMProvider
 
 class BaseScorer(ABC):
     """Abstract base class for scorers."""
+    
+    def __init__(self,
+                 name: str,
+                 description: str,
+                 llm_provider: LLMProvider = None,
+                 llm_kwargs: dict[str, Any] | None = None,
+                 **kwargs):
+        self.name = name
+        self.description = description
+        self.llm_provider = llm_provider
+        self.llm_kwargs = llm_kwargs or {}
 
     @abstractmethod
     def score(self,
               cot_list: list[dict[str, dict[str, Any]]],
               question: str,
               ground_truth_answer: str,
-              llm_provider: LLMProvider | None,
-              llm_kwargs: dict[str, Any] | None,
               **kwargs: Any) -> dict[str, float]:
         """Scores a list of chains of thought (CoTs) against one another.
 
@@ -67,8 +76,6 @@ class BaseScorer(ABC):
                  cot_list: list[dict[str, dict[str, Any]]],
                  question: str,
                  ground_truth_answer: str,
-                 llm_provider: LLMProvider = None,
-                 llm_kwargs: dict[str, Any] = None,
                  **kwargs: Any) -> bool:
         """Call the score method."""
-        return self.score(cot_list, question, ground_truth_answer, llm_provider, llm_kwargs, **kwargs)
+        return self.score(cot_list, question, ground_truth_answer, **kwargs)

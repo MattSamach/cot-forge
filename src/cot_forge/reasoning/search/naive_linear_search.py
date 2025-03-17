@@ -32,14 +32,16 @@ class NaiveLinearSearch(BaseSearch):
     or the maximum depth is reached.
     
     Attributes:
+        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
         max_depth (int): Maximum depth for the search.
+        name (str): Name of the search algorithm.
+        description (str): Description of the search algorithm.
     """
     
     def __init__(self,
                  max_depth: int = 3,
                  strategy_registry: StrategyRegistry = default_strategy_registry,
                  ):
-        super().__init__()
         self.strategy_registry = strategy_registry
         self.max_depth = max_depth
         self.name = "naive linear search"

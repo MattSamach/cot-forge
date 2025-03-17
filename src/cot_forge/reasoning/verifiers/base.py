@@ -11,20 +11,19 @@ from typing import Any
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 
-# TODO: Add LLMProvider to the constructor
 class BaseVerifier(ABC):
     """Abstract base class for verifiers."""
     
     def __init__(self,
                  name: str,
                  description: str,
-                 llm_provider: LLMProvider,
+                 llm_provider: LLMProvider = None,
                  llm_kwargs: dict[str, Any] | None = None,
                  **kwargs):
-            self.name = name
-            self.description = description
-            self.llm_provider = llm_provider
-            self.llm_kwargs = llm_kwargs or {}
+        self.name = name
+        self.description = description
+        self.llm_provider = llm_provider
+        self.llm_kwargs = llm_kwargs or {}
     
     @abstractmethod
     def verify(self,

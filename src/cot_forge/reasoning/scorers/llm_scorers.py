@@ -19,12 +19,20 @@ logger = logging.getLogger(__name__)
 class ProbabilityFinalAnswerScorer(BaseScorer):
     """Scorer that only uses the final answer to score the CoT and gives scores
     in the form of a "probability" of the final answer leading to the ground truth answer."""
+    
+    def __init__(self,
+                 llm_provider: LLMProvider,
+                 llm_kwargs = None,
+                 **kwargs):
+        """Initialize with the LLM provider and any additional kwargs."""
+        name = "probability_final_answer_scorer"
+        description = "Scorer gives probability scores for the final answer of each strategy's CoT."
+        super().__init__(name, description, llm_provider, llm_kwargs, **kwargs)
+
     def score(self,
               cot_list: list[dict[str, dict[str, Any]]],
               question: str,
               ground_truth_answer: str,
-              llm_provider: LLMProvider | None,
-              llm_kwargs: dict[str, Any] | None,
               **kwargs: Any) -> dict[str, float]:
         
         try:
@@ -55,9 +63,9 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
         
         # Generate the response
         try:
-            response = llm_provider.generate(
+            response = self.llm_provider.generate(
                 prompt=prompt,
-                **(llm_kwargs or {})
+                **(self.llm_kwargs)
             )
         except Exception as e:
             logger.error(f"Error in generating response: {e}")
