@@ -46,7 +46,10 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 
 logger = logging.getLogger(__name__)
 
+#TODO: Separate llmproviders for search, verifiers, scorers, etc...
 #TODO: Create StrategySelector as its own class
+#TODO: Create wrapper function for generation/cot extraction with retry logic
+
 class SearchAlgorithm(Protocol):
     """Protocol defining the interface for search algorithms."""
     def _search(
