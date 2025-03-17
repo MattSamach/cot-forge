@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-from cot_forge.llm import LLMProvider
+from cot_forge.llm import LLMProvider, GeminiLLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers.base import BaseVerifier
 from cot_forge.reasoning.verifiers.prompts import (DEFAULT_VERIFICATION_PROMPT,
@@ -20,8 +20,14 @@ logger = logging.getLogger(__name__)
 class LLMJudgeVerifier(BaseVerifier):
     """Verifier that uses an LLM as a judge to verify answer correctness and provide feedback."""
     
-    def __init__(self, prompt_template: str = DEFAULT_VERIFICATION_PROMPT):
+    def __init__(self,
+                 llm_provider: LLMProvider,
+                 llm_kwargs: dict[str, Any] | None = None,
+                 name: str = "llm_judge_verifier",
+                 description: str = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
+                 prompt_template: str = DEFAULT_VERIFICATION_PROMPT):
         """Initialize with custom prompt template if desired."""
+        super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
         
     def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
@@ -42,18 +48,16 @@ class LLMJudgeVerifier(BaseVerifier):
             return verification_result, explanation
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response: {e}")
-            return False, None
+            return False, f"Error: {str(e)}"
 
     def verify(self,
                node: ReasoningNode,
                question: str,
-               ground_truth_answer: str,
-               llm_provider: LLMProvider,
-               llm_kwargs: dict[str, Any] | None = None) -> tuple[bool, str]:
+               ground_truth_answer: str) -> tuple[bool, str]:
         """Use LLM to verify if the answer is correct."""
         if not node.cot:
             logger.error("Node.cot is None")
-            return False, None
+            return False, f"Error: Node.cot is None"
         
         final_answer = extract_final_answer_from_cot(node.cot)
         if final_answer is None:
@@ -62,13 +66,13 @@ class LLMJudgeVerifier(BaseVerifier):
                 **(node.metadata or {}),
                 "warning": "missing_final_conclusion"
             }
-            return False, None
+            return False, "Error: No Final Conclusion found in response"
         
         try:
             prompt = self.build_prompt(final_answer=final_answer, ground_truth_answer=ground_truth_answer)
-            response = llm_provider.generate(
+            response = self.llm_provider.generate(
                 prompt=prompt,
-                **(llm_kwargs or {})
+                llm_kwargs=self.llm_kwargs
             )
             
             if not response:
@@ -80,7 +84,4 @@ class LLMJudgeVerifier(BaseVerifier):
 
         except Exception as e:
             logger.error(f"Error during verification: {e}")
-            return False, None
-
-# Create a default instance for easy importing
-default_verifier = LLMJudgeVerifier()
+            return False, f"Error: {str(e)}"

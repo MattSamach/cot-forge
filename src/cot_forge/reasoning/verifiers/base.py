@@ -11,17 +11,26 @@ from typing import Any
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 
-
+# TODO: Add LLMProvider to the constructor
 class BaseVerifier(ABC):
     """Abstract base class for verifiers."""
+    
+    def __init__(self,
+                 name: str,
+                 description: str,
+                 llm_provider: LLMProvider,
+                 llm_kwargs: dict[str, Any] | None = None,
+                 **kwargs):
+            self.name = name
+            self.description = description
+            self.llm_provider = llm_provider
+            self.llm_kwargs = llm_kwargs or {}
     
     @abstractmethod
     def verify(self,
                 node: ReasoningNode,
                 question: str,
                 ground_truth_answer: str,
-                llm_provider: LLMProvider | None,
-                llm_kwargs: dict[str, Any] | None,
                 **kwargs: Any) -> tuple[bool, str]:
         """Verify if the answer is correct."""
         pass
@@ -30,8 +39,6 @@ class BaseVerifier(ABC):
                  node: ReasoningNode,
                  question: str,
                  ground_truth_answer: str,
-                 llm_provider: LLMProvider = None,
-                 llm_kwargs: dict[str, Any] = None,
                  **kwargs: Any) -> tuple[bool, str]:
         """Call the verify method."""
-        return self.verify(node, question, ground_truth_answer, llm_provider, llm_kwargs, **kwargs)
+        return self.verify(node, question, ground_truth_answer, **kwargs)
