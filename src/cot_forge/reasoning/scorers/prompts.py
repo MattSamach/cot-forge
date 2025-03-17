@@ -9,7 +9,7 @@ Your task is to score each response based on how well it answers the question an
 
 <question>
 {question}
-</question
+</question>
 
 <ground_truth_answer>
 {answer}
@@ -25,11 +25,11 @@ The values should be the scores for each response.
 ```json
 {
 "scoring": {
-    "strategy_name_1": ...,
-    "strategy_name_2": ...
-    }
-}```
-"""
+    "strategy_name_1": <INSERT_NUMERIC_SCORE_HERE>,
+    "strategy_name_2": <INSERT_NUMERIC_SCORE_HERE>
+}
+}
+```"""
 
     @staticmethod
     def scorer_instruction_prompt(template: str, **kwargs) -> str:

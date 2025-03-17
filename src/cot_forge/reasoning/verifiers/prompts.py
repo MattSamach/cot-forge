@@ -12,7 +12,8 @@ VERIFICATION_FORMAT_PROMPT = """Strictly follow the JSON structure below.
 ```json
 {
 "verification": {
-    "explanation": ...,
-    "result": ...
+    "explanation": <INSERT_DETAILED_EXPLANATION_HERE>,
+    "result": <INSERT_YES_OR_NO_HERE>
 }
-}"""
+}
+```"""

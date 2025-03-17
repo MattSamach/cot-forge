@@ -40,11 +40,11 @@ Strictly follow the JSON structure below. You do not need to repeat your previou
 ```json
 {
 "CoT": [
-    {"action": "Review", "content": "..."},
-    {"action": "Inner Thinking", "title": "...", "content": "..."},
-    {"action": "Inner Thinking", "title": "...", "content": "..."},
+    {"action": "Review", "content": "<INSERT_CONTENT_HERE>"},
+    {"action": "Inner Thinking", "title": "<INSERT_TITLE_HERE>", "content": "<INSERT_CONTENT_HERE>"},
+    {"action": "Inner Thinking", "title": "<INSERT_TITLE_HERE>", "content": "<INSERT_CONTENT_HERE>"},
     ...,
-    {"action": "Final Conclusion", "content": "..."},
+    {"action": "Final Conclusion", "content": "<INSERT_CONTENT_HERE>"}
 ]
 }
 ```"""
