@@ -23,10 +23,10 @@ class LLMJudgeVerifier(BaseVerifier):
     def __init__(self,
                  llm_provider: LLMProvider,
                  llm_kwargs: dict[str, Any] | None = None,
-                 name: str = "llm_judge_verifier",
-                 description: str = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
                  prompt_template: str = DEFAULT_VERIFICATION_PROMPT):
         """Initialize with custom prompt template if desired."""
+        name = "llm_judge_verifier",
+        description = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
         
