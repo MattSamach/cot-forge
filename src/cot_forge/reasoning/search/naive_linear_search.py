@@ -16,8 +16,7 @@ from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
                                             default_strategy_registry)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.utils.parsing import extract_cot, extract_final_answer_from_cot
-from cot_forge.utils.search_utils import try_operation
+from cot_forge.utils.parsing import extract_final_answer_from_cot
 
 from .search_algorithm import BaseSearch
 
@@ -122,43 +121,22 @@ class NaiveLinearSearch(BaseSearch):
             full_cot = current_node.get_full_cot() if current_node else None
             prompt = strategy.build_prompt(question, str(full_cot))
             
-            # Generate response. Case where response generation fails, return failure response
-            response, error = try_operation(
-                "LLM generation",
-                reasoning_llm.generate,
-                kwargs={"node": current_node, "prompt": prompt, 'llm_kwargs': llm_kwargs},
-                error_action="return",
-                logger=logger
-            )
-
-            if error:
-                return SearchResult(
-                    final_node=current_node,
-                    all_terminal_nodes=[current_node],
-                    success=False,
-                    final_answer=None,
-                    metadata={"depth": depth,
-                              "reason": "llm_generation_error",
-                              "question": question,
-                              "ground_truth_answer": ground_truth_answer}
+            # Generate response and cot.
+            try:
+                response, cot = self.generate_and_parse_cot(
+                    reasoning_llm=reasoning_llm,
+                    prompt=prompt,
+                    llm_kwargs=llm_kwargs,
+                    logger=logger
                 )
-                
-            # Extract CoT from response with error handling
-            cot, error = try_operation(
-                "CoT extraction",
-                extract_cot,
-                kwargs={"response": response},
-                error_action="return",
-                logger=logger
-            )
-            if error:
+            except:
                 return SearchResult(
                     final_node=current_node,
-                    all_terminal_nodes=[current_node],
+                    all_terminal_nodes=[current_node] if current_node else [],
                     success=False,
                     final_answer=None,
                     metadata={"depth": depth,
-                              "reason": "cot_extraction_error",
+                              "reason": "generation_error",
                               "question": question,
                               "ground_truth_answer": ground_truth_answer}
                 )
@@ -177,22 +155,22 @@ class NaiveLinearSearch(BaseSearch):
                 previous_node.add_child(current_node)
             
             # Check for success condition by verifier
-            verification_result, explanation = verifier(
+            verification_result, explanation = self.verify_node(
                 node=current_node,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
+                verifier=verifier,
+                on_error="retry",
+                max_retries=3,
+                logger=logger
             )
-                    
-            # Append the verification explanation to the node's cot
-            current_node.metadata.update({"verification": explanation})
+            logger.info(f"Verification result: {verification_result}, Explanation: {explanation}")
             
             # DEBUG
             # verification_result = False
             
             # If verification is successful, return the result
             if verification_result:
-                current_node.is_final = True
-                current_node.success = True
                 return SearchResult(
                     final_node=current_node,
                     all_terminal_nodes=[current_node],

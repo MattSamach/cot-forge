@@ -1,6 +1,7 @@
 
 import logging
-from typing import Any, Callable, TypeVar
+import time
+from typing import Any, Callable, Literal, TypeVar
 
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 
@@ -111,3 +112,95 @@ def try_operation(
             raise ValueError(error_msg)
         
         return fallback_value, error_msg  # For both "log" and "return"
+    
+
+def execute_with_fallback(
+        operation_name: str,
+        operation_func: callable,
+        args: tuple = (),
+        kwargs: dict = None,
+        on_error: Literal["continue", "raise", "retry"] = "continue",
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        fallback_value: Any = None,
+        logger: logging.Logger = logging.getLogger(__name__)
+    ):
+        """
+        Execute an operation with standardized error handling including retry capability.
+        
+        Args:
+            operation_name: Name of the operation for logging
+            operation_func: The function to execute
+            args: Positional arguments for the function
+            kwargs: Keyword arguments for the function
+            on_error: How to handle errors:
+                - "continue": Return fallback value without error message
+                - "raise": Return error message for caller to handle
+                - "retry": Retry the operation up to max_retries times
+            max_retries: Maximum number of retry attempts if on_error="retry"
+            retry_delay: Seconds to wait between retry attempts
+            fallback_value: Value to return on error with on_error="continue"
+            logger: Logger to use for logging errors and retries
+            
+        Returns:
+            tuple[Any, str | None]: (result of operation, error_message if any)
+        """
+        
+        kwargs = kwargs or {}
+        attempts = 0
+        last_error = None
+        
+        # Define our custom fallback handler for try_operation
+        def fallback_handler(exception, ctx):
+            error_action = ctx.get("on_error", "continue")
+            if error_action == "continue":
+                # Return fallback but don't propagate error
+                return fallback_value, None
+            elif error_action == "retry":
+                # Return a marker to trigger retry
+                return fallback_value, f"Retry: {str(exception)}"
+            else:  # "raise" or any other value
+                # Return fallback with error for caller to handle
+                return fallback_value, str(exception)
+        
+        while True:
+            attempts += 1
+            
+            # Execute operation with appropriate error handling
+            result, error_msg = try_operation(
+                operation_name=operation_name,
+                operation_func=operation_func,
+                args=args,
+                kwargs=kwargs,
+                fallback_value=fallback_value,
+                fallback_function=fallback_handler,
+                error_action="return",
+                context={"on_error": on_error},
+                logger=logger,
+            )
+            
+            # Successful operation or non-retry error handling
+            if not error_msg or on_error != "retry" or attempts >= max_retries:
+                break
+                
+            # Retry logic
+            last_error = error_msg
+            logger.info(f"Retry attempt {attempts}/{max_retries} for {operation_name}: {error_msg}")
+            if attempts < max_retries:
+                time.sleep(retry_delay)
+        
+        # If we exhausted retries but still have errors
+        if error_msg and on_error == "retry" and attempts > 1:
+            logger.warning(f"{operation_name} failed after {attempts} attempts: {error_msg}")
+            
+        # Handle final error state based on error action
+        if error_msg:
+            if on_error == "continue":
+                # We continue with a failure but no error
+                return result, None
+            elif on_error == "retry" and attempts >= max_retries:
+                # Convert to a raise after max retries
+                return result, f"Max retries ({max_retries}) exceeded: {last_error}"
+        
+        # Return the final result and possibly error
+        return result, error_msg

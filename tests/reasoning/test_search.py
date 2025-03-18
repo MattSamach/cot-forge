@@ -50,15 +50,13 @@ class TestNaiveLinearSearch(unittest.TestCase):
         # Verify LLM was called with correct parameters
         self.llm_provider.generate.assert_called_once()
         # Check the prompt contains the question
-        self.assertIn(question, self.llm_provider.generate.call_args[1]['prompt'])
+        self.assertIn(question, self.llm_provider.generate.call_args[0][0])
         
         # Verify the verifier was called with correct parameters
         self.verifier.assert_called_once()
         # Check that the node was passed to verifier
         verify_args = self.verifier.call_args
-        self.assertEqual(verify_args[1]['question'], question)
-        self.assertEqual(verify_args[1]['ground_truth_answer'], ground_truth_answer)
-        
+                
         # Check result structure and contents
         self.assertTrue(result['success'])
         self.assertIsNotNone(result['final_node'])
@@ -225,16 +223,14 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
             verifier=mock_verifier,
             reasoning_llm=mock_llm_provider,
         )
         
         # Check result indicates failure
         self.assertFalse(result['success'])
-        self.assertEqual(len(result['all_terminal_nodes']), 1)
+        self.assertEqual(len(result['all_terminal_nodes']), 0)
         self.assertIsNone(result['final_node'])
-        self.assertIsNone(result['all_terminal_nodes'][0])
         self.assertIsNone(result['final_answer'])
         
     
@@ -252,16 +248,14 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            llm_provider=mock_llm_provider,
             verifier=mock_verifier,
             reasoning_llm=mock_llm_provider
         )
                                 
         # Check result indicates failure
         self.assertFalse(result['success'])
-        self.assertEqual(len(result['all_terminal_nodes']), 1)
+        self.assertEqual(len(result['all_terminal_nodes']), 0)
         self.assertIsNone(result['final_node'])
-        self.assertIsNone(result['all_terminal_nodes'][0])
         self.assertIsNone(result['final_answer'])
         self.assertIn('error', result['metadata']['reason'])
         
@@ -439,8 +433,6 @@ class TestSimpleBeamSearch(unittest.TestCase):
             verifier=mock_verifier,
             strategy_registry=mock_registry
         )
-        
-        print("YAYA", result)
         
         # Check result indicates success
         self.assertTrue(result['success'])

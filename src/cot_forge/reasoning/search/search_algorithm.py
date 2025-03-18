@@ -34,15 +34,18 @@ reasoning path found.
 """
 
 import logging
+import time
 from abc import ABC, abstractmethod
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
-from cot_forge.reasoning.strategies import (StrategyRegistry,
+from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
                                             default_strategy_registry)
-from cot_forge.reasoning.types import SearchResult
+from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
+from cot_forge.utils.parsing import extract_cot
+from cot_forge.utils.search_utils import execute_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -114,3 +117,177 @@ class BaseSearch(ABC, SearchAlgorithm):
         Child classes must implement the actual search logic here.
         """
         pass
+    
+    def create_node(
+        self,
+        strategy: Strategy,
+        prompt: str,
+        response:str = None,
+        cot: list[dict[str, str]] = None,
+        parent: ReasoningNode = None,
+        metadata: dict[str, Any] = None,
+        **kwargs
+    ) -> ReasoningNode:
+        """
+        Create a new reasoning node with standardized initialization and handling.
+        
+        Args:
+            strategy: The strategy used to generate this node
+            prompt: The prompt used to generate the response
+            response: The response from the LLM (may be None if not yet generated)
+            cot: The extracted chain of thought (may be None if not yet extracted)
+            parent: The parent node (may be None if root node)
+            metadata: Optional metadata dictionary for the node
+            **kwargs: Additional attributes to add to the node
+            
+        Returns:
+            ReasoningNode: A new reasoning node
+        """
+        # Create the node
+        node = ReasoningNode(
+            strategy=strategy,
+            prompt=prompt,
+            response=response or "",
+            cot=cot,
+            parent=parent,
+            metadata=metadata or {}
+        )
+        
+        # Set up parent-child relationship if parent exists
+        if parent:
+            parent.add_child(node)
+        
+        return node
+    
+    def generate_and_parse_cot(
+        self,
+        reasoning_llm: LLMProvider,
+        prompt: str,
+        llm_kwargs: dict[str, Any] = None,
+        on_error: Literal["continue", "raise", "retry"] = "retry",
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        logger: logging.Logger = logger
+    ) -> tuple[str, list[dict[str, str]]]:
+        """
+        Generate and parse the chain of thought (CoT) from the LLM.
+        
+        Args:
+            reasoning_llm: The LLM provider to use for generation
+            prompt: The prompt to send to the LLM
+            llm_kwargs: Additional kwargs for LLM generation
+            on_error: How to handle errors during generation
+            max_retries: Maximum number of retries if on_error="retry"
+            retry_delay: Delay between retries in seconds
+        Returns:
+            tuple[str, list[dict[str, str]]]: The generated response and parsed CoT
+        """
+        
+        def helper_function():
+            # Generate the response using the LLM
+            response = reasoning_llm.generate(prompt, **(llm_kwargs or {}))
+            # Extract the CoT from the response
+            cot = extract_cot(response)
+            return response, cot
+        
+        # Execute the operation with error handling
+        result, error_msg = execute_with_fallback(
+            operation_name="LLM generation and CoT extraction",
+            operation_func=helper_function,
+            on_error=on_error,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            logger=logger,
+            fallback_value=(None, None)
+        )
+        if error_msg and (on_error == "raise" or on_error == "retry"):
+            # Log the error and raise an exception
+            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
+            raise RuntimeError(f"LLM generation and CoT extraction failed: {error_msg}")
+        elif error_msg and on_error == "continue":
+            # Log the error but continue
+            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
+            return None, None
+        
+        # If the operation was successful, unpack the result
+        response, cot = result
+        if response is None or cot is None:
+            # Handle the case where the operation failed
+            logger.error("LLM generation and CoT extraction returned None")
+            return None, None
+        # Return the generated response and parsed CoT
+        return response, cot
+    
+    def verify_node(
+        self,
+        node: ReasoningNode, 
+        question: str, 
+        ground_truth_answer: str, 
+        verifier: BaseVerifier,
+        on_error: Literal["continue", "raise", "retry"] = "retry",
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        logger: logging.Logger = logger
+    ) -> tuple[bool, str | None]:
+        """
+        Verify a node and optionally update its status.
+        
+        Args:
+            node: The node to verify
+            question: Original question
+            ground_truth_answer: The true answer
+            verifier: Verification function to use
+            on_error: How to handle verification errors:
+                - "continue": Return false but don't raise an exception (skip this path)
+                - "raise": Return error message to allow caller to handle
+                - "retry": Retry the verification (useful for transient errors)
+            max_retries: Maximum number of retry attempts if on_error="retry"
+            retry_delay: Seconds to wait between retry attempts
+                
+        Returns:
+            tuple[bool, str | None]: (verification_success, error_message if any)
+        """
+        
+        result, error_msg = execute_with_fallback(
+            operation_name="verification",
+            operation_func=verifier,
+            args=(node, question, ground_truth_answer),
+            on_error=on_error,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            fallback_value=None,
+            logger=logger
+        )
+        
+        if error_msg and (on_error == "raise" or on_error == "retry"):
+            # Log the error and raise an exception
+            logger.error(f"Verification call failed: {error_msg}")
+            raise RuntimeError(f"Verification call failed: {error_msg}")
+        
+        elif error_msg and on_error == "continue":
+            # Log the error but continue
+            logger.error(f"Verification call failed: {error_msg}")
+            node.metadata["verification_error"] = error_msg
+            node.success = False
+            node.is_final = False
+            return False, error_msg
+        
+        # Handle the case where the verification call returned None
+        if result is None:
+            logger.error("Verification call returned None")
+            node.metadata["verification_error"] = "Verification call returned None"
+            node.success = False
+            node.is_final = False
+            return False, None
+        
+        # Verification call was successful
+        verification_result, explanation = result
+        node.metadata["verification"] = explanation
+
+        if verification_result:
+            # Verification was successful
+            node.success = True
+            node.is_final = True
+
+        return verification_result, explanation
+            
