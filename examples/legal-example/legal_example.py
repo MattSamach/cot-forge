@@ -1,8 +1,8 @@
 import os
 
 from cot_forge.llm import GeminiLLMProvider
-from cot_forge.reasoning import (CoTBuilder, default_strategy_registry,
-                                 NaiveLinearSearch, simple_beam_search)
+from cot_forge.reasoning import (CoTBuilder, NaiveLinearSearch,
+                                 SimpleBeamSearch, default_strategy_registry)
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -33,19 +33,17 @@ llm = GeminiLLMProvider(api_key=api_key)
 
 builder = CoTBuilder(
     reasoning_llm=llm,
-    search=NaiveLinearSearch(max_depth=3),
+    search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
+    # search=NaiveLinearSearch(max_depth=3),
     verifier=LLMJudgeVerifier(llm),
     strategy_reg=default_strategy_registry,
-    scorer=ProbabilityFinalAnswerScorer()
+    scorer=ProbabilityFinalAnswerScorer(llm)
 )
 
 def main():
     search_result = builder.build(
         question=legal_facts_question,
         ground_truth_answer=ground_truth_answer,
-        max_depth=3,
-        beam_width=3,
-        branching_factor=2,
     )
     return search_result
 

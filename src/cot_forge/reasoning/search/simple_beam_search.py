@@ -65,66 +65,6 @@ class SimpleBeamSearch(BaseSearch):
         self.name = "simple beam search"
         self.description = "Simple beam search to produce multiple parallel reasoning chains."
 
-    def verify_node(
-        self,
-        node: ReasoningNode, 
-        question: str, 
-        ground_truth_answer: str, 
-        verifier: BaseVerifier,
-        init_phase: bool = False
-    ) -> tuple[bool, str | None]:
-        """
-        Verify a node and update its status.
-        
-        Args:
-            node: The node to verify
-            question: Original question
-            ground_truth_answer: The true answer
-            verifier: Verification function to use
-            reasoning_llm: LLM provider for verification
-            llm_kwargs: Additional kwargs for LLM provider
-            init_phase: Whether this is during initial beam creation (affects error handling)
-            
-        Returns:
-            tuple[bool, str | None]: (verification_success, error_message if any)
-        """        
-        def fallback_handler(exception, ctx):
-            """Context-aware fallback for verification errors"""
-            if ctx.get("init_phase", False):
-                # During initialization, continue with default values
-                return False, ""
-            # During main search, return error to allow caller to skip
-            return False, None
-        
-        # Execute verification with context-aware error handling
-        result, error_msg = try_operation(
-            "verification",
-            lambda: verifier(
-                node=node,
-                question=question,
-                ground_truth_answer=ground_truth_answer,
-            ),
-            fallback_function=fallback_handler,
-            context={"init_phase": init_phase},
-            logger=logger,
-        )
-        
-        if error_msg and not init_phase:
-            # During main search, immediately return on error
-            return False, error_msg
-        
-        verification_result, explanation = result if result else (False, "")
-        
-        # Update node metadata with verification details
-        node.metadata["verification"] = explanation
-        
-        # If verification is successful, mark the node as final and successful
-        if verification_result:
-            node.success = True
-            node.is_final = True
-        
-        return verification_result, error_msg
-
     def evaluate_strategies(
         self,
         node: ReasoningNode,
@@ -136,7 +76,7 @@ class SimpleBeamSearch(BaseSearch):
         question: str,
         ground_truth_answer: str,
         scorer: BaseScorer
-    ) -> dict[str, dict] | None:  # Modified to return None on failure
+    ) -> dict[str, dict] | None:
         """
         Evaluate multiple strategies for a given node and rank them.
         
@@ -164,13 +104,18 @@ class SimpleBeamSearch(BaseSearch):
         strategies_tracker = defaultdict(dict)
         for strat_name in strategy_options:
             strategy = strategy_registry.get_strategy(strat_name)
+            prompt = strategy.build_prompt(
+                question=node.prompt,
+                previous_cot=str(node.get_full_cot())
+            )
             # TODO: Move error handling to try_operation
             try:
-                response, cot, prompt = self.generate_cot(
-                    node=node,
-                    strategy=strategy,
+                response, cot = self.generate_and_parse_cot(
                     reasoning_llm=reasoning_llm,
-                    llm_kwargs=llm_kwargs
+                    prompt=prompt,
+                    llm_kwargs=llm_kwargs,
+                    logger=logger,
+                    on_error="raise"
                 )
             except Exception as e:
                 logger.error(f"Error in generating response: {e}")
@@ -193,6 +138,7 @@ class SimpleBeamSearch(BaseSearch):
         ]
 
         # Score each option using the provided scorer
+        # TODO: Add error handling to scorer class
         try:
             scores = scorer(
                 cot_list=cot_list,
@@ -269,88 +215,36 @@ class SimpleBeamSearch(BaseSearch):
         strategy = InitializeCoT
         prompt = strategy.build_prompt(question)
         
-        current_node = ReasoningNode(strategy=strategy,
-                                    prompt=prompt,
-                                    response="",
-                                    cot=None,
-                                    parent=None)
-        
-        # Generate response, return None node if fails
-        response, error = try_operation(
-            "LLM generation",
-            reasoning_llm.generate,
-            kwargs={"prompt": prompt, 'llm_kwargs': (llm_kwargs or {})},
-            error_action="raise",
-            logger=logger
-        )
-            
-        current_node.response = response
-        
-        # Extract CoT from response
-        cot, error = try_operation(
-            "CoT extraction",
-            extract_cot,
-            args=(response,),
-            error_action="raise",
-            logger = logger
+        response, cot = self.generate_and_parse_cot(
+            reasoning_llm=reasoning_llm,
+            prompt=prompt,
+            llm_kwargs=llm_kwargs,
+            logger=logger,
+            on_error="retry",
+            max_retries=3
         )
         
-        current_node.cot = cot
+        initial_node = ReasoningNode(
+            strategy=strategy,
+            prompt=prompt,
+            response=response,
+            cot=cot
+        )
         
         self.verify_node(
-            node=current_node,
+            node=initial_node,
             question=question,
             ground_truth_answer=ground_truth_answer,
             verifier=verifier,
-            init_phase=True
+            on_error='continue',
+            logger=logger
         )
         
         # DEBUG
         # current_node.is_final = False
         # current_node.success = False
 
-        return current_node
-
-
-    def generate_cot(self,
-                     node: ReasoningNode,
-                     strategy: Strategy,
-                     reasoning_llm: LLMProvider,
-                     llm_kwargs: dict[str, Any] = None
-                     ) -> tuple[str | None, dict[str, Any] | None, str]:
-        """
-        Generate a chain of thought using the provided strategy.
-        Args:
-            node: Current deepest node in the beam.
-            strategy: Strategy to use for generating the next step.
-            reasoning_llm: LLM provider to generate the response.
-            llm_kwargs: Additional kwargs for reasoning llm call.
-        Returns:
-            (str, dict): Response and  dictionary containing the generated chain of thought.
-        """
-        prompt = strategy.build_prompt(
-            question=node.prompt,
-            previous_cot=str(node.get_full_cot())
-        )
-        
-        # Generate response.
-        response, error = try_operation(
-            "LLM generation",
-            reasoning_llm.generate,
-            kwargs={"prompt": prompt, 'llm_kwargs': (llm_kwargs or {})},
-            error_action="raise",
-            logger = logger
-        )
-        
-        cot, error = try_operation(
-            "CoT extraction",
-            extract_cot,
-            args=(response,),
-            error_action="raise",
-            logger = logger
-        )
-        
-        return response, cot, prompt
+        return initial_node
     
     def initialize_beams(self,
                          initial_node: ReasoningNode,
@@ -429,7 +323,8 @@ class SimpleBeamSearch(BaseSearch):
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=verifier,
-                init_phase=True
+                on_error="retry",
+                logger=logger
             )
 
         return beams
@@ -566,15 +461,13 @@ class SimpleBeamSearch(BaseSearch):
                     question=question,
                     ground_truth_answer=ground_truth_answer,
                     verifier=verifier,
-                    init_phase=False  # This is the main search phase
+                    on_error='continue',
+                    logger=logger
                 )
                 # If verification fails, skip this node at this depth
                 if error:
                     continue
-                
-                # Update the node's metadata with verification details
-                new_node.metadata["verification"] = verification_result
-                
+                                
                 # If verification is successful, log the result
                 if verification_result:
                     logger.info(f"Beam {i} reached a final node at depth {depth}")

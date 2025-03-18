@@ -165,10 +165,7 @@ class NaiveLinearSearch(BaseSearch):
                 logger=logger
             )
             logger.info(f"Verification result: {verification_result}, Explanation: {explanation}")
-            
-            # DEBUG
-            # verification_result = False
-            
+                        
             # If verification is successful, return the result
             if verification_result:
                 return SearchResult(
