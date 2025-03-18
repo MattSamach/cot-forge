@@ -3,7 +3,9 @@ import logging
 import time
 from typing import Any, Callable, Literal, TypeVar
 
+from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
+from cot_forge.utils.parsing import extract_cot
 
 T = TypeVar('T')
 
@@ -204,3 +206,61 @@ def execute_with_fallback(
         
         # Return the final result and possibly error
         return result, error_msg
+    
+def generate_and_parse_cot(
+        reasoning_llm: LLMProvider,
+        prompt: str,
+        llm_kwargs: dict[str, Any] = None,
+        on_error: Literal["continue", "raise", "retry"] = "retry",
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        logger: logging.Logger = logging.getLogger(__name__),
+    ) -> tuple[str, list[dict[str, str]]]:
+        """
+        Generate and parse the chain of thought (CoT) from the LLM.
+        
+        Args:
+            reasoning_llm: The LLM provider to use for generation
+            prompt: The prompt to send to the LLM
+            llm_kwargs: Additional kwargs for LLM generation
+            on_error: How to handle errors during generation
+            max_retries: Maximum number of retries if on_error="retry"
+            retry_delay: Delay between retries in seconds
+        Returns:
+            tuple[str, list[dict[str, str]]]: The generated response and parsed CoT
+        """
+        
+        def helper_function():
+            # Generate the response using the LLM
+            response = reasoning_llm.generate(prompt, **(llm_kwargs or {}))
+            # Extract the CoT from the response
+            cot = extract_cot(response)
+            return response, cot
+        
+        # Execute the operation with error handling
+        result, error_msg = execute_with_fallback(
+            operation_name="LLM generation and CoT extraction",
+            operation_func=helper_function,
+            on_error=on_error,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            logger=logger,
+            fallback_value=(None, None)
+        )
+        if error_msg and (on_error == "raise" or on_error == "retry"):
+            # Log the error and raise an exception
+            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
+            raise RuntimeError(f"LLM generation and CoT extraction failed: {error_msg}")
+        elif error_msg and on_error == "continue":
+            # Log the error but continue
+            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
+            return None, None
+        
+        # If the operation was successful, unpack the result
+        response, cot = result
+        if response is None or cot is None:
+            # Handle the case where the operation failed
+            logger.error("LLM generation and CoT extraction returned None")
+            return None, None
+        # Return the generated response and parsed CoT
+        return response, cot

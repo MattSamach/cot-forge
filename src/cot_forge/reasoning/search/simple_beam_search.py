@@ -28,6 +28,7 @@ from cot_forge.reasoning.strategies import (InitializeCoT, Strategy,
                                             default_strategy_registry)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
+from cot_forge.utils.search_utils import generate_and_parse_cot
 
 from .search_algorithm import BaseSearch
 
@@ -107,7 +108,7 @@ class SimpleBeamSearch(BaseSearch):
                 previous_cot=str(node.get_full_cot())
             )
             try:
-                response, cot = self.generate_and_parse_cot(
+                response, cot = generate_and_parse_cot(
                     reasoning_llm=reasoning_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,
@@ -212,7 +213,7 @@ class SimpleBeamSearch(BaseSearch):
         strategy = InitializeCoT
         prompt = strategy.build_prompt(question)
         
-        response, cot = self.generate_and_parse_cot(
+        response, cot = generate_and_parse_cot(
             reasoning_llm=reasoning_llm,
             prompt=prompt,
             llm_kwargs=llm_kwargs,

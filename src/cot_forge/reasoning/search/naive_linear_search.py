@@ -12,11 +12,13 @@ import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
+from cot_forge.reasoning.strategies import (RandomStrategySelector, Strategy,
+                                            StrategyRegistry,
                                             default_strategy_registry)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 from cot_forge.utils.parsing import extract_final_answer_from_cot
+from cot_forge.utils.search_utils import generate_and_parse_cot
 
 from .search_algorithm import BaseSearch
 
@@ -45,45 +47,7 @@ class NaiveLinearSearch(BaseSearch):
         self.max_depth = max_depth
         self.name = "naive linear search"
         self.description = "Naive linear search for reasoning chain."
-
-    def random_strategy_selector(
-        self,
-        node: ReasoningNode,
-        registry: StrategyRegistry,
-        depth: int = 0
-    ) -> Strategy:
-        """Select a random strategy from the registry.
-        
-        Args:
-            node: The current reasoning node.
-            registry: The strategy registry.
-            depth: The current depth in the reasoning chain.
-            
-        Returns:
-            A randomly selected strategy.
-        """
-        strategy_names = registry.list_strategies()
-        
-        # Filter out initial strategies if not the first step
-        if depth == 0:
-            # First step must be the initial strategy
-            strategy = registry.get_strategy("initialize")
-            return strategy
-        else:
-            strategy_names = [
-                name for name in strategy_names 
-                if not registry.get_strategy(name).is_initial
-                and depth >= registry.get_strategy(name).minimum_depth
-            ]
-            
-        if not strategy_names:
-            step_type = "initial" if node is None else "continuation"
-            raise ValueError(f"No appropriate strategies found for {step_type} step")
-
-        selected_name = random.choice(strategy_names)
-        logger.debug(f"Selected strategy: {selected_name}")
-        
-        return registry.get_strategy(selected_name)
+        self.strategy_selector = RandomStrategySelector()
 
     def _search(
         self,
@@ -115,7 +79,7 @@ class NaiveLinearSearch(BaseSearch):
         
         for depth in range(self.max_depth):
             # Select next strategy
-            strategy = self.random_strategy_selector(current_node, self.strategy_registry, depth)
+            strategy = self.strategy_selector.select(registry = self.strategy_registry, depth = depth)[0]
             
             # Build prompt based on selected strategy
             full_cot = current_node.get_full_cot() if current_node else None
@@ -123,7 +87,7 @@ class NaiveLinearSearch(BaseSearch):
             
             # Generate response and cot.
             try:
-                response, cot = self.generate_and_parse_cot(
+                response, cot = generate_and_parse_cot(
                     reasoning_llm=reasoning_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,

@@ -29,13 +29,14 @@ cot = builder.build(
 
 from .cot_builder import CoTBuilder
 from .search.naive_linear_search import NaiveLinearSearch
-from .search.simple_beam_search import SimpleBeamSearch
 from .search.search_algorithm import SearchAlgorithm
+from .search.simple_beam_search import SimpleBeamSearch
 # from .search.simple_beam_search import simple_beam_search
 from .strategies import (AnalogicalReasoning, Backtrack, Correction,
                          Counterfactual, Decomposition, ExploreNewPaths,
                          FirstPrinciples, InitializeCoT, PerspectiveShift,
-                         Strategy, StrategyRegistry, Validation,
+                         RandomStrategySelector, Strategy, StrategyRegistry,
+                         StrategySelector, Validation,
                          default_strategy_registry)
 from .types import ReasoningNode, SearchResult
 
@@ -58,5 +59,7 @@ __all__ = [
     "FirstPrinciples",
     "InitializeCoT",
     "PerspectiveShift",
-    "Validation"
+    "Validation",
+    "RandomStrategySelector",
+    "StrategySelector",
 ]
