@@ -14,7 +14,7 @@ Logical flow:
 7. Continue until a termination condition is met or max depth is reached.
 8. Return all beams.
 """
-#TODO: Experiment with multithreading in beam generation
+# TODO: Experiment with multithreading in beam generation
 
 import logging
 import random
@@ -28,8 +28,6 @@ from cot_forge.reasoning.strategies import (InitializeCoT, Strategy,
                                             default_strategy_registry)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.utils.parsing import extract_cot
-from cot_forge.utils.search_utils import try_operation
 
 from .search_algorithm import BaseSearch
 
@@ -108,7 +106,6 @@ class SimpleBeamSearch(BaseSearch):
                 question=node.prompt,
                 previous_cot=str(node.get_full_cot())
             )
-            # TODO: Move error handling to try_operation
             try:
                 response, cot = self.generate_and_parse_cot(
                     reasoning_llm=reasoning_llm,
@@ -224,13 +221,14 @@ class SimpleBeamSearch(BaseSearch):
             max_retries=3
         )
         
-        initial_node = ReasoningNode(
+        initial_node = self.create_node(
             strategy=strategy,
             prompt=prompt,
             response=response,
-            cot=cot
+            cot=cot,
+            metadata={"is_initial": True}
         )
-        
+
         self.verify_node(
             node=initial_node,
             question=question,
@@ -305,15 +303,16 @@ class SimpleBeamSearch(BaseSearch):
         beams = []
         for strategy_name in selected_strategies:
             strat_data = strategies_tracker[strategy_name]
-            new_beam = ReasoningNode(
+            # Create a new node for each selected strategy
+            new_beam = self.create_node(
                 strategy=strat_data['strategy'],
                 prompt=strat_data['prompt'],
                 response=strat_data['response'],
                 cot=strat_data['cot'],
                 parent=initial_node,
-                metadata={"scores": scores}
+                metadata={"is_initial": False, "scores": scores}
             )
-            initial_node.add_child(new_beam)
+            
             beams.append(new_beam)
             
         # Check if the new node is a terminal node with verifier
@@ -375,7 +374,11 @@ class SimpleBeamSearch(BaseSearch):
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"error": "Failed to initialize CoT"})
+                                metadata={"error": "Failed to initialize CoT",
+                                          "max_depth": max_depth,
+                                          "question": question,
+                                          "ground_truth_answer": ground_truth_answer}
+                                )
             
         # Check if initial node is already successful
         if initial_node.success:
@@ -443,15 +446,15 @@ class SimpleBeamSearch(BaseSearch):
                 best_strategy_dict = strategies_tracker[best_strategy_name]
 
                 # Create a new node for the best strategy
-                new_node = ReasoningNode(
+                new_node = self.create_node(
                     strategy=best_strategy_dict['strategy'],
                     prompt=best_strategy_dict['prompt'],
                     response=best_strategy_dict['response'],
                     cot=best_strategy_dict['cot'],
-                    metadata={"scores": scores},
+                    parent=beam,
+                    metadata={"is_initial": False, "scores": scores}
                 )
-                beam.add_child(new_node)
-                new_node.parent = beam
+               
                 beams[i] = new_node
                 
                 # Check if the new node is a terminal node with verifier
@@ -467,7 +470,7 @@ class SimpleBeamSearch(BaseSearch):
                 # If verification fails, skip this node at this depth
                 if error:
                     continue
-                                
+
                 # If verification is successful, log the result
                 if verification_result:
                     logger.info(f"Beam {i} reached a final node at depth {depth}")

@@ -143,16 +143,13 @@ class NaiveLinearSearch(BaseSearch):
             
             # Create new reasoning node and incorporate into graph
             previous_node = current_node if current_node else None    
-            current_node = ReasoningNode(
+            current_node = self.create_node(
                 strategy=strategy,
                 prompt=prompt,
                 response=response,
-                cot = cot,
+                cot=cot,
                 parent=previous_node
             )
-            
-            if previous_node:
-                previous_node.add_child(current_node)
             
             # Check for success condition by verifier
             verification_result, explanation = self.verify_node(
@@ -174,6 +171,7 @@ class NaiveLinearSearch(BaseSearch):
                     success=True,
                     final_answer=extract_final_answer_from_cot(current_node.cot),
                     metadata={"depth": depth + 1,
+                              "max_depth": self.max_depth,
                               "reason": "verifier_success",
                               "question": question,
                               "ground_truth_answer": ground_truth_answer},
@@ -186,6 +184,7 @@ class NaiveLinearSearch(BaseSearch):
             success=False,
             final_answer=extract_final_answer_from_cot(current_node.cot) if current_node else None,
             metadata={"depth": self.max_depth,
+                      "max_depth": self.max_depth,
                       "reason": "max_depth_reached",
                       "question": question,
                       "ground_truth_answer": ground_truth_answer}

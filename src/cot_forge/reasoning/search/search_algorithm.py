@@ -49,9 +49,7 @@ from cot_forge.utils.search_utils import execute_with_fallback
 
 logger = logging.getLogger(__name__)
 
-#TODO: Separate llmproviders for search, verifiers, scorers, etc...
-#TODO: Create StrategySelector as its own class
-#TODO: Create wrapper function for generation/cot extraction with retry logic
+#TODO: Move get_strategy_options to a base class function
 
 class SearchAlgorithm(Protocol):
     """Protocol defining the interface for search algorithms."""
@@ -290,4 +288,43 @@ class BaseSearch(ABC, SearchAlgorithm):
             node.is_final = True
 
         return verification_result, explanation
+    
+    def create_node(
+        self,
+        strategy: Strategy,
+        prompt: str,
+        response: str = None,
+        cot: list[dict[str, str]] = None,
+        parent: ReasoningNode = None,
+        metadata: dict[str, Any] = None,
+        **kwargs: Any
+    ) -> ReasoningNode:
+        """
+        Create a new reasoning node with standardized initialization and handling.
+        Args:
+            strategy: The strategy used to generate this node
+            prompt: The prompt used to generate the response
+            response: The response from the LLM (may be None if not yet generated)
+            cot: The extracted chain of thought (may be None if not yet extracted)
+            parent: The parent node (may be None if root node)
+            metadata: Optional metadata dictionary for the node
+            **kwargs: Additional attributes to add to the node
+        Returns:
+            ReasoningNode: A new reasoning node
+        """
+        # Create the node
+        node = ReasoningNode(
+            strategy=strategy,
+            prompt=prompt,
+            response=response or "",
+            cot=cot,
+            parent=parent,
+            metadata=metadata or {}
+        )
+        
+        # Set up parent-child relationship if parent exists
+        if parent:
+            parent.add_child(node)
+        
+        return node
             

@@ -16,8 +16,8 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
-# TODO: Give options to assign different LLMs to different roles (e.g. reasoner, verifier, scorer)
 # TODO: Add write to file methods and, logging, and checkpoints
+# TODO: Create StrategySelector as its own class
 
 class CoTBuilder:
     """
