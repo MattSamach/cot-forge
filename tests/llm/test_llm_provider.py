@@ -2,7 +2,7 @@ import unittest
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
-from src.cot_forge.llm.llm_provider import GeminiLLMProvider, LLMProvider
+from src.cot_forge.llm import GeminiLLMProvider, LLMProvider
 
 
 class TestLLMProviderInterface(unittest.TestCase):

@@ -18,6 +18,7 @@ from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Add write to file methods and, logging, and checkpoints
 # TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
+# TODO: Check all files for docstrings and add them if missing
 
 class CoTBuilder:
     """

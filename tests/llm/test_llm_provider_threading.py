@@ -3,7 +3,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-from cot_forge.llm.llm_provider import LLMProvider
+from cot_forge.llm import LLMProvider
 
 
 class TestLLMProviderThreading(unittest.TestCase):
