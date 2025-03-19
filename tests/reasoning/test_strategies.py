@@ -3,13 +3,14 @@ from typing import ClassVar
 
 import pytest
 
-from cot_forge.reasoning.prompts import backtrack_strategy_prompt
 from cot_forge.reasoning.strategies import (
     Backtrack,
     InitializeCoT,
     Strategy,
     StrategyRegistry,
+    backtrack_strategy_prompt,
     default_strategy_registry,
+    initialize_cot_prompt,
 )
 
 
@@ -30,8 +31,8 @@ class TestStrategy:
         # Test metadata retrieval
         metadata = InitializeCoT.get_metadata()
         
-        assert metadata["name"] == "intialize"
-        assert metadata["description"] == "initialize the chain of thought" 
+        assert metadata["name"] == "initialize"
+        assert metadata["description"] == initialize_cot_prompt
         assert metadata["is_initial"]
         
     def test_build_prompt_initial_strategy(self):
@@ -41,7 +42,7 @@ class TestStrategy:
         assert "<question>" in prompt
         assert "What is 2+2?" in prompt
         assert "initialize the chain of thought" not in prompt  # Initial doesn't include strategy description
-        assert "<response requirements>" in prompt
+        assert "<response_requirements>" in prompt
         
     def test_build_prompt_non_initial_strategy(self):
         # Test prompt building for non-initial strategy
@@ -53,10 +54,10 @@ class TestStrategy:
         
         assert "<question>" in prompt
         assert "What is 2+2?" in prompt
-        assert "<previous reasoning>" in prompt
+        assert "<previous_reasoning>" in prompt
         assert "I think the answer is 4." in prompt
         assert backtrack_strategy_prompt in prompt  # Strategy description included
-        assert "<response requirements>" in prompt
+        assert "<response_requirements>" in prompt
         
     def test_build_prompt_missing_previous_cot(self):
         # Test validation of required previous_cot for non-initial strategies
@@ -74,7 +75,7 @@ class TestStrategyRegistry:
         # Test creating a registry with initial strategies
         registry = StrategyRegistry([InitializeCoT, Backtrack])
         assert len(registry._strategies) == 2
-        assert registry.get_strategy("intialize") == InitializeCoT
+        assert registry.get_strategy("initialize") == InitializeCoT
         assert registry.get_strategy("backtrack") == Backtrack
         
     def test_register_decorator(self):
@@ -106,7 +107,7 @@ class TestStrategyRegistry:
         # Test getting strategies by name
         registry = StrategyRegistry([InitializeCoT])
         
-        assert registry.get_strategy("intialize") == InitializeCoT
+        assert registry.get_strategy("initialize") == InitializeCoT
         assert registry.get_strategy("non_existent") is None
         
     def test_list_strategies(self):
@@ -115,7 +116,7 @@ class TestStrategyRegistry:
         
         strategy_names = registry.list_strategies()
         assert len(strategy_names) == 2
-        assert "intialize" in strategy_names
+        assert "initialize" in strategy_names
         assert "backtrack" in strategy_names
         
     def test_get_all_strategies_metadata(self):
@@ -124,7 +125,7 @@ class TestStrategyRegistry:
         
         metadata = registry.get_all_strategies_metadata()
         assert len(metadata) == 2
-        assert metadata["intialize"]["is_initial"]
+        assert metadata["initialize"]["is_initial"]
         assert not metadata["backtrack"]["is_initial"]
         
     def test_remove_strategy(self):
@@ -146,7 +147,7 @@ class TestStrategyRegistry:
 class TestDefaultRegistry:
     def test_default_registry_initialization(self):
         # Test that default registry is properly initialized with default strategies
-        assert default_strategy_registry.get_strategy("intialize") is not None
+        assert default_strategy_registry.get_strategy("initialize") is not None
         assert default_strategy_registry.get_strategy("backtrack") is not None
         assert default_strategy_registry.get_strategy("explore_new_paths") is not None
         assert default_strategy_registry.get_strategy("correction") is not None

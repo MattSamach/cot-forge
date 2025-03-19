@@ -1,0 +1,441 @@
+"""
+Beam search implementation for generating reasoning chains.
+
+This search algorithm explores multiple reasoning paths in parallel, 
+maintaining a "beam" (chain) of the most promising candidates at each step.
+It expands the reasoning chain by applying different strategies and selecting 
+the most promising ones based on a scoring mechanism.
+
+The algorithm begins with an initial chain-of-thought (CoT) and iteratively expands it.
+At each step, it considers multiple strategies to extend each beam,
+evaluates the resulting paths using a scorer, 
+and keeps only the top `beam_width` paths for further exploration.
+
+The search continues until a termination condition is met 
+(e.g., a solution is found or the maximum depth is reached).
+
+Key aspects:
+    - Parallel Exploration: Explores multiple reasoning paths simultaneously.
+    - Strategy-Driven Expansion: Uses a variety of strategies to generate next steps in reasoning chains.
+    - Scoring Mechanism: Evaluates the generated strategies and selects the most promising paths.
+    - Verification: Checks the validity of the generated chain using a verifier.
+
+Logical flow:
+    1. Initialization: Start with an initial CoT.
+    2. Beam Initialization: Create initial beams, each employing a distinct strategy 
+        (reusing strategies if `beam_width` exceeds the number of available strategies).
+    3. Iterative Expansion:
+        a. Strategy Selection: For each beam, select the best strategy to extend the reasoning chain.
+        b. Scoring: Evaluate the expanded beams using a scoring mechanism.
+        c. Beam Pruning: Keep only the top `beam_width` beams.
+        d. Verification: Check if the generated chain is valid using a verifier; if valid, mark it as final.
+    4. Termination: Continue until a termination condition is met (e.g., maximum depth reached).
+    5. Result: Return all beams.
+"""
+# TODO: Experiment with multithreading in beam generation
+
+import logging
+from typing import Any
+
+from cot_forge.llm import LLMProvider
+from cot_forge.reasoning.scorers import BaseScorer
+from cot_forge.reasoning.strategies import (
+    InitializeCoT,
+    ScoredStrategySelector,
+    StrategyRegistry,
+    default_strategy_registry,
+)
+from cot_forge.reasoning.types import ReasoningNode, SearchResult
+from cot_forge.reasoning.verifiers import BaseVerifier
+from cot_forge.utils.search_utils import generate_and_parse_cot
+
+from .search_algorithm import BaseSearch
+
+logger = logging.getLogger(__name__)
+
+class SimpleBeamSearch(BaseSearch):
+    """
+    Simple beam search to produce multiple parallel reasoning chains.
+    
+    This class implements a simple beam search algorithm to generate multiple reasoning chains
+    in parallel. It uses a scoring mechanism to evaluate the generated strategies and selects the
+    most promising paths for further exploration.
+    
+    Attributes:
+        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
+        beam_width (int): Number of beams to be explored.
+        branching_factor (int): Number of strategies to consider at each node when extending each beam.
+        max_depth (int): Maximum depth for the search.
+        name (str): Name of the search algorithm.
+        description (str): Description of the search algorithm.
+        strategy_selector (ScoredStrategySelector): Strategy selector for scoring strategies.
+        
+    Usage:
+        To use this class, create an instance of `SimpleBeamSearch` and call its `_search` method
+        with the required arguments. For example:
+
+        ```python
+        search = SimpleBeamSearch(beam_width=3, max_depth=5)
+        result = search._search(
+            question="What is the capital of France?",
+            ground_truth_answer="Paris",
+            reasoning_llm=my_llm_provider,
+            scorer=my_scorer,
+            verifier=my_verifier
+        )
+        print(result.final_answer)
+        ```
+    """
+    
+    def __init__(self,
+                 beam_width: int = 2,
+                 branching_factor: int = 3,
+                 max_depth: int = 3,
+                 strategy_registry: StrategyRegistry = default_strategy_registry,
+                 ):
+        self.beam_width = beam_width
+        self.branching_factor = branching_factor
+        self.max_depth = max_depth
+        self.strategy_registry = strategy_registry
+        self.name = "simple beam search"
+        self.description = "Simple beam search to produce multiple parallel reasoning chains."
+        self.strategy_selector = ScoredStrategySelector()
+
+    def initialize_cot(
+        self,
+        question: str,
+        ground_truth_answer: str,
+        verifier: BaseVerifier,
+        reasoning_llm: LLMProvider,
+        llm_kwargs: dict[str, Any] = None
+    ) -> ReasoningNode:
+        """
+        Initialize the chain of thought (CoT) with the initial question and response.
+
+        This method generates the initial reasoning node by applying the 
+        [InitializeCoT] strategy and verifying the generated response.
+
+        Args:
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            verifier (BaseVerifier): The verifier used to check the correctness of the initial response.
+            reasoning_llm (LLMProvider): The LLM provider used to generate the initial CoT.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+
+        Returns:
+            ReasoningNode: The initial reasoning node containing the generated CoT.
+
+        Raises:
+            Exception: If an error occurs during the generation or verification process.
+            
+        See Also:
+            cot_forge.reasoning.strategies.InitializeCoT: Strategy for initializing CoT
+        """
+        strategy = InitializeCoT
+        prompt = strategy.build_prompt(question)
+        
+        response, cot = generate_and_parse_cot(
+            reasoning_llm=reasoning_llm,
+            prompt=prompt,
+            llm_kwargs=llm_kwargs,
+            logger=logger,
+            on_error="retry",
+            max_retries=3
+        )
+        
+        initial_node = self.create_node(
+            strategy=strategy,
+            prompt=prompt,
+            response=response,
+            cot=cot,
+            metadata={"is_initial": True}
+        )
+
+        self.verify_node(
+            node=initial_node,
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            verifier=verifier,
+            on_error='continue',
+            logger=logger
+        )
+        
+        # DEBUG
+        # current_node.is_final = False
+        # current_node.success = False
+
+        return initial_node
+    
+    def initialize_beams(self,
+                         initial_node: ReasoningNode,
+                         strategy_registry: StrategyRegistry,
+                         scorer: BaseScorer,
+                         depth: int,
+                         reasoning_llm: LLMProvider,
+                         question: str,
+                         ground_truth_answer: str,
+                         verifier: BaseVerifier,
+                         llm_kwargs: dict[str, Any] = None,
+                         )-> list[ReasoningNode]:
+        """
+        Initialize the beams for the beam search by creating multiple reasoning nodes.
+
+        This method generates a list of reasoning nodes (beams) starting from the given initial node.
+        Each beam is created by applying a distinct strategy selected from the strategy registry.
+        The strategies are scored using the provided scorer, and the resulting nodes are verified
+        for correctness using the verifier.
+
+        Args:
+            initial_node (ReasoningNode): The starting node for the beam search.
+            strategy_registry (StrategyRegistry): The registry containing available reasoning strategies.
+            scorer (BaseScorer): The scorer used to evaluate and rank the strategies.
+            depth (int): The current depth in the search process.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            question (str): The question being answered.
+            ground_truth_answer (str): The true answer to the question for verification/scoring purposes.
+            verifier (BaseVerifier): The verifier used to check correctness of the generated reasoning nodes.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+
+        Returns:
+            list[ReasoningNode]: A list of initialized reasoning nodes (beams) created from the initial node.
+
+        Raises:
+            ValueError: If an error occurs during strategy selection or node creation.
+
+        Example:
+            ```python
+            beams = search_instance.initialize_beams(
+                initial_node=initial_node,
+                strategy_registry=strategy_registry,
+                scorer=scorer,
+                depth=1,
+                reasoning_llm=reasoning_llm,
+                question="What is the capital of France?",
+                ground_truth_answer="Paris",
+                verifier=verifier,
+                llm_kwargs={"temperature": 0.7}
+            )
+            print(f"Initialized {len(beams)} beams.")
+            ```
+        """
+        
+        llm_kwargs = llm_kwargs or {}
+
+        try:
+            selected_strategies, search_data = self.strategy_selector.select(
+                reasoning_llm=reasoning_llm,
+                registry=strategy_registry,
+                depth=depth,
+                num_strategies=self.beam_width,
+                node=initial_node,
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                scorer=scorer,
+                llm_kwargs=llm_kwargs,
+                logger=logger
+            )
+        except Exception as e:
+            logger.error("Error in selecting strategies")
+            raise ValueError("Failed to select strategies") from e
+        
+        strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
+        # Create beams with initial node as parent
+        beams = []
+        for strategy in selected_strategies:
+            strat_data = strategies_dict[strategy.name]
+            # Create a new node for each selected strategy
+            new_beam = self.create_node(
+                strategy=strat_data['strategy'],
+                prompt=strat_data['prompt'],
+                response=strat_data['response'],
+                cot=strat_data['cot'],
+                parent=initial_node,
+                metadata={"is_initial": False, "scores": scores}
+            )
+            
+            beams.append(new_beam)
+            
+        # Check if the new node is a terminal node with verifier
+        for beam in beams:
+            self.verify_node(
+                node=beam,
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                verifier=verifier,
+                on_error="retry",
+                logger=logger
+            )
+
+        return beams
+
+    def _search(
+        self,
+        question: str,
+        ground_truth_answer: str,
+        reasoning_llm: LLMProvider,
+        scorer: BaseScorer,
+        verifier: BaseVerifier,
+        strategy_registry: StrategyRegistry = default_strategy_registry,
+        llm_kwargs: dict[str, Any] = None,
+        max_depth: int = 3,
+        beam_width: int = 3,
+    ) -> SearchResult:
+        """
+        Perform a beam search to generate possible chains of thought.
+
+        This method explores multiple reasoning paths in parallel, maintaining a beam of the most
+        promising candidates at each step. It iteratively expands the reasoning chains, evaluates
+        them using a scoring mechanism, and prunes the beam to keep only the top candidates.
+
+        Args:
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            scorer (BaseScorer): The scorer used to evaluate different beam options.
+            verifier (BaseVerifier): The verifier used to check the correctness of final answers.
+            strategy_registry (StrategyRegistry, optional): The registry of available strategies.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for reasoning LLM calls.
+            max_depth (int, optional): Maximum depth of the search tree. Defaults to 3.
+            beam_width (int, optional): Number of beams to maintain at each step. Defaults to 3.
+
+        Returns:
+            SearchResult: An object containing the terminal nodes of the beams, success status, and metadata.
+
+        Raises:
+            ValueError: If an error occurs during strategy selection or beam initialization.
+        """
+        # Create initial node
+        try:
+            initial_node = self.initialize_cot(
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                verifier=verifier,
+                reasoning_llm=reasoning_llm,
+                llm_kwargs=llm_kwargs
+            )
+        except Exception as e:
+            logger.error(f"Error in initializing CoT: {e}")
+            return SearchResult(all_terminal_nodes=None, 
+                                question=question,
+                                ground_truth_answer=ground_truth_answer,
+                                success=False,
+                                metadata={"error": "Failed to initialize CoT",
+                                          "max_depth": max_depth,
+                                          "question": question,
+                                          "ground_truth_answer": ground_truth_answer}
+                                )
+            
+        # Check if initial node is already successful
+        initial_node.success = False
+        if initial_node.success:
+            return SearchResult(
+                final_node=initial_node,
+                all_terminal_nodes=[initial_node],
+                success=True,
+                final_answer=initial_node.response,
+                metadata={"max_depth": max_depth,
+                          "question": question,
+                          "ground_truth_answer": ground_truth_answer}
+            )
+            
+        # Initialize the beams
+        try:
+            beams = self.initialize_beams(
+                initial_node=initial_node,
+                strategy_registry=strategy_registry,
+                scorer=scorer,
+                depth=1,
+                reasoning_llm=reasoning_llm,
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                verifier=verifier,
+                llm_kwargs=llm_kwargs,
+            )
+        except Exception as e:
+            logger.error(f"Error in initializing beams: {e}")
+            return SearchResult(all_terminal_nodes=None, 
+                                question=question,
+                                ground_truth_answer=ground_truth_answer,
+                                success=False,
+                                metadata={"error": "Failed to initialize beams"})
+            
+        # Range starts at 2 because we already have the initial node and beams
+        # We will expand the beams at each depth
+        for depth in range(2, max_depth):
+            # Check if all beams are final
+            if all(beam.is_final for beam in beams):
+                break
+            
+            # Expand each beam
+            for i, beam in enumerate(beams):
+                # If the beam is final, skip it
+                if beam.is_final:
+                    continue
+                
+                try:
+                    selected_strategies, search_data = self.strategy_selector.select(
+                        reasoning_llm=reasoning_llm,
+                        registry=strategy_registry,
+                        depth=depth,
+                        question=question,
+                        ground_truth_answer=ground_truth_answer,
+                        scorer=scorer,
+                        node=beam,
+                        llm_kwargs=llm_kwargs,
+                        logger=logger,
+                    )
+                except Exception as e:
+                    logger.error("Error in selecting strategies")
+                    raise ValueError("Failed to select strategies") from e
+                
+                strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
+                
+                # If strategies_tracker is None, consider it a failure
+                # and skip this beam at this depth
+                if strategies_dict is None:
+                    continue
+                
+                best_strategy = selected_strategies[0]
+                best_strategy_dict = strategies_dict[best_strategy.name]
+                
+                # Create a new node for the best strategy
+                new_node = self.create_node(
+                    strategy=best_strategy_dict['strategy'],
+                    prompt=best_strategy_dict['prompt'],
+                    response=best_strategy_dict['response'],
+                    cot=best_strategy_dict['cot'],
+                    parent=beam,
+                    metadata={"is_initial": False, "scores": scores}
+                )
+               
+                beams[i] = new_node
+                
+                # Check if the new node is a terminal node with verifier
+                # If the verification fails, continue with the beam search
+                verification_result, error = self.verify_node(
+                    node=new_node,
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    verifier=verifier,
+                    on_error='continue',
+                    logger=logger
+                )
+                # If verification fails, skip this node at this depth
+                if error is not None:
+                    continue
+
+                # If verification is successful, log the result
+                if verification_result:
+                    logger.info(f"Beam {i} reached a final node at depth {depth}")
+                
+        result = SearchResult(
+            final_node=None,
+            all_terminal_nodes=beams,
+            success=any(node.success for node in beams),
+            final_answer=None,
+            metadata={"max_depth": max_depth,
+                      "question": question,
+                      "ground_truth_answer": ground_truth_answer}
+        )
+        
+        return result
