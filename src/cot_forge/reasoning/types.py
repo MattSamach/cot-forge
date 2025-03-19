@@ -1,4 +1,4 @@
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional
 
 from cot_forge.reasoning.strategies import Strategy
 
