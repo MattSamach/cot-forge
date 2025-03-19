@@ -15,8 +15,6 @@ if TYPE_CHECKING:
 
 logger = Logger(__name__)
 
-# TODO: Add error handling to scorer class
-
 class StrategySelector(ABC):
     """Base class for strategy selection algorithms."""
     

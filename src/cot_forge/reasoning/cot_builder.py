@@ -1,6 +1,50 @@
 """
-Implementation of the CoTBuilder class, which is the main abstraction which
-is used to handle the control flow to create CoT using sampling and search.
+This module defines the CoTBuilder class, the central component for constructing Chains of Thought (CoTs) 
+using Language Model (LLM) sampling and search algorithms.
+
+The CoTBuilder orchestrates the process of generating reasoning steps to connect a given 
+question to its ground truth answer. It leverages configurable search algorithms, verifiers, scorers, 
+and strategy registries to explore and evaluate potential CoTs.
+
+Key components:
+    - CoTBuilder: The main class for building CoTs. It manages the search process, 
+        utilizing an LLM, search algorithm, verifier, and scorer.
+    - SearchAlgorithm: An interface for search algorithms that explore the space of possible CoTs.
+    - BaseVerifier: An interface for verifying the correctness of a CoT's answer.
+    - BaseScorer: An interface for scoring different CoT paths during the search.
+    - StrategyRegistry: A registry of strategies used to sample different reasoning steps.
+
+Usage:
+    1. Instantiate a CoTBuilder with a reasoning LLM, search algorithm, verifier, 
+        and optional scorer and strategy registry.
+    2. Call the `build` method with a question and its ground truth answer to generate a CoT.
+    3. Alternatively, use the `build_batch` method to process multiple questions 
+        in single-threaded or multi-threaded mode.
+
+Example:
+    ```python
+
+    # Initialize components (replace with your actual implementations)
+    reasoning_llm = GeminiLLMProvider(...)
+    search_algorithm = NaiveLinearSearch(...)
+    verifier = LLMJudgeVerifier()
+
+    # Instantiate CoTBuilder
+    cot_builder = CoTBuilder(
+        reasoning_llm=reasoning_llm,
+        search=search_algorithm,
+        verifier=verifier
+    )
+
+    # Build a CoT for a single question
+    question = "What is the capital of France?"
+    ground_truth_answer = "Paris"
+    search_result = cot_builder.build(question, ground_truth_answer)
+
+    # Access the generated CoT
+    cot = search_result.final_node.get_full_cot()
+    print(cot)
+    ```
 """
 
 from collections.abc import Iterable
@@ -19,6 +63,7 @@ from .strategies import StrategyRegistry, default_strategy_registry
 # TODO: Add write to file methods and, logging, and checkpoints
 # TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
 # TODO: Check all files for docstrings and add them if missing
+# TODO: Add error handling to scorer class, maybe verifier class
 
 class CoTBuilder:
     """

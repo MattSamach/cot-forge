@@ -58,10 +58,23 @@ class ReasoningNode:
                 f"children={self.children}, is_final={self.is_final}, "
                 f"success={self.success}, metadata={self.metadata})")
 
-class SearchResult(TypedDict):
+class SearchResult:
     """Represents the result of a search algorithm."""
-    final_node: ReasoningNode | None
-    all_terminal_nodes: list[ReasoningNode] | None
-    success: bool
-    final_answer: Optional[str]
-    metadata: dict[str, Any]
+    
+    def __init__(
+        self,
+        question: str = "",
+        ground_truth_answer: str = "",
+        final_node: ReasoningNode | None = None,
+        all_terminal_nodes: list[ReasoningNode] | None = None,
+        success: bool = False,
+        final_answer: Optional[str] = None,
+        metadata: dict[str, Any] = None
+    ):
+        self.final_node = final_node
+        self.question = question
+        self.ground_truth_answer = ground_truth_answer
+        self.all_terminal_nodes = all_terminal_nodes if all_terminal_nodes else []
+        self.success = success
+        self.final_answer = final_answer
+        self.metadata = metadata if metadata else {}
