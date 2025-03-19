@@ -1,8 +1,6 @@
 """
-This module defines an abstract base class for LLM providers and a concrete implementation for the Gemini LLM.
-The `LLMProvider` class provides a common interface for interacting with different LLMs, 
-including methods for generating text, managing token usage, and handling rate limits. 
-It uses the `tenacity` library for retrying failed requests.
+Abstract base class for LLM providers, defining a common interface for LLM interactions,
+including text generation, token management, and rate limit handling using `tenacity` for retries.
 """
 
 import logging
@@ -64,8 +62,15 @@ class LLMProvider(ABC):
         f"output_token_limit: {self.output_token_limit})\n",
         f"\t(retry_settings: {self.retry_settings})\n")
         
-    def get_token_usage(self):
-        """Get the token usage information."""
+    def get_token_usage(self) -> dict:
+        """
+        Retrieve the current token usage statistics.
+
+        Returns:
+            dict: A dictionary with the following keys:
+                - "input_tokens" (int): The total number of input tokens used.
+                - "output_tokens" (int): The total number of output tokens used.
+        """
         return {
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
@@ -119,10 +124,22 @@ class LLMProvider(ABC):
                  temperature: float = 0.7,
                  max_tokens: int | None = None,
                  **kwargs):
-        """Tenacity attempts multiple retries of generate text when 
-        blocked by rate limit / resource overuse exceptions.
-        Uses the generate_completion method of the subclass LLM provider.
-        Also checks token limits before generating text.
+        """
+        Generate text with retries using the LLM provider.
+
+        This method uses Tenacity to retry text generation in case of rate limit
+        or resource overuse exceptions. It checks token limits before calling
+        the `generate_completion` method of the subclass.
+
+        Args:
+            prompt (str): The input prompt for the model.
+            system_prompt (str | None): Optional system prompt for the model.
+            temperature (float): Controls randomness in generation. Defaults to 0.7.
+            max_tokens (int | None): Maximum number of tokens to generate. Default None.
+            **kwargs: Additional arguments for the LLM provider.
+
+        Returns:
+            str: The generated text.
         """
         
         @tenacity.retry(**self.retry_settings)
@@ -133,9 +150,14 @@ class LLMProvider(ABC):
     
     def update_token_usage(self,
                            input_tokens: int,
-                           output_tokens: int
-                           ) -> None:
-        """Thread-safe token usage update."""
+                           output_tokens: int):
+        """
+        Update the token usage counters in a thread-safe manner.
+
+        Args:
+            input_tokens (int): The number of input tokens to add. Can be None.
+            output_tokens (int): The number of output tokens to add. Can be None.
+        """
         with self._lock:
             if input_tokens is not None:
                 self.input_tokens += input_tokens

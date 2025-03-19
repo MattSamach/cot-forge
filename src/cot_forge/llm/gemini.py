@@ -19,14 +19,17 @@ class GeminiLLMProvider(LLMProvider):
         Initialize a Gemini LLM provider instance.
 
         Args:
-            model_name: Gemini model id. Defaults to "gemini-2.0-flash".
-            api_key: API key for Gemini API. Defaults to None.
-            min_wait: Minimum wait time between retries in seconds. 
-                Defaults to parent class default.
-            max_wait: Maximum wait time between retries in seconds. 
-                Defaults to parent class default.
-            max_retries: Maximum retries for failed requests. 
-                Defaults to parent class default.
+            model_name (str): Gemini model ID. Defaults to "gemini-2.0-flash".
+            api_key (str | None): API key for the Gemini API. Required to authenticate requests.
+            min_wait (float | None): Minimum wait time between retries in seconds. 
+                Defaults to the parent class's behavior.
+            max_wait (float | None): Maximum wait time between retries in seconds. 
+                Defaults to the parent class's behavior.
+            max_retries (int | None): Maximum number of retries for failed requests. 
+                Defaults to the parent class's behavior.
+
+        Raises:
+            ImportError: If the required `google-genai` or `google-api-core` packages are not installed.
         """
         
         try:
@@ -61,7 +64,37 @@ class GeminiLLMProvider(LLMProvider):
                             **kwargs):
         """
         Generate text using the Gemini LLM API.
-        """        
+
+        This method sends a prompt to the Gemini API and retrieves the generated text.
+        It also updates token usage statistics and enforces token limits.
+
+        Args:
+            prompt (str): The input prompt for the model.
+            system_prompt (Optional[str]): An optional system instruction to guide the model's behavior.
+            temperature (float): Controls randomness in generation. Higher values produce more random outputs.
+                Defaults to 0.7.
+            max_tokens (Optional[int]): The maximum number of tokens to generate. Defaults to None.
+            **kwargs: Additional arguments for the Gemini API. For example:
+                - `llm_kwargs` (dict): A dictionary of additional configuration options for the API.
+
+        Returns:
+            str: The generated text from the Gemini API.
+
+        Raises:
+            ValueError: If token limits are exceeded.
+            google.api_core.exceptions.GoogleAPIError: If the Gemini API request fails.
+
+        Example:
+            ```python
+            provider = GeminiLLMProvider(api_key="your_api_key")
+            response = provider.generate_completion(
+                prompt="Write a poem about the ocean.",
+                temperature=0.8,
+                max_tokens=100
+            )
+            print(response)
+            ```
+        """     
         config_data = {"system_instruction": system_prompt} if system_prompt else {}
         config_data["temperature"] = temperature
         config_data["max_output_tokens"] = max_tokens

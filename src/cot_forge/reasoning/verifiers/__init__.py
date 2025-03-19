@@ -1,5 +1,7 @@
 """
-This module defines the verifiers used for evaluating the quality of generated chains of thought.
+This module defines the verifiers used for verifying if the conclusions of 
+chains of thought are correct or not. Verifiers may be LLM-based or 
+rules based (not yet implemented).
 
 It exports:
     - `LLMJudgeVerifier`: A class for verifiers that use LLM to judge the quality of outputs.

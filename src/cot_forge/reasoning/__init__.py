@@ -4,8 +4,10 @@ The reasoning module provides components for building and exploring chains of th
 Key Components:
 - strategies: Defines Strategy classes that represent different reasoning approaches
 - search: Implements search algorithms for exploring reasoning paths
-- prompts: Contains prompt templates used by strategies
+- types: Contains data structures used in reasoning, such as ReasoningNode and SearchResult
 - cot_builder: Main interface for constructing chains of thought
+- verifiers: Provides verification methods to validate the reasoning process
+- scorers: Implements scoring functions to evaluate the quality of reasoning paths
 
 Example usage:
 ```python
@@ -13,10 +15,12 @@ from cot_forge.llm import OpenAIProvider
 from cot_forge.reasoning import CoTBuilder, Search, default_strategy_registry
 
 llm = OpenAIProvider(api_key="...")
-search = Search() 
+search = NaiveLinearSearch()
+verifier = LLMJudgeVerifier(llm=llm)
 builder = CoTBuilder(
     llm=llm,
     search=search,
+    verifier = verifier,
     strategy_reg=default_strategy_registry
 )
 

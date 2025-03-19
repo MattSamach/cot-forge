@@ -1,18 +1,36 @@
 """
-Beam search implementation for reasoning chains.
-This search algorithm expands the reasoning chain by maintaining multiple paths
-and selecting the most promising ones based on a scoring mechanism.
-Branching factor options are chosen at random.
+Beam search implementation for generating reasoning chains.
+
+This search algorithm explores multiple reasoning paths in parallel, 
+maintaining a "beam" (chain) of the most promising candidates at each step.
+It expands the reasoning chain by applying different strategies and selecting 
+the most promising ones based on a scoring mechanism.
+
+The algorithm begins with an initial chain-of-thought (CoT) and iteratively expands it.
+At each step, it considers multiple strategies to extend each beam,
+evaluates the resulting paths using a scorer, 
+and keeps only the top `beam_width` paths for further exploration.
+
+The search continues until a termination condition is met 
+(e.g., a solution is found or the maximum depth is reached).
+
+Key aspects:
+    - Parallel Exploration: Explores multiple reasoning paths simultaneously.
+    - Strategy-Driven Expansion: Uses a variety of strategies to generate next steps in reasoning chains.
+    - Scoring Mechanism: Evaluates the generated strategies and selects the most promising paths.
+    - Verification: Checks the validity of the generated chain using a verifier.
 
 Logical flow:
-1. Initialize the chain with an initial cot.
-2. Initialize beams with distinct strategies (only reuse if beam_width > number_available_strategies).
-3. Generate the next step in the reasoning chain using a strategy.
-4. Use a scoring mechanism to select the most promising paths.
-5. Check if the generated chain is valid using a verifier. If valid, mark it as final.
-6. Expand each beam by choosing the best strategy for the current node.
-7. Continue until a termination condition is met or max depth is reached.
-8. Return all beams.
+    1. Initialization: Start with an initial CoT.
+    2. Beam Initialization: Create initial beams, each employing a distinct strategy 
+        (reusing strategies if `beam_width` exceeds the number of available strategies).
+    3. Iterative Expansion:
+        a. Strategy Selection: For each beam, select the best strategy to extend the reasoning chain.
+        b. Scoring: Evaluate the expanded beams using a scoring mechanism.
+        c. Beam Pruning: Keep only the top `beam_width` beams.
+        d. Verification: Check if the generated chain is valid using a verifier; if valid, mark it as final.
+    4. Termination: Continue until a termination condition is met (e.g., maximum depth reached).
+    5. Result: Return all beams.
 """
 # TODO: Experiment with multithreading in beam generation
 
@@ -51,6 +69,22 @@ class SimpleBeamSearch(BaseSearch):
         name (str): Name of the search algorithm.
         description (str): Description of the search algorithm.
         strategy_selector (ScoredStrategySelector): Strategy selector for scoring strategies.
+        
+    Usage:
+        To use this class, create an instance of `SimpleBeamSearch` and call its `_search` method
+        with the required arguments. For example:
+
+        ```python
+        search = SimpleBeamSearch(beam_width=3, max_depth=5)
+        result = search._search(
+            question="What is the capital of France?",
+            ground_truth_answer="Paris",
+            reasoning_llm=my_llm_provider,
+            scorer=my_scorer,
+            verifier=my_verifier
+        )
+        print(result.final_answer)
+        ```
     """
     
     def __init__(self,
@@ -76,17 +110,26 @@ class SimpleBeamSearch(BaseSearch):
         llm_kwargs: dict[str, Any] = None
     ) -> ReasoningNode:
         """
-        Returns a reasoning node with the initial CoT question and response.
+        Initialize the chain of thought (CoT) with the initial question and response.
+
+        This method generates the initial reasoning node by applying the 
+        [InitializeCoT] strategy and verifying the generated response.
 
         Args:
-            question : The question
-            ground_truth_answer: The true answer to the question
-            verifier: The verifier to check correctness of final answers
-            reasoning_llm: The LLM provider to generate initial CoT
-            llm_kwargs: Additional kwargs for LLM provider
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            verifier (BaseVerifier): The verifier used to check the correctness of the initial response.
+            reasoning_llm (LLMProvider): The LLM provider used to generate the initial CoT.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
 
         Returns:
-            ReasoningNode: Initial CoT reasoning node
+            ReasoningNode: The initial reasoning node containing the generated CoT.
+
+        Raises:
+            Exception: If an error occurs during the generation or verification process.
+            
+        See Also:
+            cot_forge.reasoning.strategies.InitializeCoT: Strategy for initializing CoT
         """
         strategy = InitializeCoT
         prompt = strategy.build_prompt(question)
@@ -135,18 +178,45 @@ class SimpleBeamSearch(BaseSearch):
                          llm_kwargs: dict[str, Any] = None,
                          )-> list[ReasoningNode]:
         """
-        Initialize the beams for the beam search by creating [beam_width] nodes. Each initialized beam 
-        should try to employ different strategies to explore the search space.
+        Initialize the beams for the beam search by creating multiple reasoning nodes.
+
+        This method generates a list of reasoning nodes (beams) starting from the given initial node.
+        Each beam is created by applying a distinct strategy selected from the strategy registry.
+        The strategies are scored using the provided scorer, and the resulting nodes are verified
+        for correctness using the verifier.
+
         Args:
-            initial_node: First node created. beam_width beams will be created from this node.
-            strategy_registry: Registry of available strategies.
-            scorer: Scorer to evaluate the strategies.
-            depth: Current depth in the search.
-            reasoning_llm: LLM provider to generate responses.
-            question: The question to answer.
-            ground_truth_answer: The true answer to the question.
-            verifier: Verifier to check correctness of final answers.
-            llm_kwargs: Additional kwargs for LLM provider.
+            initial_node (ReasoningNode): The starting node for the beam search.
+            strategy_registry (StrategyRegistry): The registry containing available reasoning strategies.
+            scorer (BaseScorer): The scorer used to evaluate and rank the strategies.
+            depth (int): The current depth in the search process.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            question (str): The question being answered.
+            ground_truth_answer (str): The true answer to the question for verification/scoring purposes.
+            verifier (BaseVerifier): The verifier used to check correctness of the generated reasoning nodes.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+
+        Returns:
+            list[ReasoningNode]: A list of initialized reasoning nodes (beams) created from the initial node.
+
+        Raises:
+            ValueError: If an error occurs during strategy selection or node creation.
+
+        Example:
+            ```python
+            beams = search_instance.initialize_beams(
+                initial_node=initial_node,
+                strategy_registry=strategy_registry,
+                scorer=scorer,
+                depth=1,
+                reasoning_llm=reasoning_llm,
+                question="What is the capital of France?",
+                ground_truth_answer="Paris",
+                verifier=verifier,
+                llm_kwargs={"temperature": 0.7}
+            )
+            print(f"Initialized {len(beams)} beams.")
+            ```
         """
         
         llm_kwargs = llm_kwargs or {}
@@ -212,22 +282,27 @@ class SimpleBeamSearch(BaseSearch):
     ) -> SearchResult:
         """
         Perform a beam search to generate possible chains of thought.
-        
+
+        This method explores multiple reasoning paths in parallel, maintaining a beam of the most
+        promising candidates at each step. It iteratively expands the reasoning chains, evaluates
+        them using a scoring mechanism, and prunes the beam to keep only the top candidates.
+
         Args:
-            question: The question to answer.
-            ground_truth_answer: The true answer to the question.
-            reasoning_llm: The LLM provider to use.
-            scorer: The scorer used to evaluate different beam options.
-            verifier: The verifier to use for checking correctness of final answers.
-            strategy_registry: Registry of available strategies.
-            llm_kwargs: Additional kwargs for reasoning LLM calls.
-            strategy_registry: Registry of available strategies.
-            max_depth: Maximum depth of the search tree (default: 3).
-            beam_width: Number of beams to maintain at each step (default: 3).
-            **kwargs: Additional kwargs for search algorithm.
-            
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            scorer (BaseScorer): The scorer used to evaluate different beam options.
+            verifier (BaseVerifier): The verifier used to check the correctness of final answers.
+            strategy_registry (StrategyRegistry, optional): The registry of available strategies.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for reasoning LLM calls.
+            max_depth (int, optional): Maximum depth of the search tree. Defaults to 3.
+            beam_width (int, optional): Number of beams to maintain at each step. Defaults to 3.
+
         Returns:
-            A SearchResult containing terminal nodes of beams.
+            SearchResult: An object containing the terminal nodes of the beams, success status, and metadata.
+
+        Raises:
+            ValueError: If an error occurs during strategy selection or beam initialization.
         """
         # Create initial node
         try:

@@ -22,6 +22,34 @@ class MyCustomStrategy(Strategy):
     description: ClassVar[str] = "A custom strategy that does X"
     is_initial: ClassVar[bool] = False
 ```
+
+### Key Features
+
+1. **Strategy Class**: A base class for defining reasoning strategies with 
+    attributes like `name`, `description`, `is_initial`, and `minimum_depth`.
+
+2. **Dynamic Strategy Creation**: Use `Strategy.create_strategy()` to 
+    dynamically create new strategies at runtime.
+
+3. **Strategy Registry**: The `StrategyRegistry` class allows for 
+    registering, retrieving, and managing strategies.
+
+4. **Convenient Creation and Registration**: Use `StrategyRegistry.create_and_register()` 
+    to create and register a strategy in one step.
+
+Example usage of `create_and_register()`:
+
+```python
+from cot_forge.reasoning.strategies import default_strategy_registry
+
+# Create and register a new strategy
+default_strategy_registry.create_and_register(
+    name="explore_alternatives",
+    description="Explore alternative approaches to the problem",
+    is_initial=False,
+    minimum_depth=2
+)
+```
 """
 
 from dataclasses import dataclass
@@ -34,13 +62,17 @@ from .prompts import StrategyPromptTemplate
 @dataclass(frozen=True)
 class Strategy:
     """
-    Base strategy class with common attributes.
-    
+    Base class for defining reasoning strategies.
+
+    This class provides a blueprint for creating strategies that can be used 
+    in a chain of thought (CoT) reasoning process. Each strategy has attributes 
+    like `name`, `description`, and `is_initial` to define its behavior.
+
     Attributes:
-        name (str): Name of the strategy.
-        description (str): Description of the strategy.
-        is_initial (bool): Indicates if this is an initial strategy.
-        minimum_depth (int): Minimum depth required for this strategy.
+        name (str): The unique name of the strategy.
+        description (str): A brief description of the strategy's purpose.
+        is_initial (bool): Whether this strategy is the starting point in the CoT process.
+        minimum_depth (int): The minimum depth required for this strategy to be applied.
     """
     name: ClassVar[str]
     description: ClassVar[str]
@@ -56,19 +88,34 @@ class Strategy:
         minimum_depth: int = 0
     ) -> type['Strategy']:
         """
-        Factory method to create custom Strategy subclasses.
-        
-        Example usage to create a new strategy at runtime:
-        ```
-        ExploreAlternatives = Strategy.create_strategy(
-            name="explore_alternatives",
-            description="Explore alternative approaches to the problem",
-            is_initial=False
-            minimum_depth=2
-        )
-        
-        print(ExploreAlternatives.build_prompt("What is the capital of France?"))
-        ```
+        Factory method to dynamically create custom `Strategy` subclasses.
+
+        This method allows you to define new strategies at runtime by specifying 
+        their attributes. The resulting subclass can be used like any other 
+        `Strategy` class.
+
+        Args:
+            name (str): The unique name of the strategy.
+            description (str): A brief description of the strategy's purpose.
+            is_initial (bool, optional): Whether this strategy is the starting point 
+                in the CoT process. Defaults to False.
+            minimum_depth (int, optional): The minimum depth required for this 
+                strategy to be applied. Defaults to 0.
+
+        Returns:
+            type[Strategy]: A dynamically created subclass of `Strategy`.
+
+        Example:
+            ```
+            ExploreAlternatives = Strategy.create_strategy(
+                name="explore_alternatives",
+                description="Explore alternative approaches to the problem",
+                is_initial=False,
+                minimum_depth=2
+            )
+
+            print(ExploreAlternatives.build_prompt("What is the capital of France?"))
+            ```
         """
         return type(name, (cls,), {
             "name": name,
@@ -90,18 +137,22 @@ class Strategy:
                      question: str,
                      previous_cot: str | None = None) -> str:
         """
-        Dynamically build the prompt with strategy prompt template.
-        
+        Build a dynamic prompt using the strategy's prompt template.
+
+        This method constructs a prompt based on the strategy's attributes, 
+        the provided question, and optionally the previous chain of thought (CoT). 
+        It ensures that all required inputs are provided before generating the prompt.
+
         Args:
-            question: The question to be answered.
-            strategy_description: Description of the strategy.
-            previous_cot: Previous chain of thought. Required if not initial.
+            question (str): The question to be answered.
+            previous_cot (str | None, optional): The previous chain of thought. 
+                Required if the strategy is not an initial strategy.
 
         Returns:
-            str: Formatted prompt string
-            
+            str: A formatted prompt string ready for use.
+
         Raises:
-            ValueError: If not all required inputs are provided
+            ValueError: If `previous_cot` is not provided for non-initial strategies.
         """
         prompt = StrategyPromptTemplate.create_header(question=question)
         
@@ -119,7 +170,17 @@ class Strategy:
         return prompt
     
 class StrategyRegistry:
-    """ Registry for strategies. Allows quick lookup and registration of strategies. """
+    """
+    A registry for managing reasoning strategies.
+
+    The `StrategyRegistry` class provides methods to register, retrieve, 
+    and manage strategies. It supports both manual registration of strategy 
+    classes and dynamic creation and registration of new strategies.
+
+    Attributes:
+        _strategies (dict): A dictionary mapping strategy names to their 
+            corresponding `Strategy` classes.
+    """
     
     def __init__(self, strategies: list[Strategy] | None = None):
         """ Initialize an empty strategy registry. 
@@ -134,14 +195,27 @@ class StrategyRegistry:
     
     def register(self, strategy_class: type[Strategy]) -> type[Strategy]:
         """
-        Register a Strategy class with this registry.
-        Can be used as a decorator.
-        
+        Register a `Strategy` class with the registry.
+
+        This method adds a `Strategy` subclass to the registry, making it 
+        available for retrieval by name. It can also be used as a decorator 
+        to simplify the registration process.
+
         Args:
-            strategy_class: A Strategy subclass to register
-            
+            strategy_class (type[Strategy]): The `Strategy` subclass to register.
+
         Returns:
-            The strategy_class (enabling decorator usage)
+            type[Strategy]: The registered `Strategy` subclass, enabling decorator usage.
+
+        Example:
+            ```
+            @default_strategy_registry.register
+            @dataclass(frozen=True)
+            class MyCustomStrategy(Strategy):
+                name: ClassVar[str] = "my_custom_strategy"
+                description: ClassVar[str] = "A custom strategy."
+                is_initial: ClassVar[bool] = False
+            ```
         """
         self._strategies[strategy_class.name] = strategy_class
         return strategy_class
@@ -152,18 +226,33 @@ class StrategyRegistry:
                             minimum_depth: int = 0
                             ) -> Strategy:
         """
-        Create and register a new strategy at the same time.
+        Create and register a new strategy in one step.
 
-        Example usage:
-        ```
-        registry = StrategyRegistry()
-        registry.create_and_register(
-            name="explore_alternatives",
-            description="Explore alternative approaches to the problem",
-            is_initial=False,
-            minimum_depth=2
-        )
-        ```
+        This method combines the creation of a custom `Strategy` subclass 
+        with its registration in the registry. It is a convenient way to 
+        define and immediately make a strategy available for use.
+
+        Args:
+            name (str): The unique name of the strategy.
+            description (str): A brief description of the strategy's purpose.
+            is_initial (bool, optional): Whether this strategy is the starting 
+                point in the CoT process. Defaults to False.
+            minimum_depth (int, optional): The minimum depth required for this 
+                strategy to be applied. Defaults to 0.
+
+        Returns:
+            Strategy: The dynamically created and registered `Strategy` subclass.
+
+        Example:
+            ```
+            registry = StrategyRegistry()
+            registry.create_and_register(
+                name="explore_alternatives",
+                description="Explore alternative approaches to the problem",
+                is_initial=False,
+                minimum_depth=2
+            )
+            ```
         """
         strategy = Strategy.create_strategy(name, description, is_initial, minimum_depth)
         self._strategies[name] = strategy
@@ -173,11 +262,11 @@ class StrategyRegistry:
         """Get a strategy by name, or None if not found."""
         return self._strategies.get(name, None)
     
-    def list_strategies(self):
+    def list_strategies(self) -> list[str]:
         """Return a list of all registered strategy names."""
         return list(self._strategies.keys())
     
-    def get_all_strategies_metadata(self):
+    def get_all_strategies_metadata(self) -> dict:
         """Return metadata for all registered strategies."""
         return {name: strategy.get_metadata() for name, strategy in self._strategies.items()}
     

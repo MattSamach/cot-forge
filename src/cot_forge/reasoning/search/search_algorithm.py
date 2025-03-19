@@ -64,7 +64,21 @@ class SearchAlgorithm(Protocol):
 class BaseSearch(ABC, SearchAlgorithm):
     """
     Base class providing common functionality for search algorithms.
-    Implements the SearchAlgorithm protocol using __call__ and _search.
+
+    This class implements the `SearchAlgorithm` protocol and provides a foundation for
+    concrete search algorithm implementations. Subclasses must implement the `_search`
+    method to define the specific search strategy.
+
+    Key Features:
+    - Implements the `__call__` method to serve as the main entry point for executing a search.
+    - Provides utility methods like `verify_node` and `create_node` to standardize common tasks.
+    - Enforces the structure defined by the `SearchAlgorithm` protocol.
+
+    Attributes:
+        logger (logging.Logger): Logger instance for logging search-related events.
+
+    Usage:
+        To create a custom search algorithm, inherit from `BaseSearch` and implement the `_search` method.
     """
 
     def __call__(
@@ -79,8 +93,27 @@ class BaseSearch(ABC, SearchAlgorithm):
         **kwargs
     ) -> SearchResult:
         """
-        Entry point matching the SearchAlgorithm protocol. Subclasses can 
-        invoke additional common logic here before or after _search.
+        Entry point for executing a search algorithm.
+
+        This method matches the `SearchAlgorithm` protocol and invokes the `_search` method
+        to perform the actual search. Subclasses can override this method to add pre- or
+        post-processing logic around the core `_search` method.
+
+        Args:
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            verifier (BaseVerifier): The verifier used to check the correctness of the reasoning steps.
+            scorer (BaseScorer, optional): The scorer used to evaluate reasoning paths.
+            strategy_registry (StrategyRegistry, optional): The registry of reasoning strategies.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+            **kwargs: Additional keyword arguments for the search algorithm.
+
+        Returns:
+            SearchResult: The result of the search, including the best reasoning path found.
+
+        Raises:
+            Exception: If an error occurs during the search process.
         """
         # Common initialization/validation logic (if needed)
         return self._search(
@@ -123,22 +156,33 @@ class BaseSearch(ABC, SearchAlgorithm):
         logger: logging.Logger = logger
     ) -> tuple[bool, str | None]:
         """
-        Verify a node and optionally update its status.
-        
+        Verify a reasoning node and optionally update its status.
+
+        This method uses the provided verifier to check the correctness of a reasoning node.
+        It supports configurable error-handling strategies, including retries for transient errors.
+
         Args:
-            node: The node to verify
-            question: Original question
-            ground_truth_answer: The true answer
-            verifier: Verification function to use
-            on_error: How to handle verification errors:
-                - "continue": Return false but don't raise an exception (skip this path)
-                - "raise": Return error message to allow caller to handle
-                - "retry": Retry the verification (useful for transient errors)
-            max_retries: Maximum number of retry attempts if on_error="retry"
-            retry_delay: Seconds to wait between retry attempts
-                
+            node (ReasoningNode): The reasoning node to verify.
+            question (str): The original question being answered.
+            ground_truth_answer (str): The true answer to the question.
+            verifier (BaseVerifier): The verifier used to check the correctness of the node.
+            on_error (Literal["continue", "raise", "retry"], optional): How to handle verification errors:
+                - "continue": Log the error and return False without raising an exception.
+                - "raise": Raise an exception if verification fails.
+                - "retry": Retry the verification up to `max_retries` times. Defaults to "retry".
+            max_retries (int, optional): Maximum number of retry attempts if `on_error="retry"`.
+                Defaults to 3.
+            retry_delay (float, optional): Seconds to wait between retry attempts. Defaults to 1.0.
+            logger (logging.Logger, optional): Logger instance for logging errors and retries.
+                Defaults to the module logger.
+
         Returns:
-            tuple[bool, str | None]: (verification_success, error_message if any)
+            tuple[bool, str | None]: A tuple containing:
+                - A boolean indicating whether the verification was successful.
+                - An error message, if any.
+
+        Raises:
+            RuntimeError: If verification fails and `on_error="raise" or on_error="retry"`.
         """
         
         result, error_msg = execute_with_fallback(

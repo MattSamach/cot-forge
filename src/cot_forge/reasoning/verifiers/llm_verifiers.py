@@ -1,8 +1,37 @@
 """
-This module contains LLM verifiers that use a language model to verify the correctness of answers.
-The LLMJudgeVerifier class is a specific implementation that uses 
-an LLM to judge the correctness of an answer.
+LLM-based verification implementations for the CoT-Forge reasoning framework.
+
+This module provides verifier implementations that leverage Language Models (LLMs)
+to assess the correctness of reasoning outputs. The primary class, LLMJudgeVerifier,
+uses an LLM to compare and evaluate answers against ground truth.
+
+Key Features:
+    - LLM-based verification of reasoning outputs
+    - Configurable prompt templates for verification
+    - JSON-formatted response parsing
+    - Detailed error handling and logging
+
+Example:
+    ```python
+    from cot_forge.llm import OpenAIProvider
+    from cot_forge.reasoning.verifiers import LLMJudgeVerifier
+
+    # Initialize verifier
+    llm = OpenAIProvider(api_key="your-key")
+    verifier = LLMJudgeVerifier(
+        llm_provider=llm,
+        llm_kwargs={"temperature": 0.1}
+    )
+
+    # Verify a reasoning node
+    is_correct, explanation = verifier.verify(
+        node=reasoning_node,
+        question="What is the capital of France?",
+        ground_truth_answer="Paris"
+    )
+    ```
 """
+
 import json
 import logging
 from typing import Any
@@ -16,20 +45,48 @@ from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_re
 logger = logging.getLogger(__name__)
 
 class LLMJudgeVerifier(BaseVerifier):
-    """Verifier that uses an LLM as a judge to verify answer correctness and provide feedback."""
+    """
+    A verifier that uses an LLM to judge answer correctness and provide feedback.
+    
+    This verifier delegates the verification task to an LLM, which compares a final
+    answer against a ground truth answer and provides both a binary correctness
+    assessment and a detailed explanation.
+
+    Attributes:
+        prompt_template (str): Template string for formatting verification prompts
+        llm_provider (LLMProvider): Provider for LLM access
+        llm_kwargs (dict): Additional parameters for LLM calls
+    """
     
     def __init__(self,
                  llm_provider: LLMProvider,
                  llm_kwargs: dict[str, Any] | None = None,
                  prompt_template: str = DEFAULT_VERIFICATION_PROMPT):
-        """Initialize with custom prompt template if desired."""
+        """
+        Initialize the LLM judge verifier.
+
+        Args:
+            llm_provider (LLMProvider): Provider for LLM access
+            llm_kwargs (dict, optional): Additional parameters for LLM calls
+            prompt_template (str, optional): Custom prompt template for verification.
+                Defaults to DEFAULT_VERIFICATION_PROMPT.
+        """
         name = "llm_judge_verifier",
         description = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
         
     def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
-        """Builds the verification prompt for the LLM."""
+        """
+        Build the verification prompt for the LLM.
+
+        Args:
+            final_answer (str): The answer to verify
+            ground_truth_answer (str): The correct answer to compare against
+
+        Returns:
+            str: Formatted prompt string for the LLM
+        """
         prompt = self.prompt_template.format(
                 final_answer=final_answer,
                 ground_truth_answer=ground_truth_answer
@@ -37,8 +94,21 @@ class LLMJudgeVerifier(BaseVerifier):
         prompt += "\n\n" + VERIFICATION_FORMAT_PROMPT
         return prompt
     
-    def parse_response(self, response: str) -> str:
-        """Parse the LLM response to extract the final answer."""
+    def parse_response(self, response: str) -> tuple[str, str]:
+        """
+        Parse the LLM's verification response.
+
+        Args:
+            response (str): Raw response from the LLM
+
+        Returns:
+            tuple[str, str]: A tuple containing:
+                - verification result ("yes"/"no")
+                - explanation of the verification decision
+
+        Raises:
+            json.JSONDecodeError: If response cannot be parsed as JSON
+        """
         try:            
             response_json = parse_json_response(response)
             verification_result = response_json.get("verification", {}).get("result").strip().lower()
@@ -52,7 +122,22 @@ class LLMJudgeVerifier(BaseVerifier):
                node: ReasoningNode,
                question: str,
                ground_truth_answer: str) -> tuple[bool, str]:
-        """Use LLM to verify if the answer is correct."""
+        """
+        Verify the correctness of a reasoning node's answer using an LLM.
+
+        Args:
+            node (ReasoningNode): The reasoning node to verify
+            question (str): The original question being answered
+            ground_truth_answer (str): The correct answer to compare against
+
+        Returns:
+            tuple[bool, str]: A tuple containing:
+                - boolean indicating if the answer is correct
+                - explanation of the verification result
+
+        Raises:
+            ValueError: If LLM returns an empty response
+        """
         if not node.cot:
             logger.error("Node.cot is None")
             return False, "Error: Node.cot is None"

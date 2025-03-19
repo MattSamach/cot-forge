@@ -20,7 +20,7 @@ def parse_json_response(response: str) -> Any:
         logger.error(f"Error decoding JSON: {err}")
         raise ValueError("Invalid response format. Expected a JSON string.") from err
 
-def extract_cot(response: str) -> Any:
+def extract_cot(response: str) -> dict:
     """
     Extract the chain of thought from a response as 
     a python object (combo of list/dict).
@@ -32,7 +32,7 @@ def extract_cot(response: str) -> Any:
         logger.error(f"Attribute error: {err}")
         raise ValueError("Invalid response format. Expected a dictionary with 'CoT' key.") from err
     
-def extract_final_answer_from_str(response: str) -> str:
+def extract_final_answer_from_str(response: str) -> str | None:
     """Extract the final answer from a response."""
     try:
         data = parse_json_response(response)
@@ -47,7 +47,7 @@ def extract_final_answer_from_str(response: str) -> str:
     
     return None
     
-def extract_final_answer_from_cot(data: list[dict]) -> str:
+def extract_final_answer_from_cot(data: list[dict]) -> str | None:
     """Extract the final answer from a cot."""
     # Handle error case where data is not a list
     if not isinstance(data, list):

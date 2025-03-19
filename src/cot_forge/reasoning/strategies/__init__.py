@@ -1,3 +1,12 @@
+"""
+The `strategies` module provides a framework for implementing and managing reasoning strategies,
+including prompt templates, concrete strategy implementations, a strategy registry, and strategy selectors.
+
+It defines core classes like `Strategy` and `StrategyPromptTemplate`, along with various concrete
+reasoning strategies such as `Backtrack`, `Correction`, and `ExploreNewPaths`.  It also includes
+utilities for selecting strategies, such as `RandomStrategySelector` and `ScoredStrategySelector`.
+"""
+
 from .prompts import (
                       StrategyPromptTemplate,
                       backtrack_strategy_prompt,

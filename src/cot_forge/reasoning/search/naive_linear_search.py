@@ -1,10 +1,19 @@
 """
-Naïve sequential search for reasoning chains.
+Implements a naive linear search for reasoning chains.
 
-Logical flow:
-1. Initialize chain with Initialize strategy.
-2. Randomly select a strategy from the registry.
-3. Continue until verifier returns true or max depth is reached.
+This search algorithm explores the reasoning space by sequentially applying
+randomly selected strategies from a predefined registry. It starts with an
+initial state (usually defined by an "Initialize" strategy) and iteratively
+expands the chain of thought (CoT) until a verification condition is met or
+a maximum depth is reached.
+
+The logical flow of the search is as follows:
+1.  Initialize the chain of thought (CoT) using an initial strategy.
+2.  Randomly select a strategy from the strategy registry.
+3.  Apply the selected strategy to extend the CoT.
+4.  Verify the extended CoT against a ground truth answer using a verifier.
+5.  Repeat steps 2-4 until the verifier returns True (success) or the
+    maximum search depth is reached (failure).
 """
 
 import logging
@@ -26,7 +35,7 @@ class NaiveLinearSearch(BaseSearch):
     Naive linear search for reasoning chain.
     
     This class implements a naive sequential search algorithm to generate a chain of thought (CoT).
-    It selects strategies randomly from the registry and continues until the verifier returns true
+    It selects strategies randomly from the registry and continues until the verifier returns True
     or the maximum depth is reached.
     
     Attributes:
@@ -34,6 +43,7 @@ class NaiveLinearSearch(BaseSearch):
         max_depth (int): Maximum depth for the search.
         name (str): Name of the search algorithm.
         description (str): Description of the search algorithm.
+        strategy_selector (StrategySelector): Strategy selector for choosing strategies.
     """
     
     def __init__(self,
@@ -56,22 +66,42 @@ class NaiveLinearSearch(BaseSearch):
         **kwargs
     ) -> SearchResult:
         """
-        Perform a naive/random sequential search to generate a chain of thought.
-        
+        Perform a naive sequential search to generate a chain of thought (CoT).
+
+        This method iteratively applies reasoning strategies to expand the CoT. At each step, it verifies
+        the generated CoT against the ground truth answer using the provided verifier. The process continues
+        until the verifier returns True or the maximum search depth is reached.
+
         Args:
-            question: The question to answer.
-            ground_truth_answer: The true answer to the question.
-            verifier: The verifier to use for checking correctness.
-            reasoning_llm: The LLM provider to use.
-            llm_kwargs: Additional kwargs for reasoning LLM calls.
-            **kwargs: Additional kwargs for search algorithm.
-        
+            question (str): The question to answer.
+            ground_truth_answer (str): The true answer to the question.
+            verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
+            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+            **kwargs: Additional keyword arguments for the search algorithm.
+
         Returns:
-            A SearchResult containing the chain of thought and metadata.
+            SearchResult: Object with final reasoning node, success status, final answer, and metadata.
+
+        Raises:
+            Exception: If an error occurs during LLM generation or verification.
+
+        Example:
+            ```python
+            search = NaiveLinearSearch(max_depth=5)
+            result = search._search(
+                question="What is the capital of France?",
+                ground_truth_answer="Paris",
+                verifier=my_verifier,
+                reasoning_llm=my_llm_provider
+            )
+            print(result.final_answer)
+            ```
         """
                 
         llm_kwargs = llm_kwargs or {}
         
+        # Initialize the reasoning node
         current_node = None
         
         for depth in range(self.max_depth):

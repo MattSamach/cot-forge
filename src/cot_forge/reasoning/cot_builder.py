@@ -64,12 +64,35 @@ from .strategies import StrategyRegistry, default_strategy_registry
 # TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
 # TODO: Check all files for docstrings and add them if missing
 # TODO: Add error handling to scorer class, maybe verifier class
+# TODO: Add export of main classes/functions to cot_forge/__init__.py
 
 class CoTBuilder:
     """
-    This class contains states and logic to use LLMs to construct 
-    chains of thought (CoT) that, through reasoning, connect premises
-    to ground truth answers.
+    Constructs verifiable chains of thought using language models.
+
+    A chain of thought (CoT) is a sequence of reasoning steps that connects a question
+    to its answer through logical deduction. This class manages the process of:
+    1. Generating candidate reasoning steps using LLMs
+    2. Searching through possible reasoning paths
+    3. Verifying correctness of conclusions
+
+    Attributes:
+        reasoning_llm (LLMProvider): Language model for generating reasoning steps
+        search (SearchAlgorithm): Algorithm for exploring reasoning paths
+        verifier (BaseVerifier): Validates reasoning conclusions
+        scorer (BaseScorer): Evaluates path quality to prioritize exploration
+        strategy_reg (StrategyRegistry): Available reasoning strategies
+        search_llm_kwargs (dict): Additional LLM configuration
+
+    Example:
+        ```python
+        builder = CoTBuilder(
+            reasoning_llm=llm,
+            search=search_algo,
+            verifier=verifier
+        )
+        result = builder.build("Why is the sky blue?", "Rayleigh scattering")
+        ```
     """
     
     def __init__(self,
@@ -80,17 +103,6 @@ class CoTBuilder:
                  strategy_reg: StrategyRegistry = default_strategy_registry,
                  search_llm_kwargs: dict[str, Any] = None,
                  ):
-        """
-        Initialize the CoTBuilder with an LLM provider, search algorithm,
-        and strategy registry.
-        Args:
-            reasoning_llm: LLM provider to use for generating cot responses
-            search: Search algorithm to use for constructing CoT
-            verifier: An instance of a verifier to check if the answer is correct
-            scorer: An instance of a scorer to evaluate different paths
-            strategy_reg: Registry of strategies to sample from
-            search_llm_kwargs: Additional kwargs for LLM provider used in search
-        """
         self.reasoning_llm = reasoning_llm
         self.search_llm_kwargs = search_llm_kwargs or {}
         self.strategy_reg = strategy_reg
@@ -104,16 +116,32 @@ class CoTBuilder:
               llm_kwargs: dict[str, Any] = None,
               **kwargs) -> SearchResult:
         """
-        Execute the search algorithm to build a CoT.
-        
+        Construct a chain of thought for a single question.
+
+        Uses the configured search algorithm to generate and validate a reasoning path
+        that connects the question to its known answer.
+
         Args:
-            question: The question to be answered
-            ground_truth_answer: The true answer to the question
-            llm_kwargs: Additional kwargs for LLM provider
-            **kwargs: Additional kwargs for search algorithm
-        
+            question (str): The question requiring explanation
+            ground_truth_answer (str): Known correct answer
+            llm_kwargs (dict[str, Any], optional): Additional LLM parameters
+            **kwargs: Additional parameters for search algorithm
+
         Returns:
-            A SearchResult containing the chain of thought and metadata
+            SearchResult: Contains:
+                - final_node: Final reasoning state
+                - search_path: List of explored states
+                - metadata: Search statistics and configuration
+
+        Example:
+            ```python
+            result = builder.build(
+                question="How many continents are there?",
+                ground_truth_answer="7",
+                temperature=0.7
+            )
+            print(result.final_node.get_full_cot())
+            ```
         """
         llm_kwargs = llm_kwargs or {}
         return self.search(
@@ -136,19 +164,37 @@ class CoTBuilder:
                     max_workers: int | None = 4,
                     **kwargs) -> list[SearchResult]:
         """
-        Execute the search algorithm to build a CoT for a batch of questions.
-        
+        Process multiple questions in batch mode.
+
+        Supports both single-threaded and multi-threaded execution with progress tracking.
+
         Args:
-            questions: List of questions to be answered
-            ground_truth_answers: List of true answers to the questions
-            llm_kwargs: Additional kwargs for LLM provider
-            multi_thread: Whether to run the search in multi-thread mode
-            progress_bar: Whether to show a progress bar
-            max_workers: Number of workers for multi-thread execution, required if multi_thread is True
-            **kwargs: Additional kwargs for search algorithm
-        
+            questions (list[str]): List of questions to process
+            ground_truth_answers (list[str]): Corresponding correct answers
+            llm_kwargs (dict[str, Any] | None, optional): Additional LLM parameters
+            multi_thread (bool, optional): Enable parallel processing
+            progress_bar (bool, optional): Show progress indicator
+            max_workers (int | None, optional): Thread pool size for parallel processing
+            **kwargs: Additional search algorithm parameters
+
         Returns:
-            A list of SearchResult containing the chain of thought and metadata
+            list[SearchResult]: List of search results, one per question
+
+        Performance:
+            - Single-threaded: Processing is sequential but memory-efficient
+            - Multi-threaded: Faster for large batches, higher memory usage
+
+        Example:
+            ```python
+            questions = ["What is 2+2?", "What is 3+3?"]
+            answers = ["4", "6"]
+            results = builder.build_batch(
+                questions=questions,
+                ground_truth_answers=answers,
+                multi_thread=True,
+                max_workers=4
+            )
+            ```
         """
         
         if len(questions) != len(ground_truth_answers):
