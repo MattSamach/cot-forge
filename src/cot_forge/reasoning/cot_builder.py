@@ -17,7 +17,7 @@ from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Add write to file methods and, logging, and checkpoints
-# TODO: Create StrategySelector as its own class
+# TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
 
 class CoTBuilder:
     """
@@ -55,7 +55,7 @@ class CoTBuilder:
     def build(self,
               question: str,
               ground_truth_answer: str,
-              llm_kwargs: dict[str, Any] = {},
+              llm_kwargs: dict[str, Any] = None,
               **kwargs) -> SearchResult:
         """
         Execute the search algorithm to build a CoT.
@@ -69,6 +69,7 @@ class CoTBuilder:
         Returns:
             A SearchResult containing the chain of thought and metadata
         """
+        llm_kwargs = llm_kwargs or {}
         return self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
@@ -197,7 +198,18 @@ class CoTBuilder:
 
 
     def __repr__(self) -> str:
-        return f"CoTBuilder(llm={self.reasoning_llm}, search={self.search}, verifier={self.verifier}, scorer={self.scorer})"
+        return (f"CoTBuilder with:\n"
+            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tSearch Algorithm: {self.search}\n"
+            f"\tVerifier: {self.verifier}\n"
+            f"\tScorer: {self.scorer}\n"
+            f"\tStrategy Registry: {self.strategy_reg}\n"
+            f"\tSearch LLM Kwargs: {self.search_llm_kwargs}")
     
     def __str__(self) -> str:
-        return f"CoTBuilder with LLM: {self.reasoning_llm}, Search Algorithm: {self.search}, Verifier: {self.verifier}, Scorer: {self.scorer}"
+        return (f"CoTBuilder with:\n"
+            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tSearch Algorithm: {self.search}\n"
+            f"\tVerifier: {self.verifier}\n"
+            f"\tScorer: {self.scorer}\n"
+            f"\tStrategies: {self.strategy_reg.list_strategies()}")

@@ -17,19 +17,19 @@ Logical flow:
 # TODO: Experiment with multithreading in beam generation
 
 import logging
-import random
-from collections import defaultdict
 from typing import Any
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
-from cot_forge.reasoning.strategies import (InitializeCoT, Strategy,
-                                            StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import (
+    InitializeCoT,
+    ScoredStrategySelector,
+    StrategyRegistry,
+    default_strategy_registry,
+)
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 from cot_forge.utils.search_utils import generate_and_parse_cot
-from cot_forge.reasoning.strategies import ScoredStrategySelector
 
 from .search_algorithm import BaseSearch
 
@@ -50,6 +50,7 @@ class SimpleBeamSearch(BaseSearch):
         max_depth (int): Maximum depth for the search.
         name (str): Name of the search algorithm.
         description (str): Description of the search algorithm.
+        strategy_selector (ScoredStrategySelector): Strategy selector for scoring strategies.
     """
     
     def __init__(self,
@@ -66,134 +67,6 @@ class SimpleBeamSearch(BaseSearch):
         self.description = "Simple beam search to produce multiple parallel reasoning chains."
         self.strategy_selector = ScoredStrategySelector()
 
-    def evaluate_strategies(
-        self,
-        node: ReasoningNode,
-        strategy_registry: StrategyRegistry,
-        depth: int,
-        num_strategies: int,
-        reasoning_llm: LLMProvider,
-        llm_kwargs: dict[str, Any],
-        question: str,
-        ground_truth_answer: str,
-        scorer: BaseScorer
-    ) -> dict[str, dict] | None:
-        """
-        Evaluate multiple strategies for a given node and rank them.
-        
-        Args:
-            node: Current node to expand from
-            strategy_registry: Registry of available strategies
-            depth: Current depth in the search
-            num_strategies: Number of strategies to consider
-            reasoning_llm: The LLM provider
-            llm_kwargs: Additional kwargs for reasoning llm call
-            question: The original question
-            ground_truth_answer: The true answer
-            scorer: Scoring function to evaluate strategies
-            
-        Returns:
-            Dictionary of strategy evaluations with scores or None if scoring fails
-        """
-        strategy_options = self.get_strategy_options(
-            registry=strategy_registry,
-            num_strategies=num_strategies,
-            depth=depth
-        )
-        
-        # Generate CoT for each strategy option
-        strategies_tracker = defaultdict(dict)
-        for strat_name in strategy_options:
-            strategy = strategy_registry.get_strategy(strat_name)
-            prompt = strategy.build_prompt(
-                question=node.prompt,
-                previous_cot=str(node.get_full_cot())
-            )
-            try:
-                response, cot = generate_and_parse_cot(
-                    reasoning_llm=reasoning_llm,
-                    prompt=prompt,
-                    llm_kwargs=llm_kwargs,
-                    logger=logger,
-                    on_error="raise"
-                )
-            except Exception as e:
-                logger.error(f"Error in generating response: {e}")
-                continue
-
-            # Store the strategy, response, and cot in the strategies tracker
-            strategies_tracker[strat_name]['response'] = response
-            strategies_tracker[strat_name]['cot'] = cot
-            strategies_tracker[strat_name]['prompt'] = prompt
-            strategies_tracker[strat_name]['strategy'] = strategy_registry.get_strategy(strat_name)
-            
-        if not strategies_tracker:
-            logger.error("No valid strategies found")
-            return None  # Return None instead of raising error
-
-        # Create cot_list in the format expected by the scorer
-        cot_list = [
-            {"strategy_name": strat_name, "cot": strat_data['cot']}
-            for strat_name, strat_data in strategies_tracker.items()
-        ]
-
-        # Score each option using the provided scorer
-        # TODO: Add error handling to scorer class
-        try:
-            scores = scorer(
-                cot_list=cot_list,
-                question=question,
-                ground_truth_answer=ground_truth_answer,
-            )
-        except Exception as e:
-            logger.error(f"Error in scoring: {e}")
-            return None  # Return None instead of raising error
-
-        # Update scores
-        for name, score in scores.items():
-            strategies_tracker[name]['score'] = score
-                
-        return strategies_tracker
-
-    def get_strategy_options(
-        self,
-        registry: StrategyRegistry,
-        depth: int,
-        num_strategies: int = None,
-    ) -> list[Strategy]:
-        """
-        Selects a set of strategies options for a beam to consider.
-        
-        Args:
-            registry: The strategy registry.
-            depth: Current depth in the reasoning chain. Needed to filter strategies.
-            num_strategies: Number of strategies to sample. If None, all strategies are considered.
-            **kwargs: Additional arguments for strategy selection.
-            
-        Returns:
-            A list of strategies to consider.
-        """
-        
-        strategy_names = registry.list_strategies()
-        
-        strategy_names = [
-            name for name in strategy_names 
-            if not registry.get_strategy(name).is_initial
-            and depth >= registry.get_strategy(name).minimum_depth
-        ]
-        
-        if not strategy_names:
-            raise ValueError("No appropriate strategies found for step")
-        
-        if num_strategies > len(strategy_names):
-            raise ValueError("branching_factor cannot exceed number of valid strategies in registry")
-        
-        # Consider all strategies if no branching factor
-        if num_strategies is None:
-            num_strategies = len(strategy_names)
-            
-        return random.sample(strategy_names, num_strategies)
-
     def initialize_cot(
         self,
         question: str,
@@ -201,13 +74,16 @@ class SimpleBeamSearch(BaseSearch):
         verifier: BaseVerifier,
         reasoning_llm: LLMProvider,
         llm_kwargs: dict[str, Any] = None
-    ) -> ReasoningNode :
+    ) -> ReasoningNode:
         """
         Returns a reasoning node with the initial CoT question and response.
 
         Args:
             question : The question
+            ground_truth_answer: The true answer to the question
+            verifier: The verifier to check correctness of final answers
             reasoning_llm: The LLM provider to generate initial CoT
+            llm_kwargs: Additional kwargs for LLM provider
 
         Returns:
             ReasoningNode: Initial CoT reasoning node
@@ -256,7 +132,7 @@ class SimpleBeamSearch(BaseSearch):
                          question: str,
                          ground_truth_answer: str,
                          verifier: BaseVerifier,
-                         llm_kwargs: dict[str, Any] = {},
+                         llm_kwargs: dict[str, Any] = None,
                          )-> list[ReasoningNode]:
         """
         Initialize the beams for the beam search by creating [beam_width] nodes. Each initialized beam 
@@ -273,35 +149,8 @@ class SimpleBeamSearch(BaseSearch):
             llm_kwargs: Additional kwargs for LLM provider.
         """
         
-        # # Get strategy scores for the initial node
-        # try:
-        #     strategies_tracker = self.evaluate_strategies(
-        #         node=initial_node,
-        #         strategy_registry=strategy_registry,
-        #         depth=depth,
-        #         num_strategies=self.beam_width,
-        #         question=question,
-        #         ground_truth_answer=ground_truth_answer,
-        #         scorer=scorer,
-        #         reasoning_llm=reasoning_llm,
-        #         llm_kwargs=llm_kwargs
-        #     )
-        # except Exception as e:
-        #     logger.error(f"Error in evaluating strategies: {e}")
-        #     raise ValueError("Failed to score strategies")
-        
-        # # Select the best strategies based on the scores
-        # selected_strategies = []
-        # scores = {strat: strategies_tracker[strat]['score'] for strat in strategies_tracker}
-        # sorted_strategies = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        # i = 0
-        # while len(selected_strategies) < self.beam_width:
-        #     strategy_name, score = sorted_strategies[i]
-        #     selected_strategies.append(strategy_name)
-        #     i += 1
-        #     if i >= len(sorted_strategies):
-        #         i = 0
-        
+        llm_kwargs = llm_kwargs or {}
+
         try:
             selected_strategies, search_data = self.strategy_selector.select(
                 reasoning_llm=reasoning_llm,
@@ -315,9 +164,9 @@ class SimpleBeamSearch(BaseSearch):
                 llm_kwargs=llm_kwargs,
                 logger=logger
             )
-        except:
+        except Exception as e:
             logger.error("Error in selecting strategies")
-            raise ValueError("Failed to select strategies")
+            raise ValueError("Failed to select strategies") from e
         
         strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
         # Create beams with initial node as parent
@@ -402,7 +251,6 @@ class SimpleBeamSearch(BaseSearch):
                                 )
             
         # Check if initial node is already successful
-        # DEBUG
         initial_node.success = False
         if initial_node.success:
             return SearchResult(
@@ -410,7 +258,9 @@ class SimpleBeamSearch(BaseSearch):
                 all_terminal_nodes=[initial_node],
                 success=True,
                 final_answer=initial_node.response,
-                metadata={"max_depth": max_depth, "question": question, "ground_truth_answer": ground_truth_answer}
+                metadata={"max_depth": max_depth,
+                          "question": question,
+                          "ground_truth_answer": ground_truth_answer}
             )
             
         # Initialize the beams
@@ -459,23 +309,11 @@ class SimpleBeamSearch(BaseSearch):
                         llm_kwargs=llm_kwargs,
                         logger=logger,
                     )
-                except:
+                except Exception as e:
                     logger.error("Error in selecting strategies")
-                    raise ValueError("Failed to select strategies")
+                    raise ValueError("Failed to select strategies") from e
                 
                 strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
-                
-                # strategies_tracker = self.evaluate_strategies(
-                #     node=beam,
-                #     strategy_registry=strategy_registry,
-                #     depth=depth,
-                #     num_strategies=self.branching_factor,
-                #     reasoning_llm=reasoning_llm,
-                #     llm_kwargs=llm_kwargs,
-                #     question=question,
-                #     ground_truth_answer=ground_truth_answer,
-                #     scorer=scorer
-                # )
                 
                 # If strategies_tracker is None, consider it a failure
                 # and skip this beam at this depth
@@ -484,10 +322,6 @@ class SimpleBeamSearch(BaseSearch):
                 
                 best_strategy = selected_strategies[0]
                 best_strategy_dict = strategies_dict[best_strategy.name]
-
-                # scores = {strat: strategies_dict[strat]['score'] for strat in strategies_dict}
-                # best_strategy_name = max(scores, key=scores.get)
-                # best_strategy_dict = strategies_dict[best_strategy_name]
                 
                 # Create a new node for the best strategy
                 new_node = self.create_node(
@@ -524,7 +358,9 @@ class SimpleBeamSearch(BaseSearch):
             all_terminal_nodes=beams,
             success=any(node.success for node in beams),
             final_answer=None,
-            metadata={"max_depth": max_depth, "question": question, "ground_truth_answer": ground_truth_answer}
+            metadata={"max_depth": max_depth,
+                      "question": question,
+                      "ground_truth_answer": ground_truth_answer}
         )
         
         return result

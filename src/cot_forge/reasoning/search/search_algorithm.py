@@ -19,8 +19,8 @@ Key components:
 
 The module also leverages other components from the `cot-forge` library, such as:
 
-- `LLMProvider`:  An interface for interacting with different Language Model providers (e.g., OpenAI, Anthropic).
-- `BaseVerifier`: An abstract base class for verifying the correctness or quality of generated reasoning steps.
+- `LLMProvider`:  An interface for interacting with different Language Model providers (e.g., OpenAI, Gemini).
+- `BaseVerifier`: An abstract base class to verify the correctness or quality of generated reasoning steps.
 - `BaseScorer`: An abstract base class for scoring reasoning paths based on various criteria.
 - `StrategyRegistry`: A registry for managing and accessing different reasoning strategies.
 
@@ -34,22 +34,17 @@ reasoning path found.
 """
 
 import logging
-import time
 from abc import ABC, abstractmethod
 from typing import Any, Literal, Protocol
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
-from cot_forge.reasoning.strategies import (Strategy, StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import Strategy, StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.utils.parsing import extract_cot
 from cot_forge.utils.search_utils import execute_with_fallback
 
 logger = logging.getLogger(__name__)
-
-#TODO: Move get_strategy_options to a base class function
 
 class SearchAlgorithm(Protocol):
     """Protocol defining the interface for search algorithms."""
@@ -115,47 +110,6 @@ class BaseSearch(ABC, SearchAlgorithm):
         Child classes must implement the actual search logic here.
         """
         pass
-    
-    def create_node(
-        self,
-        strategy: Strategy,
-        prompt: str,
-        response:str = None,
-        cot: list[dict[str, str]] = None,
-        parent: ReasoningNode = None,
-        metadata: dict[str, Any] = None,
-        **kwargs
-    ) -> ReasoningNode:
-        """
-        Create a new reasoning node with standardized initialization and handling.
-        
-        Args:
-            strategy: The strategy used to generate this node
-            prompt: The prompt used to generate the response
-            response: The response from the LLM (may be None if not yet generated)
-            cot: The extracted chain of thought (may be None if not yet extracted)
-            parent: The parent node (may be None if root node)
-            metadata: Optional metadata dictionary for the node
-            **kwargs: Additional attributes to add to the node
-            
-        Returns:
-            ReasoningNode: A new reasoning node
-        """
-        # Create the node
-        node = ReasoningNode(
-            strategy=strategy,
-            prompt=prompt,
-            response=response or "",
-            cot=cot,
-            parent=parent,
-            metadata=metadata or {}
-        )
-        
-        # Set up parent-child relationship if parent exists
-        if parent:
-            parent.add_child(node)
-        
-        return node
     
     def verify_node(
         self,

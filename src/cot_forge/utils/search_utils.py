@@ -5,7 +5,9 @@ from typing import Any, Callable, Literal
 
 from cot_forge.llm import LLMProvider
 from cot_forge.utils.parsing import extract_cot
-    
+
+logger = logging.getLogger(__name__)
+
 def try_operation(
     operation_name: str,
     operation_func: callable,
@@ -14,7 +16,7 @@ def try_operation(
     fallback_value = None,
     fallback_function: Callable[[Exception, dict], Any] = None,
     error_action: str = "log",  # "log", "raise", "return",
-    logger: logging.Logger = logging.getLogger(__name__),
+    logger: logging.Logger = logger,
     *,
     context: dict = None
 ) -> tuple[Any, str | None]:
@@ -50,7 +52,7 @@ def try_operation(
             
         # General error handling based on error_action
         if error_action == "raise":
-            raise ValueError(error_msg)
+            raise ValueError(error_msg) from e
         
         return fallback_value, error_msg  # For both "log" and "return"
     
@@ -64,7 +66,7 @@ def execute_with_fallback(
         max_retries: int = 3,
         retry_delay: float = 1.0,
         fallback_value: Any = None,
-        logger: logging.Logger = logging.getLogger(__name__)
+        logger: logging.Logger = logger
     ):
         """
         Execute an operation with standardized error handling including retry capability.
@@ -153,7 +155,7 @@ def generate_and_parse_cot(
         on_error: Literal["continue", "raise", "retry"] = "retry",
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        logger: logging.Logger = logging.getLogger(__name__),
+        logger: logging.Logger = logger,
     ) -> tuple[str, list[dict[str, str]]]:
         """
         Generate and parse the chain of thought (CoT) from the LLM.

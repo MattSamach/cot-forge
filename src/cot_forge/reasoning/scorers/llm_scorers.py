@@ -9,10 +9,8 @@ from typing import Any
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers.base import BaseScorer
-from cot_forge.reasoning.scorers.prompts import (
-    PROBABILITY_FINAL_ANSWER_PROMPT, ScorerPromptTemplate)
-from cot_forge.utils.parsing import (extract_final_answer_from_cot,
-                                     parse_json_response)
+from cot_forge.reasoning.scorers.prompts import PROBABILITY_FINAL_ANSWER_PROMPT, ScorerPromptTemplate
+from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +41,8 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
                 }
                 for cot in cot_list
             ]
-        except:
-            logger.error("Failed to extract final answers from CoTs")
+        except Exception as e:
+            logger.error(f"Failed to extract final answers from CoTs: {e}")
             return {}
         
         # Format the final answers into a string

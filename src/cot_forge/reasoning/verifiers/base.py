@@ -11,6 +11,7 @@ from typing import Any
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 
+
 class BaseVerifier(ABC):
     """Abstract base class for verifiers."""
     

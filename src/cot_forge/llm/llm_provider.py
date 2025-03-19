@@ -54,13 +54,16 @@ class LLMProvider(ABC):
 
     def __str__(self):
         """String representation of the LLM provider."""
-        return f"""{self.__class__.__name__}
-        (input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})"""
+        return ("f{self.__class__.__name__}\n",
+        f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})")
         
     def __repr__(self):
         """String representation of the LLM provider."""
-        return f"""{self.__class__.__name__}
-        (input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})"""
+        return (f"{self.__class__.__name__}\n",
+        f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})\n",
+        f"\t(input_token_limit: {self.input_token_limit} ",
+        f"output_token_limit: {self.output_token_limit})\n",
+        f"\t(retry_settings: {self.retry_settings})\n")
         
     def get_token_usage(self):
         """Get the token usage information."""
@@ -88,10 +91,8 @@ class LLMProvider(ABC):
         elif self.output_token_limit is not None and \
             (max_tokens <= 0 or self.output_tokens + max_tokens > self.output_token_limit):
             raise ValueError("Estimated output token limit exceeded")
-            
-        
         return True
-    
+
     @abstractmethod
     def generate_completion(self,
                             prompt: str,

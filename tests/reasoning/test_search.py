@@ -5,8 +5,7 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning import NaiveLinearSearch, SimpleBeamSearch
 from cot_forge.reasoning.scorers import BaseScorer
 from cot_forge.reasoning.types import ReasoningNode
-from cot_forge.reasoning.verifiers import LLMJudgeVerifier, BaseVerifier
-from cot_forge.reasoning.strategies import ScoredStrategySelector
+from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
 
 class TestNaiveLinearSearch(unittest.TestCase):
@@ -54,8 +53,6 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Verify the verifier was called with correct parameters
         self.verifier.assert_called_once()
-        # Check that the node was passed to verifier
-        verify_args = self.verifier.call_args
                 
         # Check result structure and contents
         self.assertTrue(result['success'])
@@ -319,7 +316,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
     @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_verification_success(self, mock_llm_provider, mock_verifier, mock_extract_cot, mock_strategy_selector_class):
+    def test_verification_success(self,
+                                  mock_llm_provider,
+                                  mock_verifier,
+                                  mock_extract_cot,
+                                  mock_strategy_selector_class):
         """Test that beam search correctly identifies a successful path."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
@@ -504,7 +505,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
     @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_verification_failure(self, mock_llm_provider, mock_verifier, mock_extract_cot, mock_strategy_selector_class):
+    def test_verification_failure(self,
+                                  mock_llm_provider,
+                                  mock_verifier,
+                                  mock_extract_cot,
+                                  mock_strategy_selector_class):
         """Test handling of verification failure across all beams."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
@@ -646,7 +651,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
     @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_multiple_depth_success(self, mock_llm_provider, mock_verifier, mock_extract_cot, mock_strategy_selector_class):
+    def test_multiple_depth_success(self,
+                                    mock_llm_provider,
+                                    mock_verifier,
+                                    mock_extract_cot,
+                                    mock_strategy_selector_class):
         """Test successful search after multiple depths."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
@@ -763,7 +772,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         
         # Configure the selector to return different strategies based on depth
         def select_side_effect(*args, **kwargs):
-            depth = next((arg for arg in args if type(arg) == int), 
+            depth = next((arg for arg in args if isinstance(arg, int)), 
                         kwargs.get('depth', 1))
             
             if depth == 1:
@@ -871,7 +880,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
     @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_max_depth_reached(self, mock_llm_provider, mock_verifier, mock_extract_cot, mock_strategy_selector_class):
+    def test_max_depth_reached(self,
+                               mock_llm_provider,
+                               mock_verifier,
+                               mock_extract_cot,
+                               mock_strategy_selector_class):
         """Test that search stops when max_depth is reached."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
@@ -1042,10 +1055,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
         self.assertIsNone(result['all_terminal_nodes'])
         self.assertEqual(result['metadata']["error"], "Failed to initialize CoT")
         
-    @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_beam_initialization_error(self, mock_llm_provider, mock_verifier, mock_extract_cot):
+    def test_beam_initialization_error(self,
+                                       mock_llm_provider,
+                                       mock_verifier):
         """Test handling of beam initialization errors."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
@@ -1090,7 +1104,11 @@ class TestSimpleBeamSearch(unittest.TestCase):
     @patch('cot_forge.utils.parsing.extract_cot')
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
-    def test_scorer_behavior(self, mock_llm_provider, mock_verifier, mock_extract_cot, mock_strategy_selector_class):
+    def test_scorer_behavior(self,
+                             mock_llm_provider,
+                             mock_verifier,
+                             mock_extract_cot,
+                             mock_strategy_selector_class):
         """Test that beam search correctly uses scorer to select paths."""
         question = "What is 2 + 2?"
         ground_truth_answer = "4"

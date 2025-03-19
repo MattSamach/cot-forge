@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 logger = Logger(__name__)
 
+# TODO: Add error handling to scorer class
 
 class StrategySelector(ABC):
     """Base class for strategy selection algorithms."""
@@ -52,7 +53,8 @@ class StrategySelector(ABC):
         Args:
             registry: The strategy registry.
             depth: The current depth in the reasoning chain.
-            num_considered: The number of strategies to consider for scoring. (Each require a separate cot generation call to LLM)
+            num_considered: The number of strategies to consider for scoring.
+                (Each require a separate cot generation call to LLM)
             
         Returns:
             A list of strategies appropriate for the current depth.
@@ -151,7 +153,8 @@ class ScoredStrategySelector(StrategySelector):
             ground_truth_answer: The expected answer.
             scorer: The scoring function to use.
             num_strategies: The number of strategies to select.
-            num_considered: The number of strategies to consider for scoring. (Each require a separate cot generation call to LLM)
+            num_considered: The number of strategies to consider for scoring. 
+                (Each require a separate cot generation call to LLM)
             node: The current reasoning node on which we want to append the selected strategy cot.
             llm_kwargs: Additional arguments for the reasoning LLM provider.
             **kwargs: Additional arguments for specific implementations.

@@ -7,6 +7,7 @@ from cot_forge.reasoning.strategies import StrategyRegistry
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
+
 class TestCoTBuilder(unittest.TestCase):
     """Tests for the CoTBuilder class."""
 

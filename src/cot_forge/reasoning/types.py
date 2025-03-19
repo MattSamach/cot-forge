@@ -45,11 +45,18 @@ class ReasoningNode:
         return result
     
     def __repr__(self):
-        return f"ReasoningNode(strategy={self.strategy}, prompt={self.prompt}, response={self.response})"
+        return (f"ReasoningNode(strategy={self.strategy}, ",
+                f"prompt={self.prompt}, response={self.response}, "
+                f"cot={self.cot}, parent={self.parent}, "
+                f"children={self.children}, is_final={self.is_final}, "
+                f"success={self.success}, metadata={self.metadata})")
     
     def __str__(self):
-        return f"ReasoningNode(strategy={self.strategy}, prompt={self.prompt}, cot={self.cot}, parent={self.parent})"
-
+        return (f"ReasoningNode(strategy={self.strategy}, ",
+                f"prompt={self.prompt}, response={self.response}, "
+                f"cot={self.cot}, parent={self.parent}, "
+                f"children={self.children}, is_final={self.is_final}, "
+                f"success={self.success}, metadata={self.metadata})")
 
 class SearchResult(TypedDict):
     """Represents the result of a search algorithm."""

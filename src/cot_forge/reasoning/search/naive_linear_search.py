@@ -8,13 +8,10 @@ Logical flow:
 """
 
 import logging
-import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (RandomStrategySelector,
-                                            StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import RandomStrategySelector, StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 from cot_forge.utils.parsing import extract_final_answer_from_cot
@@ -94,7 +91,8 @@ class NaiveLinearSearch(BaseSearch):
                     llm_kwargs=llm_kwargs,
                     logger=logger
                 )
-            except:
+            except Exception as e:
+                logger.error(f"Error during LLM generation: {e}")
                 return SearchResult(
                     final_node=current_node,
                     all_terminal_nodes=[current_node] if current_node else [],

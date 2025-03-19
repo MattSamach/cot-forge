@@ -48,7 +48,13 @@ class Strategy:
     minimum_depth: ClassVar[int] = 0
     
     @classmethod
-    def create_strategy(cls, name: str, description: str, is_initial: bool = False, minimum_depth: int = 0) -> type['Strategy']:
+    def create_strategy(
+        cls,
+        name: str,
+        description: str,
+        is_initial: bool = False,
+        minimum_depth: int = 0
+    ) -> type['Strategy']:
         """
         Factory method to create custom Strategy subclasses.
         

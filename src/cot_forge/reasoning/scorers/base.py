@@ -10,6 +10,7 @@ from typing import Any
 
 from cot_forge.llm import LLMProvider
 
+
 class BaseScorer(ABC):
     """Abstract base class for scorers."""
     

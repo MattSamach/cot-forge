@@ -7,13 +7,11 @@ import json
 import logging
 from typing import Any
 
-from cot_forge.llm import LLMProvider, GeminiLLMProvider
+from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers.base import BaseVerifier
-from cot_forge.reasoning.verifiers.prompts import (DEFAULT_VERIFICATION_PROMPT,
-                                                   VERIFICATION_FORMAT_PROMPT)
-from cot_forge.utils.parsing import (extract_final_answer_from_cot,
-                                     parse_json_response)
+from cot_forge.reasoning.verifiers.prompts import DEFAULT_VERIFICATION_PROMPT, VERIFICATION_FORMAT_PROMPT
+from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +55,7 @@ class LLMJudgeVerifier(BaseVerifier):
         """Use LLM to verify if the answer is correct."""
         if not node.cot:
             logger.error("Node.cot is None")
-            return False, f"Error: Node.cot is None"
+            return False, "Error: Node.cot is None"
         
         final_answer = extract_final_answer_from_cot(node.cot)
         if final_answer is None:
