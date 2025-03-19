@@ -29,6 +29,7 @@ from cot_forge.reasoning.strategies import (InitializeCoT, Strategy,
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 from cot_forge.utils.search_utils import generate_and_parse_cot
+from cot_forge.reasoning.strategies import ScoredStrategySelector
 
 from .search_algorithm import BaseSearch
 
@@ -63,6 +64,7 @@ class SimpleBeamSearch(BaseSearch):
         self.strategy_registry = strategy_registry
         self.name = "simple beam search"
         self.description = "Simple beam search to produce multiple parallel reasoning chains."
+        self.strategy_selector = ScoredStrategySelector()
 
     def evaluate_strategies(
         self,
@@ -271,39 +273,57 @@ class SimpleBeamSearch(BaseSearch):
             llm_kwargs: Additional kwargs for LLM provider.
         """
         
-        # Get strategy scores for the initial node
+        # # Get strategy scores for the initial node
+        # try:
+        #     strategies_tracker = self.evaluate_strategies(
+        #         node=initial_node,
+        #         strategy_registry=strategy_registry,
+        #         depth=depth,
+        #         num_strategies=self.beam_width,
+        #         question=question,
+        #         ground_truth_answer=ground_truth_answer,
+        #         scorer=scorer,
+        #         reasoning_llm=reasoning_llm,
+        #         llm_kwargs=llm_kwargs
+        #     )
+        # except Exception as e:
+        #     logger.error(f"Error in evaluating strategies: {e}")
+        #     raise ValueError("Failed to score strategies")
+        
+        # # Select the best strategies based on the scores
+        # selected_strategies = []
+        # scores = {strat: strategies_tracker[strat]['score'] for strat in strategies_tracker}
+        # sorted_strategies = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        # i = 0
+        # while len(selected_strategies) < self.beam_width:
+        #     strategy_name, score = sorted_strategies[i]
+        #     selected_strategies.append(strategy_name)
+        #     i += 1
+        #     if i >= len(sorted_strategies):
+        #         i = 0
+        
         try:
-            strategies_tracker = self.evaluate_strategies(
-                node=initial_node,
-                strategy_registry=strategy_registry,
+            selected_strategies, search_data = self.strategy_selector.select(
+                reasoning_llm=reasoning_llm,
+                registry=strategy_registry,
                 depth=depth,
                 num_strategies=self.beam_width,
+                node=initial_node,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 scorer=scorer,
-                reasoning_llm=reasoning_llm,
-                llm_kwargs=llm_kwargs
+                llm_kwargs=llm_kwargs,
+                logger=logger
             )
-        except Exception as e:
-            logger.error(f"Error in evaluating strategies: {e}")
-            raise ValueError("Failed to score strategies")
+        except:
+            logger.error("Error in selecting strategies")
+            raise ValueError("Failed to select strategies")
         
-        # Select the best strategies based on the scores
-        selected_strategies = []
-        scores = {strat: strategies_tracker[strat]['score'] for strat in strategies_tracker}
-        sorted_strategies = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        i = 0
-        while len(selected_strategies) < self.beam_width:
-            strategy_name, score = sorted_strategies[i]
-            selected_strategies.append(strategy_name)
-            i += 1
-            if i >= len(sorted_strategies):
-                i = 0
-                
+        strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
         # Create beams with initial node as parent
         beams = []
-        for strategy_name in selected_strategies:
-            strat_data = strategies_tracker[strategy_name]
+        for strategy in selected_strategies:
+            strat_data = strategies_dict[strategy.name]
             # Create a new node for each selected strategy
             new_beam = self.create_node(
                 strategy=strat_data['strategy'],
@@ -382,6 +402,8 @@ class SimpleBeamSearch(BaseSearch):
                                 )
             
         # Check if initial node is already successful
+        # DEBUG
+        initial_node.success = False
         if initial_node.success:
             return SearchResult(
                 final_node=initial_node,
@@ -425,27 +447,48 @@ class SimpleBeamSearch(BaseSearch):
                 if beam.is_final:
                     continue
                 
-                strategies_tracker = self.evaluate_strategies(
-                    node=beam,
-                    strategy_registry=strategy_registry,
-                    depth=depth,
-                    num_strategies=self.branching_factor,
-                    reasoning_llm=reasoning_llm,
-                    llm_kwargs=llm_kwargs,
-                    question=question,
-                    ground_truth_answer=ground_truth_answer,
-                    scorer=scorer
-                )
+                try:
+                    selected_strategies, search_data = self.strategy_selector.select(
+                        reasoning_llm=reasoning_llm,
+                        registry=strategy_registry,
+                        depth=depth,
+                        question=question,
+                        ground_truth_answer=ground_truth_answer,
+                        scorer=scorer,
+                        node=beam,
+                        llm_kwargs=llm_kwargs,
+                        logger=logger,
+                    )
+                except:
+                    logger.error("Error in selecting strategies")
+                    raise ValueError("Failed to select strategies")
+                
+                strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
+                
+                # strategies_tracker = self.evaluate_strategies(
+                #     node=beam,
+                #     strategy_registry=strategy_registry,
+                #     depth=depth,
+                #     num_strategies=self.branching_factor,
+                #     reasoning_llm=reasoning_llm,
+                #     llm_kwargs=llm_kwargs,
+                #     question=question,
+                #     ground_truth_answer=ground_truth_answer,
+                #     scorer=scorer
+                # )
                 
                 # If strategies_tracker is None, consider it a failure
                 # and skip this beam at this depth
-                if strategies_tracker is None:
+                if strategies_dict is None:
                     continue
+                
+                best_strategy = selected_strategies[0]
+                best_strategy_dict = strategies_dict[best_strategy.name]
 
-                scores = {strat: strategies_tracker[strat]['score'] for strat in strategies_tracker}
-                best_strategy_name = max(scores, key=scores.get)
-                best_strategy_dict = strategies_tracker[best_strategy_name]
-
+                # scores = {strat: strategies_dict[strat]['score'] for strat in strategies_dict}
+                # best_strategy_name = max(scores, key=scores.get)
+                # best_strategy_dict = strategies_dict[best_strategy_name]
+                
                 # Create a new node for the best strategy
                 new_node = self.create_node(
                     strategy=best_strategy_dict['strategy'],
@@ -469,7 +512,7 @@ class SimpleBeamSearch(BaseSearch):
                     logger=logger
                 )
                 # If verification fails, skip this node at this depth
-                if error:
+                if error is not None:
                     continue
 
                 # If verification is successful, log the result

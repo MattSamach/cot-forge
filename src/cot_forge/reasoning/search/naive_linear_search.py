@@ -12,10 +12,10 @@ import random
 from typing import Any
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.strategies import (RandomStrategySelector, Strategy,
+from cot_forge.reasoning.strategies import (RandomStrategySelector,
                                             StrategyRegistry,
                                             default_strategy_registry)
-from cot_forge.reasoning.types import ReasoningNode, SearchResult
+from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 from cot_forge.utils.search_utils import generate_and_parse_cot
@@ -79,7 +79,8 @@ class NaiveLinearSearch(BaseSearch):
         
         for depth in range(self.max_depth):
             # Select next strategy
-            strategy = self.strategy_selector.select(registry = self.strategy_registry, depth = depth)[0]
+            strategies, _ = self.strategy_selector.select(registry = self.strategy_registry, depth = depth)
+            strategy = strategies[0] if isinstance(strategies, list) else strategies
             
             # Build prompt based on selected strategy
             full_cot = current_node.get_full_cot() if current_node else None

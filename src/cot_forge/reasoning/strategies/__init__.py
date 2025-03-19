@@ -7,6 +7,8 @@ from .strategies import (AnalogicalReasoning, Backtrack, Correction,
                          FirstPrinciples, InitializeCoT, PerspectiveShift,
                          Strategy, StrategyRegistry, Validation,
                          default_strategy_registry)
+from .strategy_selector import (RandomStrategySelector, ScoredStrategySelector,
+                                StrategySelector)
 
 __all__ = [
     "Strategy",
@@ -17,6 +19,14 @@ __all__ = [
     "ExploreNewPaths",
     "Correction",
     "Validation",
+    "Counterfactual",
+    "Decomposition",
+    "AnalogicalReasoning",
+    "FirstPrinciples",
+    "PerspectiveShift",
+    "RandomStrategySelector",
+    "StrategySelector",
+    "ScoredStrategySelector",
     default_strategy_registry,
     initialize_cot_prompt,
     backtrack_strategy_prompt,

@@ -49,8 +49,7 @@ class ReasoningNode:
     
     def __str__(self):
         return f"ReasoningNode(strategy={self.strategy}, prompt={self.prompt}, cot={self.cot}, parent={self.parent})"
-    
-    
+
 
 class SearchResult(TypedDict):
     """Represents the result of a search algorithm."""

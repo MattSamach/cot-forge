@@ -217,7 +217,7 @@ class BaseSearch(ABC, SearchAlgorithm):
             node.metadata["verification_error"] = "Verification call returned None"
             node.success = False
             node.is_final = False
-            return False, None
+            return False, "None result from verification call"
         
         # Verification call was successful
         verification_result, explanation = result
@@ -228,7 +228,7 @@ class BaseSearch(ABC, SearchAlgorithm):
             node.success = True
             node.is_final = True
 
-        return verification_result, explanation
+        return verification_result, None
     
     def create_node(
         self,
