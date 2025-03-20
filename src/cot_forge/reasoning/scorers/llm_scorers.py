@@ -26,7 +26,7 @@ class LLMScorerBase(BaseScorer):
         on_error: Literal["continue", "raise", "retry"] = "retry",
         max_retries: int = 3,
         retry_delay: float = 1.0
-    ) -> tuple[str, str | None]:
+    ) -> tuple[dict, str | None]:
         """
         Generate a response from the LLM with standardized error handling.
         
