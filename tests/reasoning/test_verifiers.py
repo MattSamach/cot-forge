@@ -1,8 +1,5 @@
 import json
-import logging
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import Strategy
@@ -10,7 +7,7 @@ from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers.base import BaseVerifier
 from cot_forge.reasoning.verifiers.llm_verifiers import LLMJudgeVerifier
 from cot_forge.reasoning.verifiers.prompts import DEFAULT_VERIFICATION_PROMPT, VERIFICATION_FORMAT_PROMPT
-from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
+from cot_forge.utils.parsing import extract_final_answer_from_cot
 
 
 class TestLLMJudgeVerifier:

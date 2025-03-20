@@ -1,12 +1,10 @@
 import json
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers.llm_scorers import LLMScorerBase, ProbabilityFinalAnswerScorer
-from cot_forge.utils.parsing import parse_json_response
 
 
 class TestLLMScorerBase:
