@@ -1,7 +1,7 @@
 
 import logging
 import time
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 from cot_forge.llm import LLMProvider
 from cot_forge.utils.parsing import extract_cot

@@ -16,6 +16,7 @@ from cot_forge.reasoning.strategies import Strategy
 
 # TODO: Change final_answer to a method with list of answers
 # TODO: Change final_node to method of list of successful terminal nodes
+# TODO: Add write to file method for SearchResult
 
 
 class ReasoningNode:
@@ -120,3 +121,18 @@ class SearchResult:
         self.success = success
         self.final_answer = final_answer
         self.metadata = metadata if metadata else {}
+        
+    def __repr__(self):
+        return (f"SearchResult(question={self.question!r}, "
+                f"ground_truth_answer={self.ground_truth_answer!r}, "
+                f"final_node={self.final_node}, "
+                f"all_terminal_nodes={self.all_terminal_nodes}, "
+                f"success={self.success}, "
+                f"final_answer={self.final_answer!r}, "
+                f"metadata={self.metadata})")
+
+    def __str__(self):
+        return (f"SearchResult(success={self.success}, "
+                f"final_answer={self.final_answer!r}, "
+                f"question={self.question!r}, "
+                f"num_terminal_nodes={len(self.all_terminal_nodes)})")

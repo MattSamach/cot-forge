@@ -14,6 +14,7 @@ class TestLLMProviderThreading(unittest.TestCase):
         class TestProvider(LLMProvider):
             def __init__(self, input_token_limit=None, output_token_limit=None):
                 super().__init__(
+                    model_name="test-model",
                     input_token_limit=input_token_limit,
                     output_token_limit=output_token_limit
                 )

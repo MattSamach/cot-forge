@@ -16,7 +16,8 @@ class LLMProvider(ABC):
     Abstract base class for LLM providers.
     """
     
-    def __init__(self, 
+    def __init__(self,
+                model_name: str,
                 min_wait: float = 0.0,
                 max_wait: float = 0.0,
                 max_retries: int = 0,
@@ -28,13 +29,16 @@ class LLMProvider(ABC):
         Initialize an LLM provider instance.
 
         Args:
+            model_name: The name of the model.
             min_wait: Minimum wait time between retries in seconds.
             max_wait: Maximum wait time between retries in seconds.
             max_retries: Maximum retries for failed requests.
             rate_limit_exceptions: List of exceptions to retry on.
             input_token_limit: Maximum number of input tokens, for cost control.
             output_token_limit: Maximum number of output tokens, for cost control.
-        """        
+        """
+        self.model_name = model_name
+        
         # Retry settings for handling rate limits
         self.retry_settings = {}
         if min_wait is not None and max_wait is not None:
@@ -43,20 +47,26 @@ class LLMProvider(ABC):
             self.retry_settings["stop"] = tenacity.stop_after_attempt(max_retries)
         self.retry_settings["retry"] = tenacity.retry_if_exception_type(
             rate_limit_exceptions or (tenacity.RetryError,))
+        
+        # Token attributes
         self.input_token_limit = input_token_limit
         self.output_token_limit = output_token_limit
         self.input_tokens = 0
         self.output_tokens = 0
+        
+        # Mutual exclusion lock for thread-safe token updates
         self._lock = RLock()
 
     def __str__(self):
         """String representation of the LLM provider."""
         return ("f{self.__class__.__name__}\n",
+        f"\t(model_name: {self.model_name})\n",
         f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})")
         
     def __repr__(self):
-        """String representation of the LLM provider."""
+        """String representation of the LLM provider for developers."""
         return (f"{self.__class__.__name__}\n",
+        f"\t(model_name: {self.model_name})\n",
         f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})\n",
         f"\t(input_token_limit: {self.input_token_limit} ",
         f"output_token_limit: {self.output_token_limit})\n",

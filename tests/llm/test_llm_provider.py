@@ -12,7 +12,7 @@ class TestLLMProviderInterface(unittest.TestCase):
         """Verify that concrete subclasses must implement abstract methods."""
         # Should not be able to instantiate the abstract base class
         with self.assertRaises(TypeError):
-            LLMProvider()
+            LLMProvider(model_name="test-model")
         
         # Create a minimal concrete subclass missing required methods
         class IncompleteProvider(LLMProvider):
@@ -33,7 +33,7 @@ class TestLLMProviderInterface(unittest.TestCase):
                 return "Test response"
                 
         # Should instantiate successfully
-        provider = MinimalProvider()
+        provider = MinimalProvider(model_name="test-model")
         self.assertEqual(provider.generate("test"), "Test response")
     
     def test_generate_batch_not_implemented(self):
@@ -43,7 +43,7 @@ class TestLLMProviderInterface(unittest.TestCase):
                         temperature: float = 0.7, max_tokens: Optional[int] = None, **kwargs) -> str:
                 return "Test response"
         
-        provider = MinimalProvider()
+        provider = MinimalProvider(model_name="test-model")
         with self.assertRaises(NotImplementedError):
             provider.generate_batch(["test"])
 
@@ -191,6 +191,7 @@ class TestTokenLimits(unittest.TestCase):
                 return "Test response"
                 
         self.provider = TestProvider(
+            model_name="test-model",
             input_token_limit=100,
             output_token_limit=50,
         )

@@ -80,3 +80,13 @@ class BaseScorer(ABC):
                  **kwargs: Any) -> bool:
         """Call the score method."""
         return self.score(cot_list, question, ground_truth_answer, **kwargs)
+    
+    def __str__(self) -> str:
+        """Return a string representation of the BaseScorer."""
+        llm_info = f", LLM Provider: {self.llm_provider}" if self.llm_provider else ""
+        return f"{self.name}: {self.description}" + llm_info
+
+    def __repr__(self) -> str:
+        """Return a developer-friendly string representation of the BaseScorer."""
+        llm_info = f", LLM Provider: {self.llm_provider}" if self.llm_provider else ""
+        return f"{self.__class__.__name__}(name='{self.name}', description='{self.description}'){llm_info})"

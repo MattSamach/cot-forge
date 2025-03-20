@@ -169,6 +169,25 @@ class Strategy:
         prompt += StrategyPromptTemplate.create_json_format()
         return prompt
     
+    def __str__(self) -> str:
+        """Return a string representation of the strategy.
+        
+        Returns:
+            str: A string with the strategy name and description.
+        """
+        return f"Strategy(name='{self.__class__.name}', description='{self.__class__.description[:50]}...')"
+        
+    def __repr__(self) -> str:
+        """Return a detailed representation of the strategy.
+        
+        Returns:
+            str: A detailed string representation including all class attributes.
+        """
+        return (f"Strategy(name='{self.__class__.name}', "
+                f"description='{self.__class__.description[:50]}...', "
+                f"is_initial={self.__class__.is_initial}, "
+                f"minimum_depth={self.__class__.minimum_depth})")
+    
 class StrategyRegistry:
     """
     A registry for managing reasoning strategies.
@@ -220,7 +239,8 @@ class StrategyRegistry:
         self._strategies[strategy_class.name] = strategy_class
         return strategy_class
     
-    def create_and_register(self, name: str, 
+    def create_and_register(self,
+                            name: str, 
                             description: str, 
                             is_initial: bool = False, 
                             minimum_depth: int = 0
@@ -276,6 +296,23 @@ class StrategyRegistry:
             del self._strategies[name]
         else:
             raise ValueError(f"Strategy '{name}' not found in registry.")
+        
+    def __str__(self) -> str:
+        """Return a string representation of the registry.
+        
+        Returns:
+            str: A string listing the number of registered strategies.
+        """
+        return f"StrategyRegistry(strategies={len(self._strategies)})"
+        
+    def __repr__(self) -> str:
+        """Return a detailed representation of the registry.
+        
+        Returns:
+            str: A detailed string representation including all registered strategy names.
+        """
+        strategy_names = ", ".join(self._strategies.keys())
+        return f"StrategyRegistry(strategies=[{strategy_names}])"
 
 @dataclass(frozen=True)
 class InitializeCoT(Strategy):

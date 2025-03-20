@@ -3,16 +3,13 @@ This module contains LLM scorers that use a language model to
 score chains of thought (cots) against one another.
 """
 
-import json
 import logging
 from typing import Any, Literal
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers.base import BaseScorer
-from cot_forge.reasoning.scorers.prompts import (
-    PROBABILITY_FINAL_ANSWER_PROMPT, ScorerPromptTemplate)
-from cot_forge.utils.parsing import (extract_final_answer_from_cot,
-                                     parse_json_response)
+from cot_forge.reasoning.scorers.prompts import PROBABILITY_FINAL_ANSWER_PROMPT, ScorerPromptTemplate
+from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
 from cot_forge.utils.search_utils import execute_with_fallback
 
 logger = logging.getLogger(__name__)

@@ -97,3 +97,13 @@ class BaseVerifier(ABC):
                  **kwargs: Any) -> tuple[bool, str]:
         """Call the verify method."""
         return self.verify(node, question, ground_truth_answer, **kwargs)
+    
+    def __str__(self) -> str:
+        """Return a string representation of the verifier."""
+        llm_info = f", llm={self.llm_provider.__class__.__name__}" if self.llm_provider else ""
+        return f"{self.name}: {self.description}" + llm_info
+
+    def __repr__(self) -> str:
+        """Return a detailed string representation of the verifier."""
+        llm_info = f", llm={self.llm_provider.__class__.__name__}" if self.llm_provider else ""
+        return f"{self.__class__.__name__}(name='{self.name}', description='{self.description}'{llm_info})"

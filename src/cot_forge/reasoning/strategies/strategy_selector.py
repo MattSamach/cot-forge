@@ -138,6 +138,14 @@ class StrategySelector(ABC):
         
         return [registry.get_strategy(name) for name in strategy_names]
     
+    def __str__(self) -> str:
+        """Return a string representation of the strategy selector."""
+        return f"{self.__class__.__name__}()"
+
+    def __repr__(self) -> str:
+        """Return a detailed string representation of the strategy selector."""
+        return f"{self.__class__.__name__}()"
+    
 class RandomStrategySelector(StrategySelector):
     """Randomly selects a strategy from the registry."""
     

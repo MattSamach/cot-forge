@@ -60,11 +60,7 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
-# TODO: Add write to file methods and, logging, and checkpoints
-# TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
-# TODO: Check all files for docstrings and add them if missing
-# TODO: Add error handling to scorer class, maybe verifier class
-# TODO: Add export of main classes/functions to cot_forge/__init__.py
+# TODO: Add write to file methods, logging, and checkpoints
 
 class CoTBuilder:
     """

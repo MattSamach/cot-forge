@@ -266,4 +266,28 @@ class BaseSearch(ABC, SearchAlgorithm):
             parent.add_child(node)
         
         return node
+    
+    def __str__(self) -> str:
+        """
+        Return a string representation of the search algorithm.
+        
+        Returns:
+            str: The class name of the search algorithm.
+        """
+        return self.__class__.__name__
+
+    def __repr__(self) -> str:
+        """
+        Return a detailed string representation of the search algorithm.
+        
+        This representation includes any configuration parameters and should
+        be detailed enough to recreate the object.
+        
+        Returns:
+            str: A string in the format "ClassName(param1=value1, param2=value2)"
+        """
+        # Get instance attributes excluding private ones (those starting with '_')
+        params = ", ".join(f"{k}={repr(v)}" for k, v in self.__dict__.items() 
+                        if not k.startswith('_'))
+        return f"{self.__class__.__name__}({params})"
             
