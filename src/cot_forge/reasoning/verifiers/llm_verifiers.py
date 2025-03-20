@@ -114,7 +114,7 @@ class LLMJudgeVerifier(BaseVerifier):
             verification_result = response_json.get("verification", {}).get("result").strip().lower()
             explanation = response_json.get("verification", {}).get("explanation")
             return verification_result, explanation
-        except json.JSONDecodeError as e:
+        except Exception as e:
             logger.error(f"Failed to parse LLM response: {e}")
             return False, f"Error: {str(e)}"
 
