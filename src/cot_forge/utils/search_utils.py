@@ -67,7 +67,7 @@ def execute_with_fallback(
         retry_delay: float = 1.0,
         fallback_value: Any = None,
         logger: logging.Logger = logger
-    ):
+    ) -> tuple[Any, str | None]:
         """
         Execute an operation with standardized error handling including retry capability.
         
