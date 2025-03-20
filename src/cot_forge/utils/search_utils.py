@@ -7,56 +7,7 @@ from cot_forge.llm import LLMProvider
 from cot_forge.utils.parsing import extract_cot
 
 logger = logging.getLogger(__name__)
-
-def try_operation(
-    operation_name: str,
-    operation_func: callable,
-    args: tuple = (),
-    kwargs: dict = None,
-    fallback_value = None,
-    fallback_function: Callable[[Exception, dict], Any] = None,
-    error_action: str = "log",  # "log", "raise", "return",
-    logger: logging.Logger = logger,
-    *,
-    context: dict = None
-) -> tuple[Any, str | None]:
-    """
-    Execute an operation with standardized error handling based on context.
     
-    Args:
-        operation_name: Name of the operation for logging purposes
-        operation_func: Function to execute
-        args: Positional arguments for the function
-        kwargs: Keyword arguments for the function
-        fallback_value: Value to return if operation fails
-        fallback_function: Function to call if operation fails
-        error_action: What to do on error - log, raise, or return
-        context: Additional context that might affect error handling
-    
-    Returns:
-        tuple[result, error_msg]: Result of operation and error message if any
-    """
-    kwargs = kwargs or {}
-    context = context or {}
-    
-    try:
-        result = operation_func(*args, **kwargs)
-        return result, None
-    except Exception as e:
-        error_msg = f"Error in {operation_name}: {e}"
-        logger.error(error_msg)
-        
-        # Context-specific handling with fallback function
-        if fallback_function:
-            return fallback_function(e, context), error_msg
-            
-        # General error handling based on error_action
-        if error_action == "raise":
-            raise ValueError(error_msg) from e
-        
-        return fallback_value, error_msg  # For both "log" and "return"
-    
-
 def execute_with_fallback(
         operation_name: str,
         operation_func: callable,
@@ -69,84 +20,79 @@ def execute_with_fallback(
         logger: logging.Logger = logger
     ) -> tuple[Any, str | None]:
         """
-        Execute an operation with standardized error handling including retry capability.
-        
-        Args:
-            operation_name: Name of the operation for logging
-            operation_func: The function to execute
-            args: Positional arguments for the function
-            kwargs: Keyword arguments for the function
-            on_error: How to handle errors:
-                - "continue": Return fallback value without error message
-                - "raise": Return error message for caller to handle
-                - "retry": Retry the operation up to max_retries times
-            max_retries: Maximum number of retry attempts if on_error="retry"
-            retry_delay: Seconds to wait between retry attempts
-            fallback_value: Value to return on error with on_error="continue"
-            logger: Logger to use for logging errors and retries
-            
+        This function provides a robust wrapper for executing operations that might fail,
+        with configurable error handling strategies: continuing with a fallback value,
+        raising the error, or retrying the operation.
+        Parameters:
+            operation_name (str): Descriptive name of the operation for logging purposes
+            operation_func (callable): The function to execute
+            args (tuple, optional): Positional arguments to pass to operation_func
+            kwargs (dict, optional): Keyword arguments to pass to operation_func
+            on_error (Literal["continue", "raise", "retry"], optional): Error handling strategy:
+                - "continue": Return fallback value and error message
+                - "raise": Raise a RuntimeError with details
+                - "retry": Attempt to retry the operation up to max_retries
+            max_retries (int, optional): Maximum number of retry attempts if on_error="retry"
+            retry_delay (float, optional): Delay in seconds between retry attempts
+            fallback_value (Any, optional): Value to return if operation fails and on_error="continue"
+            logger (logging.Logger, optional): Logger instance for recording events
         Returns:
-            tuple[Any, str | None]: (result of operation, error_message if any)
+            tuple[Any, str | None]: A tuple containing:
+                - The operation result on success, or fallback_value on failure
+                - None on success, or error message string on failure
+        Raises:
+            RuntimeError: If the operation fails and on_error="raise"
+        Example:
+            >>> result, error = execute_with_fallback(
+            ...     "fetch_data",
+            ...     api.get_data,
+            ...     kwargs={"endpoint": "/users"},
+            ...     on_error="retry",
+            ...     fallback_value=[]
+            ... )
+            >>> if error:
+            ...     print(f"Warning: {error}")
+            >>> process_data(result)
         """
         
         kwargs = kwargs or {}
         attempts = 0
         last_error = None
         
-        # Define our custom fallback handler for try_operation
-        def fallback_handler(exception, ctx):
-            error_action = ctx.get("on_error", "continue")
-            if error_action == "continue":
-                # Return fallback but don't propagate error
-                return fallback_value, None
-            elif error_action == "retry":
-                # Return a marker to trigger retry
-                return fallback_value, f"Retry: {str(exception)}"
-            else:  # "raise" or any other value
-                # Return fallback with error for caller to handle
-                return fallback_value, str(exception)
-        
         while True:
             attempts += 1
-            
-            # Execute operation with appropriate error handling
-            result, error_msg = try_operation(
-                operation_name=operation_name,
-                operation_func=operation_func,
-                args=args,
-                kwargs=kwargs,
-                fallback_value=fallback_value,
-                fallback_function=fallback_handler,
-                error_action="return",
-                context={"on_error": on_error},
-                logger=logger,
-            )
-            
-            # Successful operation or non-retry error handling
-            if not error_msg or on_error != "retry" or attempts >= max_retries:
-                break
+            try:
+                result = operation_func(*args, **kwargs)
+                return result, None  # Success case - return result with no error
+            except Exception as e:
+                error_msg = f"{operation_name} failed: {str(e)}"
+                last_error = e
                 
-            # Retry logic
-            last_error = error_msg
-            logger.info(f"Retry attempt {attempts}/{max_retries} for {operation_name}: {error_msg}")
-            if attempts < max_retries:
-                time.sleep(retry_delay)
+                if on_error == "retry" and attempts <= max_retries:
+                    logger.warning(f"{error_msg}. Retrying ({attempts}/{max_retries})...")
+                    time.sleep(retry_delay)
+                    continue
+                    
+                break
         
         # If we exhausted retries but still have errors
-        if error_msg and on_error == "retry" and attempts > 1:
-            logger.warning(f"{operation_name} failed after {attempts} attempts: {error_msg}")
+        if last_error and on_error == "retry" and attempts > 1:
+            logger.error(f"All {max_retries} retry attempts failed for {operation_name}")
             
         # Handle final error state based on error action
-        if error_msg:
-            if on_error == "continue":
-                # We continue with a failure but no error
-                return result, None
-            elif on_error == "retry" and attempts >= max_retries:
-                # Convert to a raise after max retries
-                return result, f"Max retries ({max_retries}) exceeded: {last_error}"
+        if last_error:
+            error_msg = f"{operation_name} failed: {str(last_error)}"
+            
+            if on_error == "raise":
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+            elif on_error == "continue":
+                logger.warning(f"{error_msg}. Continuing with fallback value.")
+                return fallback_value, error_msg
         
-        # Return the final result and possibly error
-        return result, error_msg
+        # This should never be reached in practice
+        logger.error(f"Unexpected code path in execute_with_fallback for {operation_name}")
+        return None, f"Unexpected error in {operation_name}"
     
 def generate_and_parse_cot(
         reasoning_llm: LLMProvider,
@@ -169,6 +115,19 @@ def generate_and_parse_cot(
             retry_delay: Delay between retries in seconds
         Returns:
             tuple[str, list[dict[str, str]]]: The generated response and parsed CoT
+        Raises:
+            RuntimeError: If the operation fails and on_error="raise" or "retry"
+        Example:
+            >>> response, cot = generate_and_parse_cot(
+            ...     reasoning_llm,
+            ...     prompt="What is the capital of France?",
+            ...     llm_kwargs={"temperature": 0.7},
+            ...     on_error="retry",
+            ...     max_retries=5,
+            ...     retry_delay=2.0
+            ... )
+            >>> print("Response:", response)
+            >>> print("CoT:", cot)
         """
         
         def helper_function():
