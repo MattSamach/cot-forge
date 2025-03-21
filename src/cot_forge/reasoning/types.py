@@ -13,9 +13,8 @@ status, the final answer, and any relevant metadata.
 from typing import Any, Optional
 
 from cot_forge.reasoning.strategies import Strategy
+from cot_forge.utils.parsing import extract_final_answer_from_cot
 
-# TODO: Change final_answer to a method with list of answers
-# TODO: Change final_node to method of list of successful terminal nodes
 # TODO: Add write to file method for SearchResult
 
 
@@ -97,10 +96,8 @@ class SearchResult:
     Attributes:
         question (str): The original question posed to the search algorithm.
         ground_truth_answer (str): The known correct answer to the question, if available.
-        final_node (ReasoningNode | None): The terminal node reached by the search algorithm.
-        all_terminal_nodes (list[ReasoningNode] | None): A list of all terminal nodes reached in search.
+        terminal_nodes (list[ReasoningNode] | None): A list of all terminal nodes reached in search.
         success (bool): Indicates whether the search was successful in finding a valid answer.
-        final_answer (Optional[str]): The answer derived from the final reasoning node, if available.
         metadata (dict[str, Any]): Additional information or statistics about the search process.
     """
     
@@ -108,31 +105,44 @@ class SearchResult:
         self,
         question: str = "",
         ground_truth_answer: str = "",
-        final_node: ReasoningNode | None = None,
-        all_terminal_nodes: list[ReasoningNode] | None = None,
+        terminal_nodes: list[ReasoningNode] | None = None,
         success: bool = False,
-        final_answer: Optional[str] = None,
         metadata: dict[str, Any] = None
     ):
-        self.final_node = final_node
         self.question = question
         self.ground_truth_answer = ground_truth_answer
-        self.all_terminal_nodes = all_terminal_nodes if all_terminal_nodes else []
+        self.terminal_nodes = terminal_nodes if terminal_nodes else []
         self.success = success
-        self.final_answer = final_answer
         self.metadata = metadata if metadata else {}
+        
+    # let's get fucked up! (Continue from here, get rid of all places where final_node and final_answer are used.)
+    # Also, change terminal_nodes to terminal_nodes, be more concise bozo) Ya dork! 
+    # just kidding, I love you! not really, but I do love this code.
+        
+    def get_successful_terminal_nodes(self) -> list[ReasoningNode]:
+        """Returns a list of successful terminal nodes."""
+        return [node for node in self.terminal_nodes if node.success]
+    
+    def get_successful_final_answers(self) -> list[str]:
+        """Returns a list of final answers from successful terminal nodes."""
+        return [extract_final_answer_from_cot(node.cot) for node in self.get_successful_terminal_nodes()]
+    
+    def get_all_final_answers(self) -> list[str]:
+        """Returns a list of all final answers from terminal nodes."""
+        return [extract_final_answer_from_cot(node.cot) for node in self.terminal_nodes]
         
     def __repr__(self):
         return (f"SearchResult(question={self.question!r}, "
                 f"ground_truth_answer={self.ground_truth_answer!r}, "
-                f"final_node={self.final_node}, "
-                f"all_terminal_nodes={self.all_terminal_nodes}, "
+                f"terminal_nodes={self.terminal_nodes}, "
                 f"success={self.success}, "
-                f"final_answer={self.final_answer!r}, "
+                f"successful_nodes={len(self.get_successful_terminal_nodes())}, "
                 f"metadata={self.metadata})")
 
     def __str__(self):
+        successful_answers = self.get_successful_final_answers()
         return (f"SearchResult(success={self.success}, "
-                f"final_answer={self.final_answer!r}, "
                 f"question={self.question!r}, "
-                f"num_terminal_nodes={len(self.all_terminal_nodes)})")
+                f"num_terminal_nodes={len(self.terminal_nodes)}, "
+                f"num_successful_nodes={len(self.get_successful_terminal_nodes())}, "
+                f"successful_answers={successful_answers})")

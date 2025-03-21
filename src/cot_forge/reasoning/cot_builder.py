@@ -42,7 +42,7 @@ Example:
     search_result = cot_builder.build(question, ground_truth_answer)
 
     # Access the generated CoT
-    cot = search_result.final_node.get_full_cot()
+    cot = search_result.get_successful_terminal_nodes()[0].get_full_cot()
     print(cot)
     ```
 """
@@ -125,8 +125,8 @@ class CoTBuilder:
 
         Returns:
             SearchResult: Contains:
-                - final_node: Final reasoning state
-                - search_path: List of explored states
+                - terminal_nodes: List of terminal nodes reached in search
+                - succes: Boolean indicating if a valid path was found
                 - metadata: Search statistics and configuration
 
         Example:
@@ -136,7 +136,7 @@ class CoTBuilder:
                 ground_truth_answer="7",
                 temperature=0.7
             )
-            print(result.final_node.get_full_cot())
+            print(result.get_successful_terminal_nodes[0].get_full_cot())
             ```
         """
         llm_kwargs = llm_kwargs or {}

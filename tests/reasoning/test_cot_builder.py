@@ -20,8 +20,7 @@ class TestCoTBuilder(unittest.TestCase):
         
         # Create a mock search result to be returned by the search algorithm
         self.mock_search_result: SearchResult = {
-            'final_node': MagicMock(spec=ReasoningNode),
-            'all_terminal_nodes': [MagicMock(spec=ReasoningNode)],
+            'terminal_nodes': [MagicMock(spec=ReasoningNode)],
             'success': True,
             'final_answer': 'Mock answer',
             'metadata': {'test': 'metadata'}

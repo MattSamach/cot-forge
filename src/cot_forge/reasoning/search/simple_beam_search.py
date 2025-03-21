@@ -83,7 +83,7 @@ class SimpleBeamSearch(BaseSearch):
             scorer=my_scorer,
             verifier=my_verifier
         )
-        print(result.final_answer)
+        print(result.success)
         ```
     """
     
@@ -315,7 +315,7 @@ class SimpleBeamSearch(BaseSearch):
             )
         except Exception as e:
             logger.error(f"Error in initializing CoT: {e}")
-            return SearchResult(all_terminal_nodes=None, 
+            return SearchResult(terminal_nodes=None, 
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
@@ -329,10 +329,8 @@ class SimpleBeamSearch(BaseSearch):
         initial_node.success = False
         if initial_node.success:
             return SearchResult(
-                final_node=initial_node,
-                all_terminal_nodes=[initial_node],
+                terminal_nodes=[initial_node],
                 success=True,
-                final_answer=initial_node.response,
                 metadata={"max_depth": max_depth,
                           "question": question,
                           "ground_truth_answer": ground_truth_answer}
@@ -353,7 +351,7 @@ class SimpleBeamSearch(BaseSearch):
             )
         except Exception as e:
             logger.error(f"Error in initializing beams: {e}")
-            return SearchResult(all_terminal_nodes=None, 
+            return SearchResult(terminal_nodes=None, 
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
@@ -429,10 +427,8 @@ class SimpleBeamSearch(BaseSearch):
                     logger.info(f"Beam {i} reached a final node at depth {depth}")
                 
         result = SearchResult(
-            final_node=None,
-            all_terminal_nodes=beams,
+            terminal_nodes=beams,
             success=any(node.success for node in beams),
-            final_answer=None,
             metadata={"max_depth": max_depth,
                       "question": question,
                       "ground_truth_answer": ground_truth_answer}

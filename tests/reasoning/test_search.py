@@ -56,9 +56,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
                 
         # Check result structure and contents
         self.assertTrue(result.success)
-        self.assertIsNotNone(result.final_node)
-        self.assertEqual(result.final_answer, "The answer is 4.")
-        self.assertEqual(len(result.all_terminal_nodes), 1)
+        self.assertEqual(result.get_successful_final_answers()[0], "The answer is 4.")
+        self.assertEqual(len(result.terminal_nodes), 1)
         self.assertIn('depth', result.metadata)
         
     def test_verification_failure(self):
@@ -96,9 +95,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check result indicates failure
         self.assertFalse(result.success)
-        self.assertIsNotNone(result.final_node)
-        self.assertEqual(result.final_answer, "The answer is 5.")
-        self.assertEqual(len(result.all_terminal_nodes), 1)
+        self.assertEqual(result.get_all_final_answers()[0], "The answer is 5.")
+        self.assertEqual(len(result.terminal_nodes), 1)
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
     @patch('cot_forge.llm.LLMProvider')
@@ -157,9 +155,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check result indicates success
         self.assertTrue(result.success)
-        self.assertIsNotNone(result.final_node)
-        self.assertEqual(result.final_answer, "The answer is 4.")
-        self.assertEqual(len(result.all_terminal_nodes), 1)
+        self.assertEqual(result.get_successful_final_answers()[0], "The answer is 4.")
+        self.assertEqual(len(result.terminal_nodes), 1)
         self.assertEqual(result.metadata['depth'], 2)
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
@@ -202,8 +199,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check result indicates failure
         self.assertFalse(result.success)
-        self.assertIsNotNone(result.final_node)
-        self.assertEqual(len(result.all_terminal_nodes), 1)
+        self.assertEqual(len(result.terminal_nodes), 1)
         self.assertEqual(result.metadata['depth'], 3)
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
@@ -226,9 +222,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
         
         # Check result indicates failure
         self.assertFalse(result.success)
-        self.assertEqual(len(result.all_terminal_nodes), 0)
-        self.assertIsNone(result.final_node)
-        self.assertIsNone(result.final_answer)
+        self.assertEqual(len(result.terminal_nodes), 0)
+        self.assertEqual(len(result.get_successful_final_answers()), 0)
         
     
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
@@ -251,9 +246,8 @@ class TestNaiveLinearSearch(unittest.TestCase):
                                 
         # Check result indicates failure
         self.assertFalse(result.success)
-        self.assertEqual(len(result.all_terminal_nodes), 0)
-        self.assertIsNone(result.final_node)
-        self.assertIsNone(result.final_answer)
+        self.assertEqual(len(result.terminal_nodes), 0)
+        self.assertEqual(len(result.get_successful_final_answers()), 0)
         self.assertIn('error', result.metadata['reason'])
         
     @patch('cot_forge.reasoning.verifiers.LLMJudgeVerifier')
@@ -295,9 +289,9 @@ class TestNaiveLinearSearch(unittest.TestCase):
         self.assertFalse(result.success)
         all(
             node.metadata.get('warning') == 'missing_final_conclusion' 
-            for node in result.final_node.get_full_node_chain()
+            for node in result.terminal_nodes[0].get_full_node_chain()
         )
-        self.assertIsNone(result.final_answer)
+        self.assertEqual(len(result.get_successful_final_answers()),  0)
         # Chain should have gone to max depth
         assert result.metadata['depth'] == max_depth
         
@@ -479,13 +473,13 @@ class TestSimpleBeamSearch(unittest.TestCase):
         
         # Check result indicates success
         self.assertTrue(result.success)
-        self.assertIsNotNone(result.all_terminal_nodes)
-        self.assertTrue(any(node.success for node in result.all_terminal_nodes))
+        self.assertIsNotNone(result.terminal_nodes)
+        self.assertTrue(any(node.success for node in result.terminal_nodes))
         
         # Verify the highest scoring strategies were selected
         # We need to get the nodes at depth 1 which are children of initial_node
         nodes_at_depth_1 = []
-        for terminal_node in result.all_terminal_nodes:
+        for terminal_node in result.terminal_nodes:
             # Traverse up to find the node at depth 1
             node = terminal_node
             while node.parent and node.parent != initial_node:
@@ -645,7 +639,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         
         # Check result indicates failure
         self.assertFalse(result.success)
-        self.assertIsNotNone(result.all_terminal_nodes)
+        self.assertIsNotNone(result.terminal_nodes)
         
     @patch('cot_forge.reasoning.strategies.ScoredStrategySelector')
     @patch('cot_forge.utils.parsing.extract_cot')
@@ -866,14 +860,14 @@ class TestSimpleBeamSearch(unittest.TestCase):
         
         # Check result indicates success
         self.assertTrue(result.success)
-        self.assertIsNotNone(result.all_terminal_nodes)
-        self.assertTrue(any(node.success for node in result.all_terminal_nodes))
+        self.assertIsNotNone(result.terminal_nodes)
+        self.assertTrue(any(node.success for node in result.terminal_nodes))
         
         # Verify that the search process was followed correctly
         beam_search.initialize_cot.assert_called_once()
         
         # Verify that at least one node was marked successful
-        successful_nodes = [node for node in result.all_terminal_nodes if node.success]
+        successful_nodes = [node for node in result.terminal_nodes if node.success]
         self.assertGreaterEqual(len(successful_nodes), 1)
 
     @patch('cot_forge.reasoning.strategies.ScoredStrategySelector')
@@ -1021,7 +1015,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         # Verify the search was executed to max_depth
         self.assertEqual(mock_selector.select.call_count, max_depth)
         self.assertFalse(result.success)
-        self.assertIsNotNone(result.all_terminal_nodes)
+        self.assertIsNotNone(result.terminal_nodes)
 
 
     @patch('cot_forge.reasoning.search.simple_beam_search.SimpleBeamSearch.initialize_cot')
@@ -1052,7 +1046,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         
         # Check appropriate error handling
         self.assertFalse(result.success)
-        self.assertTrue(len(result.all_terminal_nodes)==0)
+        self.assertTrue(len(result.terminal_nodes)==0)
         self.assertEqual(result.metadata["error"], "Failed to initialize CoT")
         
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
@@ -1267,10 +1261,10 @@ class TestSimpleBeamSearch(unittest.TestCase):
         beam_search.initialize_beams.assert_called_once()
         
         # Check the beams were created with the highest scoring strategies
-        self.assertEqual(len(result.all_terminal_nodes), 2)
+        self.assertEqual(len(result.terminal_nodes), 2)
         
         # Get the strategies used in the beams
-        beam_strategies = [node.strategy for node in result.all_terminal_nodes]
+        beam_strategies = [node.strategy for node in result.terminal_nodes]
         
         # Verify the highest scoring strategies were selected
         self.assertEqual(set(beam_strategies), {strategy1, strategy3})

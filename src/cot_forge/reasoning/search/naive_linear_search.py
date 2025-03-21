@@ -23,7 +23,6 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import RandomStrategySelector, StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.utils.parsing import extract_final_answer_from_cot
 from cot_forge.utils.search_utils import generate_and_parse_cot
 
 from .search_algorithm import BaseSearch
@@ -95,7 +94,7 @@ class NaiveLinearSearch(BaseSearch):
                 verifier=my_verifier,
                 reasoning_llm=my_llm_provider
             )
-            print(result.final_answer)
+            print(result.success)  # True or False
             ```
         """
                 
@@ -124,10 +123,8 @@ class NaiveLinearSearch(BaseSearch):
             except Exception as e:
                 logger.error(f"Error during LLM generation: {e}")
                 return SearchResult(
-                    final_node=current_node,
-                    all_terminal_nodes=[current_node] if current_node else [],
+                    terminal_nodes=[current_node] if current_node else [],
                     success=False,
-                    final_answer=None,
                     metadata={"depth": depth,
                               "reason": "generation_error",
                               "question": question,
@@ -159,10 +156,8 @@ class NaiveLinearSearch(BaseSearch):
             # If verification is successful, return the result
             if verification_result:
                 return SearchResult(
-                    final_node=current_node,
-                    all_terminal_nodes=[current_node],
+                    terminal_nodes=[current_node],
                     success=True,
-                    final_answer=extract_final_answer_from_cot(current_node.cot),
                     metadata={"depth": depth + 1,
                               "max_depth": self.max_depth,
                               "reason": "verifier_success",
@@ -172,10 +167,8 @@ class NaiveLinearSearch(BaseSearch):
         
         # Max depth reached without success
         return SearchResult(
-            final_node=current_node,
-            all_terminal_nodes=[current_node],
+            terminal_nodes=[current_node],
             success=False,
-            final_answer=extract_final_answer_from_cot(current_node.cot) if current_node else None,
             metadata={"depth": self.max_depth,
                       "max_depth": self.max_depth,
                       "reason": "max_depth_reached",
