@@ -313,7 +313,7 @@ class StrategyRegistry:
         else:
             raise ValueError(f"Strategy '{name}' not found in registry.")
         
-    def _serialize(self) -> dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         """
         Serialize the strategy registry to a dictionary representation.
         
@@ -331,7 +331,7 @@ class StrategyRegistry:
         }
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any]) -> 'StrategyRegistry':
+    def deserialize(cls, data: dict[str, Any]) -> 'StrategyRegistry':
         """
         Reconstruct a StrategyRegistry from its serialized dictionary representation.
         

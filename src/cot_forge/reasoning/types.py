@@ -188,7 +188,7 @@ class SearchResult:
             f"successful_answers={successful_answers})"
         )
     
-    def _serialize(self):
+    def serialize(self):
         """
         Serializes the SearchResult into a dictionary representation.
         
@@ -238,7 +238,7 @@ class SearchResult:
         return serialized_dict
     
     @classmethod
-    def _deserialize(
+    def deserialize(
         cls,
         serialized_dict: dict[str, Any],
         strategy_registry: StrategyRegistry
@@ -254,7 +254,7 @@ class SearchResult:
         5. Identifying terminal nodes (nodes with no children)
         
         Args:
-            serialized_dict (dict[str, Any]): The serialized SearchResult dictionary (see SearchResult._serializer)
+            serialized_dict (dict[str, Any]): The serialized SearchResult dictionary (see SearchResult.serializer)
             strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objects
         
         Returns:

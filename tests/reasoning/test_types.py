@@ -63,7 +63,7 @@ class TestSerializationDeserialization(unittest.TestCase):
 
     def test_serialization_basic(self):
         """Test that serialization produces a valid dictionary with expected keys"""
-        serialized = self.search_result._serialize()
+        serialized = self.search_result.serialize()
         
         # Verify the serialized dict has all expected top-level keys
         expected_keys = {"adjacency_list", "node_map", "question", "ground_truth_answer", 
@@ -92,13 +92,13 @@ class TestSerializationDeserialization(unittest.TestCase):
 
     def test_round_trip_serialization(self):
         """Test that serialization followed by deserialization preserves structure"""
-        serialized = self.search_result._serialize()
+        serialized = self.search_result.serialize()
         
         # Mock the get_strategy method to return our mock strategy
         self.strategy_registry.get_strategy = MagicMock(return_value=self.mock_strategy)
         
         # Deserialize back to a SearchResult
-        deserialized = SearchResult._deserialize(serialized, self.strategy_registry)
+        deserialized = SearchResult.deserialize(serialized, self.strategy_registry)
         
         # Verify the basic fields are preserved
         self.assertEqual(deserialized.question, self.search_result.question)

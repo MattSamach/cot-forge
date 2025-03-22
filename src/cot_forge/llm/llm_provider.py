@@ -184,3 +184,15 @@ class LLMProvider(ABC):
         """Implementation would use the provider's native batch API if available"""
 
         raise NotImplementedError("Batch generation is planned for future implementation.")
+    
+    def __str__(self):
+        """String representation of the LLM provider."""
+        return f"{self.__class__.__name__} (model: {self.model_name}, tokens: {self.input_tokens}/{self.output_tokens})"
+        
+    def __repr__(self):
+        """String representation of the LLM provider for developers."""
+        return (f"{self.__class__.__name__}(model_name='{self.model_name}', "
+               f"input_token_limit={self.input_token_limit}, output_token_limit={self.output_token_limit}, "
+               f"input_tokens={self.input_tokens}, output_tokens={self.output_tokens})")
+        
+    

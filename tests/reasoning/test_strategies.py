@@ -203,7 +203,7 @@ class TestSerialization:
             minimum_depth=3
         )
         
-        serialized = registry._serialize()
+        serialized = registry.serialize()
         
         assert "strategies" in serialized
         assert len(serialized["strategies"]) == 2
@@ -228,8 +228,8 @@ class TestSerialization:
         )
         
         # Serialize and then deserialize
-        serialized_data = original_registry._serialize()
-        deserialized_registry = StrategyRegistry._deserialize(serialized_data)
+        serialized_data = original_registry.serialize()
+        deserialized_registry = StrategyRegistry.deserialize(serialized_data)
         
         # Verify the deserialized registry has the same strategies
         assert len(deserialized_registry.list_strategies()) == 2
@@ -248,19 +248,19 @@ class TestSerialization:
     def test_empty_registry_serialization(self):
         # Test serialization of an empty registry
         empty_registry = StrategyRegistry()
-        serialized = empty_registry._serialize()
+        serialized = empty_registry.serialize()
         
         assert "strategies" in serialized
         assert len(serialized["strategies"]) == 0
         
         # Test round-trip
-        deserialized = StrategyRegistry._deserialize(serialized)
+        deserialized = StrategyRegistry.deserialize(serialized)
         assert len(deserialized.list_strategies()) == 0
     
     def test_default_registry_serialization(self):
         # Test that we can serialize and deserialize the default registry
-        serialized = default_strategy_registry._serialize()
-        deserialized = StrategyRegistry._deserialize(serialized)
+        serialized = default_strategy_registry.serialize()
+        deserialized = StrategyRegistry.deserialize(serialized)
         
         # The deserialized registry should have the same strategies
         original_strategies = set(default_strategy_registry.list_strategies())

@@ -60,6 +60,8 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
+# TODO: Add serialization (make sure to store everything of note such as strat_reg, verifier, scorer, reasoning_llm, etc)
+# TODO: Add serialization/to_dict methods to all my classes so they can be wrapped up and saved.
 # TODO: Add write to file methods, logging, and checkpoints
 
 class CoTBuilder:
