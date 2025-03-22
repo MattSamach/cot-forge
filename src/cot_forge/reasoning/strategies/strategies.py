@@ -171,17 +171,18 @@ class Strategy:
         prompt += StrategyPromptTemplate.create_json_format()
         return prompt
     
-    def to_dict(self) -> dict[str, Any]:
+    @classmethod
+    def to_dict(cls) -> dict[str, Any]:
         """Convert the strategy to a dictionary representation.
         
         Returns:
             dict: A dictionary containing the strategy's metadata.
         """
         return {
-            "name": self.name,
-            "description": self.description,
-            "is_initial": self.is_initial,
-            "minimum_depth": self.minimum_depth
+            "name": cls.name,
+            "description": cls.description,
+            "is_initial": cls.is_initial,
+            "minimum_depth": cls.minimum_depth
         }
     
     def __str__(self) -> str:
