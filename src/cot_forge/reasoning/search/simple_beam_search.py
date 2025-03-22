@@ -78,7 +78,7 @@ class SimpleBeamSearch(BaseSearch):
         result = search._search(
             question="What is the capital of France?",
             ground_truth_answer="Paris",
-            reasoning_llm=my_llm_provider,
+            search_llm=my_llm_provider,
             scorer=my_scorer,
             verifier=my_verifier
         )
@@ -137,7 +137,7 @@ class SimpleBeamSearch(BaseSearch):
         question: str,
         ground_truth_answer: str,
         verifier: BaseVerifier,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         llm_kwargs: dict[str, Any] = None
     ) -> ReasoningNode:
         """
@@ -150,7 +150,7 @@ class SimpleBeamSearch(BaseSearch):
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
             verifier (BaseVerifier): The verifier used to check the correctness of the initial response.
-            reasoning_llm (LLMProvider): The LLM provider used to generate the initial CoT.
+            search_llm (LLMProvider): The LLM provider used to generate the initial CoT.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
 
         Returns:
@@ -166,7 +166,7 @@ class SimpleBeamSearch(BaseSearch):
         prompt = strategy.build_prompt(question)
         
         response, cot = generate_and_parse_cot(
-            reasoning_llm=reasoning_llm,
+            search_llm=search_llm,
             prompt=prompt,
             llm_kwargs=llm_kwargs,
             logger=logger,
@@ -202,7 +202,7 @@ class SimpleBeamSearch(BaseSearch):
                          strategy_registry: StrategyRegistry,
                          scorer: BaseScorer,
                          depth: int,
-                         reasoning_llm: LLMProvider,
+                         search_llm: LLMProvider,
                          question: str,
                          ground_truth_answer: str,
                          verifier: BaseVerifier,
@@ -221,7 +221,7 @@ class SimpleBeamSearch(BaseSearch):
             strategy_registry (StrategyRegistry): The registry containing available reasoning strategies.
             scorer (BaseScorer): The scorer used to evaluate and rank the strategies.
             depth (int): The current depth in the search process.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             question (str): The question being answered.
             ground_truth_answer (str): The true answer to the question for verification/scoring purposes.
             verifier (BaseVerifier): The verifier used to check correctness of the generated reasoning nodes.
@@ -240,7 +240,7 @@ class SimpleBeamSearch(BaseSearch):
                 strategy_registry=strategy_registry,
                 scorer=scorer,
                 depth=1,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 question="What is the capital of France?",
                 ground_truth_answer="Paris",
                 verifier=verifier,
@@ -254,7 +254,7 @@ class SimpleBeamSearch(BaseSearch):
 
         try:
             selected_strategies, search_data = self.strategy_selector.select(
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 registry=strategy_registry,
                 depth=depth,
                 num_strategies=self.beam_width,
@@ -303,7 +303,7 @@ class SimpleBeamSearch(BaseSearch):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         scorer: BaseScorer,
         verifier: BaseVerifier,
         strategy_registry: StrategyRegistry = default_strategy_registry,
@@ -321,7 +321,7 @@ class SimpleBeamSearch(BaseSearch):
         Args:
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             scorer (BaseScorer): The scorer used to evaluate different beam options.
             verifier (BaseVerifier): The verifier used to check the correctness of final answers.
             strategy_registry (StrategyRegistry, optional): The registry of available strategies.
@@ -341,7 +341,7 @@ class SimpleBeamSearch(BaseSearch):
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=verifier,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 llm_kwargs=llm_kwargs
             )
         except Exception as e:
@@ -370,7 +370,7 @@ class SimpleBeamSearch(BaseSearch):
                 strategy_registry=strategy_registry,
                 scorer=scorer,
                 depth=1,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=verifier,
@@ -400,7 +400,7 @@ class SimpleBeamSearch(BaseSearch):
                 
                 try:
                     selected_strategies, search_data = self.strategy_selector.select(
-                        reasoning_llm=reasoning_llm,
+                        search_llm=search_llm,
                         registry=strategy_registry,
                         depth=depth,
                         question=question,

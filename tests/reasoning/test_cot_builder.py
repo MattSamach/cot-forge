@@ -31,7 +31,7 @@ class TestCoTBuilder(unittest.TestCase):
         
         # Create the CoTBuilder with mocked dependencies
         self.cot_builder = CoTBuilder(
-            reasoning_llm=self.mock_llm,
+            search_llm=self.mock_llm,
             search=self.mock_search,
             strategy_reg=self.mock_strategy_reg,
             verifier=self.mock_verifier
@@ -57,7 +57,7 @@ class TestCoTBuilder(unittest.TestCase):
         self.mock_search.assert_called_once_with(
             question=question,
             ground_truth_answer=ground_truth,
-            reasoning_llm=self.mock_llm,
+            search_llm=self.mock_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.mock_strategy_reg,
             verifier=self.mock_verifier,
@@ -92,7 +92,7 @@ class TestCoTBuilder(unittest.TestCase):
         first_call_args = self.mock_search.call_args_list[0][1]
         self.assertEqual(first_call_args['question'], questions[0])
         self.assertEqual(first_call_args['ground_truth_answer'], ground_truths[0])
-        self.assertEqual(first_call_args['reasoning_llm'], self.mock_llm)
+        self.assertEqual(first_call_args['search_llm'], self.mock_llm)
         self.assertEqual(first_call_args['llm_kwargs'], llm_kwargs)
         
         # Check parameters passed for second call

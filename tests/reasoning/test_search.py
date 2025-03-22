@@ -42,7 +42,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=self.llm_provider,
+            search_llm=self.llm_provider,
             verifier=self.verifier
         )
                         
@@ -89,7 +89,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=self.llm_provider,
+            search_llm=self.llm_provider,
             verifier=self.verifier
         )
         
@@ -144,7 +144,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             verifier=mock_verifier,
             max_depth=2
         )
@@ -189,7 +189,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question = question,
             ground_truth_answer = ground_truth_answer,
-            reasoning_llm = mock_llm_provider,
+            search_llm = mock_llm_provider,
             verifier = mock_verifier,
         )
         
@@ -217,7 +217,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             question=question,
             ground_truth_answer=ground_truth_answer,
             verifier=mock_verifier,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
         )
         
         # Check result indicates failure
@@ -241,7 +241,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
             question=question,
             ground_truth_answer=ground_truth_answer,
             verifier=mock_verifier,
-            reasoning_llm=mock_llm_provider
+            search_llm=mock_llm_provider
         )
                                 
         # Check result indicates failure
@@ -280,7 +280,7 @@ class TestNaiveLinearSearch(unittest.TestCase):
         result = self.search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=self.llm_provider,
+            search_llm=self.llm_provider,
             verifier=mock_verifier,
             max_depth=max_depth
         )
@@ -465,7 +465,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
             strategy_registry=mock_registry
@@ -631,7 +631,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
             strategy_registry=mock_registry
@@ -852,7 +852,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
             strategy_registry=mock_registry
@@ -1005,7 +1005,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
             strategy_registry=mock_registry,
@@ -1039,7 +1039,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
         )
@@ -1084,7 +1084,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
                 strategy_registry=mock_registry,
                 scorer=mock_scorer,
                 depth=1,
-                reasoning_llm=mock_llm_provider,
+                search_llm=mock_llm_provider,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=mock_verifier,
@@ -1251,7 +1251,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         result = beam_search._search(
             question=question,
             ground_truth_answer=ground_truth_answer,
-            reasoning_llm=mock_llm_provider,
+            search_llm=mock_llm_provider,
             scorer=mock_scorer,
             verifier=mock_verifier,
             strategy_registry=mock_registry

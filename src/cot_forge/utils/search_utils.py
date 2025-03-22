@@ -95,7 +95,7 @@ def execute_with_fallback(
         return None, f"Unexpected error in {operation_name}"
     
 def generate_and_parse_cot(
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         prompt: str,
         llm_kwargs: dict[str, Any] = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
@@ -107,7 +107,7 @@ def generate_and_parse_cot(
         Generate and parse the chain of thought (CoT) from the LLM.
         
         Args:
-            reasoning_llm: The LLM provider to use for generation
+            search_llm: The LLM provider to use for generation
             prompt: The prompt to send to the LLM
             llm_kwargs: Additional kwargs for LLM generation
             on_error: How to handle errors during generation
@@ -119,7 +119,7 @@ def generate_and_parse_cot(
             RuntimeError: If the operation fails and on_error="raise" or "retry"
         Example:
             >>> response, cot = generate_and_parse_cot(
-            ...     reasoning_llm,
+            ...     search_llm,
             ...     prompt="What is the capital of France?",
             ...     llm_kwargs={"temperature": 0.7},
             ...     on_error="retry",
@@ -132,7 +132,7 @@ def generate_and_parse_cot(
         
         def helper_function():
             # Generate the response using the LLM
-            response = reasoning_llm.generate(prompt, **(llm_kwargs or {}))
+            response = search_llm.generate(prompt, **(llm_kwargs or {}))
             # Extract the CoT from the response
             cot = extract_cot(response)
             return response, cot

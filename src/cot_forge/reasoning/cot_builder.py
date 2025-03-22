@@ -25,13 +25,13 @@ Example:
     ```python
 
     # Initialize components (replace with your actual implementations)
-    reasoning_llm = GeminiLLMProvider(...)
+    search_llm = GeminiLLMProvider(...)
     search_algorithm = NaiveLinearSearch(...)
     verifier = LLMJudgeVerifier()
 
     # Instantiate CoTBuilder
     cot_builder = CoTBuilder(
-        reasoning_llm=reasoning_llm,
+        search_llm=search_llm,
         search=search_algorithm,
         verifier=verifier
     )
@@ -60,8 +60,7 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 from .search.search_algorithm import SearchAlgorithm, SearchResult
 from .strategies import StrategyRegistry, default_strategy_registry
 
-# TODO: Add serialization (make sure to store everything of note such as strat_reg [x], reasoning_llm [x], verifier, scorer, etc)
-# TODO: Add serialization/to_dict methods to all my classes so they can be wrapped up and saved.
+# TODO: Add serialization (make sure to store everything of note such as strat_reg [x], search_llm [x], verifier [x], scorer [x], etc)
 # TODO: Add write to file methods, logging, and checkpoints
 
 class CoTBuilder:
@@ -75,7 +74,7 @@ class CoTBuilder:
     3. Verifying correctness of conclusions
 
     Attributes:
-        reasoning_llm (LLMProvider): Language model for generating reasoning steps
+        search_llm (LLMProvider): Language model for generating reasoning steps
         search (SearchAlgorithm): Algorithm for exploring reasoning paths
         verifier (BaseVerifier): Validates reasoning conclusions
         scorer (BaseScorer): Evaluates path quality to prioritize exploration
@@ -85,7 +84,7 @@ class CoTBuilder:
     Example:
         ```python
         builder = CoTBuilder(
-            reasoning_llm=llm,
+            search_llm=llm,
             search=search_algo,
             verifier=verifier
         )
@@ -94,14 +93,14 @@ class CoTBuilder:
     """
     
     def __init__(self,
-                 reasoning_llm: LLMProvider,
+                 search_llm: LLMProvider,
                  search: SearchAlgorithm,
                  verifier: BaseVerifier,
                  scorer: BaseScorer = None,
                  strategy_reg: StrategyRegistry = default_strategy_registry,
                  search_llm_kwargs: dict[str, Any] = None,
                  ):
-        self.reasoning_llm = reasoning_llm
+        self.search_llm = search_llm
         self.search_llm_kwargs = search_llm_kwargs or {}
         self.strategy_reg = strategy_reg
         self.search = search
@@ -147,7 +146,7 @@ class CoTBuilder:
             ground_truth_answer=ground_truth_answer,
             verifier=self.verifier,
             scorer=self.scorer,
-            reasoning_llm=self.reasoning_llm,
+            search_llm=self.search_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.strategy_reg,
             **kwargs
@@ -206,7 +205,7 @@ class CoTBuilder:
         if multi_thread:
             return self._multi_thread_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.reasoning_llm,
+                llm=self.search_llm,
                 progress_bar=progress_bar,
                 max_workers=max_workers,
                 llm_kwargs=llm_kwargs,
@@ -215,7 +214,7 @@ class CoTBuilder:
         else:
             return self._single_threaded_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.reasoning_llm,
+                llm=self.search_llm,
                 progress_bar=progress_bar,
                 total_pairs=total_pairs,
                 llm_kwargs=llm_kwargs,
@@ -289,7 +288,7 @@ class CoTBuilder:
 
     def __repr__(self) -> str:
         return (f"CoTBuilder with:\n"
-            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
@@ -298,7 +297,7 @@ class CoTBuilder:
     
     def __str__(self) -> str:
         return (f"CoTBuilder with:\n"
-            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"

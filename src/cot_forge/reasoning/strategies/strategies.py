@@ -52,8 +52,6 @@ default_strategy_registry.create_and_register(
 ```
 """
 
-# TODO: Add serialization to strategy
-
 from dataclasses import dataclass
 from typing import Any, ClassVar, Optional
 

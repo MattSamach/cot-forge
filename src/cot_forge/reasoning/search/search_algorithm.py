@@ -52,7 +52,7 @@ class SearchAlgorithm(Protocol):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier,
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
@@ -85,7 +85,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         self, 
         question: str, 
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier, 
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
@@ -102,7 +102,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         Args:
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             verifier (BaseVerifier): The verifier used to check the correctness of the reasoning steps.
             scorer (BaseScorer, optional): The scorer used to evaluate reasoning paths.
             strategy_registry (StrategyRegistry, optional): The registry of reasoning strategies.
@@ -119,7 +119,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         return self._search(
             question = question, 
             ground_truth_answer = ground_truth_answer,
-            reasoning_llm = reasoning_llm,
+            search_llm = search_llm,
             verifier = verifier,
             scorer = scorer,
             strategy_registry = strategy_registry,
@@ -132,7 +132,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier,
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry,

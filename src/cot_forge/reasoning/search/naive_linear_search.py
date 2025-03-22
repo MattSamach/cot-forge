@@ -87,7 +87,7 @@ class NaiveLinearSearch(BaseSearch):
         question: str,
         ground_truth_answer: str,
         verifier: BaseVerifier,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         strategy_registry: StrategyRegistry = default_strategy_registry,
         llm_kwargs: dict[str, Any] = None,
         **kwargs
@@ -103,7 +103,7 @@ class NaiveLinearSearch(BaseSearch):
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
             verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
             **kwargs: Additional keyword arguments for the search algorithm.
@@ -121,7 +121,7 @@ class NaiveLinearSearch(BaseSearch):
                 question="What is the capital of France?",
                 ground_truth_answer="Paris",
                 verifier=my_verifier,
-                reasoning_llm=my_llm_provider
+                search_llm=my_llm_provider
             )
             print(result.success)  # True or False
             ```
@@ -144,7 +144,7 @@ class NaiveLinearSearch(BaseSearch):
             # Generate response and cot.
             try:
                 response, cot = generate_and_parse_cot(
-                    reasoning_llm=reasoning_llm,
+                    search_llm=search_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,
                     logger=logger

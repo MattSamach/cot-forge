@@ -16,9 +16,6 @@ from cot_forge.reasoning.strategies import Strategy, StrategyRegistry
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 from uuid import uuid4 as uuid
 
-# TODO: Add write to file method for SearchResult
-
-
 class ReasoningNode:
     """
     A node in a reasoning graph/tree/chain representing a step in the reasoning process.
