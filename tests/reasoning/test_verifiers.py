@@ -249,6 +249,9 @@ class TestLLMJudgeVerifier:
 class SimpleVerifier(BaseVerifier):
     """Simple verifier implementation for testing the base class."""
     
+    def from_dict():
+        pass
+    
     def verify(self, node, question, ground_truth_answer, **kwargs):
         if not node.cot:
             return False, "No CoT available"
