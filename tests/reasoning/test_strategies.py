@@ -170,3 +170,107 @@ class TestDefaultRegistry:
         
         # Clean up (remove the strategy we added)
         default_strategy_registry.remove_strategy("custom_test_strategy")
+        
+class TestSerialization:
+    def test_strategy_to_dict(self):
+        # Test serialization of a single strategy
+        test_strategy = Strategy.create_strategy(
+            name="serialization_test",
+            description="Testing serialization",
+            is_initial=True,
+            minimum_depth=2
+        )
+                
+        serialized = test_strategy.to_dict()
+        
+        assert serialized["name"] == "serialization_test"
+        assert serialized["description"] == "Testing serialization"
+        assert serialized["is_initial"] is True
+        assert serialized["minimum_depth"] == 2
+    
+    def test_registry_serialization(self):
+        # Test serialization of a registry
+        registry = StrategyRegistry()
+        registry.create_and_register(
+            name="strategy1",
+            description="First test strategy",
+            is_initial=True
+        )
+        registry.create_and_register(
+            name="strategy2",
+            description="Second test strategy",
+            is_initial=False,
+            minimum_depth=3
+        )
+        
+        serialized = registry._serialize()
+        
+        assert "strategies" in serialized
+        assert len(serialized["strategies"]) == 2
+        assert "strategy1" in serialized["strategies"]
+        assert "strategy2" in serialized["strategies"]
+        assert serialized["strategies"]["strategy1"]["is_initial"] is True
+        assert serialized["strategies"]["strategy2"]["minimum_depth"] == 3
+    
+    def test_registry_deserialization(self):
+        # Test deserialization of a registry
+        original_registry = StrategyRegistry()
+        original_registry.create_and_register(
+            name="test_strat1",
+            description="First test strategy",
+            is_initial=True
+        )
+        original_registry.create_and_register(
+            name="test_strat2",
+            description="Second test strategy",
+            is_initial=False,
+            minimum_depth=4
+        )
+        
+        # Serialize and then deserialize
+        serialized_data = original_registry._serialize()
+        deserialized_registry = StrategyRegistry._deserialize(serialized_data)
+        
+        # Verify the deserialized registry has the same strategies
+        assert len(deserialized_registry.list_strategies()) == 2
+        assert "test_strat1" in deserialized_registry.list_strategies()
+        assert "test_strat2" in deserialized_registry.list_strategies()
+        
+        # Get strategies and verify their properties
+        strat1 = deserialized_registry.get_strategy("test_strat1")
+        strat2 = deserialized_registry.get_strategy("test_strat2")
+        
+        assert strat1.is_initial is True
+        assert strat1.description == "First test strategy"
+        assert strat2.is_initial is False
+        assert strat2.minimum_depth == 4
+    
+    def test_empty_registry_serialization(self):
+        # Test serialization of an empty registry
+        empty_registry = StrategyRegistry()
+        serialized = empty_registry._serialize()
+        
+        assert "strategies" in serialized
+        assert len(serialized["strategies"]) == 0
+        
+        # Test round-trip
+        deserialized = StrategyRegistry._deserialize(serialized)
+        assert len(deserialized.list_strategies()) == 0
+    
+    def test_default_registry_serialization(self):
+        # Test that we can serialize and deserialize the default registry
+        serialized = default_strategy_registry._serialize()
+        deserialized = StrategyRegistry._deserialize(serialized)
+        
+        # The deserialized registry should have the same strategies
+        original_strategies = set(default_strategy_registry.list_strategies())
+        deserialized_strategies = set(deserialized.list_strategies())
+        
+        assert original_strategies == deserialized_strategies
+        
+        # Verify a specific strategy was preserved correctly
+        original_init = default_strategy_registry.get_strategy("initialize")
+        deserialized_init = deserialized.get_strategy("initialize")
+        
+        assert original_init.name == deserialized_init.name
+        assert original_init.is_initial == deserialized_init.is_initial
