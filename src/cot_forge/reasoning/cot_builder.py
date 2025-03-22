@@ -55,12 +55,12 @@ from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
+from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 
-from .search.search_algorithm import SearchAlgorithm, SearchResult
+from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
-# TODO: Add serialization (make sure to store everything of note such as strat_reg [x], search_llm [x], verifier [x], scorer [x], etc)
 # TODO: Add write to file methods, logging, and checkpoints
 
 class CoTBuilder:
@@ -74,7 +74,7 @@ class CoTBuilder:
     3. Verifying correctness of conclusions
 
     Attributes:
-        search_llm (LLMProvider): Language model for generating reasoning steps
+        search_llm (LLMProvider): Language model for generating reasoning steps in search
         search (SearchAlgorithm): Algorithm for exploring reasoning paths
         verifier (BaseVerifier): Validates reasoning conclusions
         scorer (BaseScorer): Evaluates path quality to prioritize exploration

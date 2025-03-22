@@ -357,7 +357,7 @@ class StrategyRegistry:
             try:
                 registry.create_and_register(**strategy_data)
             except Exception as e:
-                raise ValueError(f"Failed to deserialize strategy '{name}': {str(e)}")
+                raise ValueError(f"Failed to deserialize strategy '{name}': {str(e)}") from e
             
         return registry
         

@@ -1,9 +1,10 @@
+import json
 import unittest
 from unittest.mock import MagicMock
-import json
 
-from cot_forge.reasoning.types import ReasoningNode, SearchResult
 from cot_forge.reasoning.strategies import Strategy, StrategyRegistry
+from cot_forge.reasoning.types import ReasoningNode, SearchResult
+
 
 class TestSerializationDeserialization(unittest.TestCase):
     

@@ -1,7 +1,7 @@
 import os
 
 from cot_forge.llm import GeminiLLMProvider
-from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch, default_strategy_registry
+from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, default_strategy_registry
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -31,9 +31,9 @@ api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 llm = GeminiLLMProvider(api_key=api_key)
 
 builder = CoTBuilder(
-    reasoning_llm=llm,
-    search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
-    # search=NaiveLinearSearch(max_depth=3),
+    search_llm=llm,
+    # search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
+    search=NaiveLinearSearch(max_depth=3),
     verifier=LLMJudgeVerifier(llm),
     strategy_reg=default_strategy_registry,
     scorer=ProbabilityFinalAnswerScorer(llm)

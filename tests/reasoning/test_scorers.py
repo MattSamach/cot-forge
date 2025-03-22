@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning.scorers.llm_scorers import ProbabilityFinalAnswerScorer, generate_and_parse_scores
+from cot_forge.reasoning.scorers.llm_scorers import ProbabilityFinalAnswerScorer
+
 
 class TestProbabilityFinalAnswerScorer:
     def setup_method(self):

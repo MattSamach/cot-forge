@@ -11,10 +11,11 @@ status, the final answer, and any relevant metadata.
 """
 
 from typing import Any, Optional
+from uuid import uuid4 as uuid
 
 from cot_forge.reasoning.strategies import Strategy, StrategyRegistry
 from cot_forge.utils.parsing import extract_final_answer_from_cot
-from uuid import uuid4 as uuid
+
 
 class ReasoningNode:
     """
@@ -47,7 +48,7 @@ class ReasoningNode:
              success: bool = False,
              metadata: dict[str, Any] = None
              ):
-        self.id = str(uuid()) if not id else id
+        self.id = id if id else str(uuid())
         self.strategy = strategy
         self.prompt = prompt
         self.response = response
@@ -100,7 +101,8 @@ class ReasoningNode:
     
     def __str__(self):
         return (
-            f"ReasoningNode(strategy={self.strategy.name if hasattr(self.strategy, 'name') else self.strategy}, "
+            f"ReasoningNode(strategy="
+            f"{self.strategy.name if hasattr(self.strategy, 'name') else self.strategy}, "
             f"success={self.success}, final={self.is_final}, "
             f"cot_steps={len(self.cot) if isinstance(self.cot, list) else 0})"
         )
@@ -164,7 +166,11 @@ class SearchResult:
         
     def __repr__(self):
         question_preview = f"{self.question[:30]}..." if len(self.question) > 30 else self.question
-        ground_truth_preview = f"{self.ground_truth_answer[:30]}..." if len(self.ground_truth_answer) > 30 else self.ground_truth_answer
+        ground_truth_preview = (
+            f"{self.ground_truth_answer[:30]}..."
+            if len(self.ground_truth_answer) > 30
+            else self.ground_truth_answer
+        )
         return (
             f"SearchResult(question={question_preview}, "
             f"ground_truth_answer={ground_truth_preview}, "
@@ -251,8 +257,9 @@ class SearchResult:
         5. Identifying terminal nodes (nodes with no children)
         
         Args:
-            serialized_dict (dict[str, Any]): The serialized SearchResult dictionary (see SearchResult.serializer)
-            strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objects
+            serialized_dict (dict[str, Any]): The serialized SearchResult dictionary 
+                (see SearchResult.serializer)
+            strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objs
         
         Returns:
             SearchResult: A fully reconstructed SearchResult with the complete reasoning graph
@@ -260,11 +267,11 @@ class SearchResult:
         Raises:
             ValueError: If the serialized dictionary is missing required keys
         """
-        if not "node_map" in serialized_dict or not "adjacency_list" in serialized_dict:
-            raise ValueError("SearchResult deserialization requires keys 'node_map' and 'adjacency_list' for graph.")
+        if "node_map" not in serialized_dict or "adjacency_list" not in serialized_dict:
+            raise ValueError("SearchResult: deserialized_dict requires keys 'node_map' and 'adjacency_list'.")
         
-        if not "question" in serialized_dict or not "ground_truth_answer":
-            raise ValueError(("SearchResult deserialization requires keys 'question' and 'ground_truth_answer'"))
+        if "question" not in serialized_dict or not "ground_truth_answer":
+            raise ValueError("SearchResult.deserialize() requires keys 'question' and 'ground_truth_answer'")
         
         question = serialized_dict['question']
         ground_truth_answer = serialized_dict['ground_truth_answer']
@@ -279,7 +286,7 @@ class SearchResult:
             node_map[k] = ReasoningNode(**v)
             
         # Assume all nodes are terminal nodes and reduce set as we prove otherwise
-        terminal_node_ids = {k for k in node_map.keys()}
+        terminal_node_ids = {k for k in node_map}
         
         # Loop through adjacency list to add child/parents relationships
         for p, c in adjacency_list:

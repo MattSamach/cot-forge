@@ -178,7 +178,8 @@ class LLMProvider(ABC):
     
     def __str__(self):
         """String representation of the LLM provider."""
-        return f"{self.__class__.__name__} (model: {self.model_name}, tokens: {self.input_tokens}/{self.output_tokens})"
+        return (f"{self.__class__.__name__} "
+                "(model: {self.model_name}, tokens: {self.input_tokens}/{self.output_tokens})")
         
     def __repr__(self):
         """String representation of the LLM provider for developers."""
@@ -212,12 +213,12 @@ class LLMProvider(ABC):
         Args:
             cls: The class on which this method is called.
             data (dict): Dictionary containing LLMProvider configuration.
-            with_token_usage (bool, optional): Whether to include token usage data from the input dictionary.
+            with_token_usage (bool, optional): Whether to include token usage data from input dictionary.
                 If False, token counters will be initialized to 0. Defaults to False.
-            with_rate_limit (bool, optional): Whether to include rate limit parameters from the input dictionary.
+            with_rate_limit (bool, optional): Whether to include rate limit parameters from input dictionary.
                 If False, token limits will be set to None. Defaults to True.
         Returns:
-            LLMProvider: A new instance of the LLMProvider class initialized with values from the provided dictionary.
+            LLMProvider: A new instance of the LLMProvider class initialized with values from the dictionary.
         The dictionary can contain the following keys:
             - model_name: Name of the language model
             - rate_limit_exceptions: Exceptions to handle during rate limiting
