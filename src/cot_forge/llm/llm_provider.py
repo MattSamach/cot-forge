@@ -37,7 +37,13 @@ class LLMProvider(ABC):
             input_token_limit: Maximum number of input tokens, for cost control.
             output_token_limit: Maximum number of output tokens, for cost control.
         """
+        # Model name
         self.model_name = model_name
+        # Rate limit settings
+        self.min_wait = min_wait
+        self.max_wait = max_wait
+        self.max_retries = max_retries
+        self.rate_limit_exceptions = rate_limit_exceptions or (tenacity.RetryError,)
         
         # Retry settings for handling rate limits
         self.retry_settings = {}
@@ -56,21 +62,6 @@ class LLMProvider(ABC):
         
         # Mutual exclusion lock for thread-safe token updates
         self._lock = RLock()
-
-    def __str__(self):
-        """String representation of the LLM provider."""
-        return ("f{self.__class__.__name__}\n",
-        f"\t(model_name: {self.model_name})\n",
-        f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})")
-        
-    def __repr__(self):
-        """String representation of the LLM provider for developers."""
-        return (f"{self.__class__.__name__}\n",
-        f"\t(model_name: {self.model_name})\n",
-        f"\t(input_tokens: {self.input_tokens}, output_tokens: {self.output_tokens})\n",
-        f"\t(input_token_limit: {self.input_token_limit} ",
-        f"output_token_limit: {self.output_token_limit})\n",
-        f"\t(retry_settings: {self.retry_settings})\n")
         
     def get_token_usage(self) -> dict:
         """
@@ -195,4 +186,67 @@ class LLMProvider(ABC):
                f"input_token_limit={self.input_token_limit}, output_token_limit={self.output_token_limit}, "
                f"input_tokens={self.input_tokens}, output_tokens={self.output_tokens})")
         
-    
+    def to_dict(self) -> dict:
+        """Convert the LLM provider to a dictionary representation."""
+        return {
+            "model_name": self.model_name,
+            "input_token_limit": self.input_token_limit,
+            "output_token_limit": self.output_token_limit,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            # Don't include exception objects
+            "min_wait": self.min_wait,
+            "max_wait": self.max_wait,
+            "max_retries": self.max_retries,
+        }
+        
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict,
+        with_token_usage: bool = False,
+        with_rate_limit: bool = True,
+    ) -> "LLMProvider":
+        """
+        Create an LLM provider instance from a dictionary representation.
+        Args:
+            cls: The class on which this method is called.
+            data (dict): Dictionary containing LLMProvider configuration.
+            with_token_usage (bool, optional): Whether to include token usage data from the input dictionary.
+                If False, token counters will be initialized to 0. Defaults to False.
+            with_rate_limit (bool, optional): Whether to include rate limit parameters from the input dictionary.
+                If False, token limits will be set to None. Defaults to True.
+        Returns:
+            LLMProvider: A new instance of the LLMProvider class initialized with values from the provided dictionary.
+        The dictionary can contain the following keys:
+            - model_name: Name of the language model
+            - rate_limit_exceptions: Exceptions to handle during rate limiting
+            - min_wait (optional): Minimum wait time between requests (default: 0.0)
+            - max_wait (optional): Maximum wait time between requests (default: 0.0)
+            - max_retries (optional): Maximum number of retry attempts (default: 0)
+            - input_token_limit (optional): Maximum allowed input tokens
+            - output_token_limit (optional): Maximum allowed output tokens
+            - input_tokens (optional): Current count of input tokens used
+            - output_tokens (optional): Current count of output tokens used
+        """
+        
+        input_token_limit = data.get("input_token_limit") if with_rate_limit else None
+        output_token_limit=data.get("output_token_limit") if with_rate_limit else None
+        input_tokens=data.get("input_tokens", 0) if with_token_usage else 0
+        output_tokens=data.get("output_tokens", 0) if with_token_usage else 0
+        
+        # Create an instance of the class
+        return cls(
+            # Values that can be reset
+            input_token_limit=input_token_limit,
+            output_token_limit=output_token_limit,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+
+            # Values to retrieve from the data
+            model_name=data.get("model_name"),
+            rate_limit_exceptions=data.get("rate_limit_exceptions"),
+            min_wait = data.get("min_wait", 0.0),
+            max_wait = data.get("max_wait", 0.0),
+            max_retries = data.get("max_retries", 0)
+        )
