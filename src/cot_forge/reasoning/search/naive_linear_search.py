@@ -46,14 +46,41 @@ class NaiveLinearSearch(BaseSearch):
     """
     
     def __init__(self,
-                 max_depth: int = 3,
-                 strategy_registry: StrategyRegistry = default_strategy_registry,
-                 ):
-        self.strategy_registry = strategy_registry
+                 max_depth: int = 3):
         self.max_depth = max_depth
-        self.name = "naive linear search"
-        self.description = "Naive linear search for reasoning chain."
+        self.name = "Naive Linear Search"
+        self.description = ("A sequential search algorithm that randomly selects " 
+                            "and applies reasoning strategies to build a chain of thought. "
+                            "Continues until verification succeeds or max depth is reached.")
         self.strategy_selector = RandomStrategySelector()
+        
+    def to_dict(self):
+        """
+        Convert the search algorithm to a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the search algorithm.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "max_depth": self.max_depth,
+        }
+        
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create a search algorithm instance from a dictionary representation.
+
+        Args:
+            data (dict): Dictionary representation of the search algorithm.
+
+        Returns:
+            NaiveLinearSearch: Instance of the search algorithm.
+        """
+        return cls(
+            max_depth=data.get("max_depth", 3),
+        )
 
     def _search(
         self,
@@ -61,6 +88,7 @@ class NaiveLinearSearch(BaseSearch):
         ground_truth_answer: str,
         verifier: BaseVerifier,
         reasoning_llm: LLMProvider,
+        strategy_registry: StrategyRegistry = default_strategy_registry,
         llm_kwargs: dict[str, Any] = None,
         **kwargs
     ) -> SearchResult:
@@ -76,6 +104,7 @@ class NaiveLinearSearch(BaseSearch):
             ground_truth_answer (str): The true answer to the question.
             verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
             reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
             **kwargs: Additional keyword arguments for the search algorithm.
 
@@ -105,7 +134,7 @@ class NaiveLinearSearch(BaseSearch):
         
         for depth in range(self.max_depth):
             # Select next strategy
-            strategies, _ = self.strategy_selector.select(registry = self.strategy_registry, depth = depth)
+            strategies, _ = self.strategy_selector.select(registry = strategy_registry, depth = depth)
             strategy = strategies[0] if isinstance(strategies, list) else strategies
             
             # Build prompt based on selected strategy

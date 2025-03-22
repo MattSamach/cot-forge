@@ -144,6 +144,27 @@ class BaseSearch(ABC, SearchAlgorithm):
         """
         pass
     
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert the search algorithm to a dictionary representation.
+        
+        This method should be implemented by subclasses to provide a 
+        reproducible representation of the search algorithm.
+        """
+        pass
+    
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, config: dict[str, Any]) -> None:
+        """
+        Load the search algorithm from a dictionary representation.
+        
+        This method should be implemented by subclasses to restore the 
+        state of the search algorithm from a dictionary.
+        """
+        pass
+    
     def verify_node(
         self,
         node: ReasoningNode, 

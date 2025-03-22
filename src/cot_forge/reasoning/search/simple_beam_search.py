@@ -62,7 +62,6 @@ class SimpleBeamSearch(BaseSearch):
     most promising paths for further exploration.
     
     Attributes:
-        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
         beam_width (int): Number of beams to be explored.
         branching_factor (int): Number of strategies to consider at each node when extending each beam.
         max_depth (int): Maximum depth for the search.
@@ -91,15 +90,46 @@ class SimpleBeamSearch(BaseSearch):
                  beam_width: int = 2,
                  branching_factor: int = 3,
                  max_depth: int = 3,
-                 strategy_registry: StrategyRegistry = default_strategy_registry,
                  ):
         self.beam_width = beam_width
         self.branching_factor = branching_factor
         self.max_depth = max_depth
-        self.strategy_registry = strategy_registry
         self.name = "simple beam search"
         self.description = "Simple beam search to produce multiple parallel reasoning chains."
         self.strategy_selector = ScoredStrategySelector()
+        
+    def to_dict(self):
+        """
+        Convert the search algorithm to a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the search algorithm.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "beam_width": self.beam_width,
+            "branching_factor": self.branching_factor,
+            "max_depth": self.max_depth,
+        }
+        
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create a search algorithm instance from a dictionary representation.
+
+        Args:
+            data (dict): Dictionary representation of the search algorithm.
+
+        Returns:
+            SimpleBeamSearch: Instance of the search algorithm.
+        """
+        return cls(
+            beam_width=data.get("beam_width"),
+            branching_factor=data.get("branching_factor"),
+            max_depth=data.get("max_depth"),
+        )
+        
 
     def initialize_cot(
         self,
