@@ -208,6 +208,7 @@ class SearchResult:
             dict[str, Any]: A serializable dictionary representation of the SearchResult
         """
         adjacency_list = [] # format: (parent_id, child_id)
+        traversed_relationships = set()
         node_map = {} # format: node_map[id] = ReasoningNode
         for terminal_node in self.terminal_nodes:
             node = terminal_node
@@ -215,13 +216,13 @@ class SearchResult:
             # Traverse through all chains starting at terminal node
             while node:
                 # Add to the node map
-                node_map[node.id] = node
+                node_map[node.id] = node    
                 
-                # Add to the adjacency_list. If no parent, add None as parent
-                if node.parent:
-                    adjacency_list.append((node.parent.id, node.id))
-                else:
-                    adjacency_list.append((None, node.id))
+                # Add to the adjacency_list if not already traversed
+                current_relationship = (str(node.parent.id) if node.parent else None, str(node.id))
+                if current_relationship not in traversed_relationships:
+                    adjacency_list.append(current_relationship)
+                    traversed_relationships.add(current_relationship)
                 
                 node = node.parent
                 
