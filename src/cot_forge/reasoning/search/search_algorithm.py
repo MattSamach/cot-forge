@@ -52,7 +52,7 @@ class SearchAlgorithm(Protocol):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier,
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
@@ -85,7 +85,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         self, 
         question: str, 
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier, 
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry, 
@@ -102,7 +102,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         Args:
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             verifier (BaseVerifier): The verifier used to check the correctness of the reasoning steps.
             scorer (BaseScorer, optional): The scorer used to evaluate reasoning paths.
             strategy_registry (StrategyRegistry, optional): The registry of reasoning strategies.
@@ -119,7 +119,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         return self._search(
             question = question, 
             ground_truth_answer = ground_truth_answer,
-            reasoning_llm = reasoning_llm,
+            search_llm = search_llm,
             verifier = verifier,
             scorer = scorer,
             strategy_registry = strategy_registry,
@@ -132,7 +132,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         verifier: BaseVerifier,
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry,
@@ -141,6 +141,27 @@ class BaseSearch(ABC, SearchAlgorithm):
     ) -> SearchResult:
         """
         Child classes must implement the actual search logic here.
+        """
+        pass
+    
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert the search algorithm to a dictionary representation.
+        
+        This method should be implemented by subclasses to provide a 
+        reproducible representation of the search algorithm.
+        """
+        pass
+    
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, config: dict[str, Any]) -> None:
+        """
+        Load the search algorithm from a dictionary representation.
+        
+        This method should be implemented by subclasses to restore the 
+        state of the search algorithm from a dictionary.
         """
         pass
     
@@ -266,4 +287,28 @@ class BaseSearch(ABC, SearchAlgorithm):
             parent.add_child(node)
         
         return node
+    
+    def __str__(self) -> str:
+        """
+        Return a string representation of the search algorithm.
+        
+        Returns:
+            str: The class name of the search algorithm.
+        """
+        return self.__class__.__name__
+
+    def __repr__(self) -> str:
+        """
+        Return a detailed string representation of the search algorithm.
+        
+        This representation includes any configuration parameters and should
+        be detailed enough to recreate the object.
+        
+        Returns:
+            str: A string in the format "ClassName(param1=value1, param2=value2)"
+        """
+        # Get instance attributes excluding private ones (those starting with '_')
+        params = ", ".join(f"{k}={repr(v)}" for k, v in self.__dict__.items() 
+                        if not k.startswith('_'))
+        return f"{self.__class__.__name__}({params})"
             

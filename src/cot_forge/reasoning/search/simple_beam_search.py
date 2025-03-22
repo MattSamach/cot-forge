@@ -62,7 +62,6 @@ class SimpleBeamSearch(BaseSearch):
     most promising paths for further exploration.
     
     Attributes:
-        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
         beam_width (int): Number of beams to be explored.
         branching_factor (int): Number of strategies to consider at each node when extending each beam.
         max_depth (int): Maximum depth for the search.
@@ -79,11 +78,11 @@ class SimpleBeamSearch(BaseSearch):
         result = search._search(
             question="What is the capital of France?",
             ground_truth_answer="Paris",
-            reasoning_llm=my_llm_provider,
+            search_llm=my_llm_provider,
             scorer=my_scorer,
             verifier=my_verifier
         )
-        print(result.final_answer)
+        print(result.success)
         ```
     """
     
@@ -91,22 +90,55 @@ class SimpleBeamSearch(BaseSearch):
                  beam_width: int = 2,
                  branching_factor: int = 3,
                  max_depth: int = 3,
-                 strategy_registry: StrategyRegistry = default_strategy_registry,
                  ):
         self.beam_width = beam_width
         self.branching_factor = branching_factor
         self.max_depth = max_depth
-        self.strategy_registry = strategy_registry
         self.name = "simple beam search"
-        self.description = "Simple beam search to produce multiple parallel reasoning chains."
+        self.description = ("A search algorithm that explores multiple parallel "
+                            "reasoning chains using beam search, "
+                            "maintaining and expanding the most promising paths based on scoring.")
         self.strategy_selector = ScoredStrategySelector()
+        
+    def to_dict(self):
+        """
+        Convert the search algorithm to a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the search algorithm.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "beam_width": self.beam_width,
+            "branching_factor": self.branching_factor,
+            "max_depth": self.max_depth,
+        }
+        
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create a search algorithm instance from a dictionary representation.
+
+        Args:
+            data (dict): Dictionary representation of the search algorithm.
+
+        Returns:
+            SimpleBeamSearch: Instance of the search algorithm.
+        """
+        return cls(
+            beam_width=data.get("beam_width"),
+            branching_factor=data.get("branching_factor"),
+            max_depth=data.get("max_depth"),
+        )
+        
 
     def initialize_cot(
         self,
         question: str,
         ground_truth_answer: str,
         verifier: BaseVerifier,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         llm_kwargs: dict[str, Any] = None
     ) -> ReasoningNode:
         """
@@ -119,7 +151,7 @@ class SimpleBeamSearch(BaseSearch):
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
             verifier (BaseVerifier): The verifier used to check the correctness of the initial response.
-            reasoning_llm (LLMProvider): The LLM provider used to generate the initial CoT.
+            search_llm (LLMProvider): The LLM provider used to generate the initial CoT.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
 
         Returns:
@@ -135,7 +167,7 @@ class SimpleBeamSearch(BaseSearch):
         prompt = strategy.build_prompt(question)
         
         response, cot = generate_and_parse_cot(
-            reasoning_llm=reasoning_llm,
+            search_llm=search_llm,
             prompt=prompt,
             llm_kwargs=llm_kwargs,
             logger=logger,
@@ -171,7 +203,7 @@ class SimpleBeamSearch(BaseSearch):
                          strategy_registry: StrategyRegistry,
                          scorer: BaseScorer,
                          depth: int,
-                         reasoning_llm: LLMProvider,
+                         search_llm: LLMProvider,
                          question: str,
                          ground_truth_answer: str,
                          verifier: BaseVerifier,
@@ -190,7 +222,7 @@ class SimpleBeamSearch(BaseSearch):
             strategy_registry (StrategyRegistry): The registry containing available reasoning strategies.
             scorer (BaseScorer): The scorer used to evaluate and rank the strategies.
             depth (int): The current depth in the search process.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             question (str): The question being answered.
             ground_truth_answer (str): The true answer to the question for verification/scoring purposes.
             verifier (BaseVerifier): The verifier used to check correctness of the generated reasoning nodes.
@@ -209,7 +241,7 @@ class SimpleBeamSearch(BaseSearch):
                 strategy_registry=strategy_registry,
                 scorer=scorer,
                 depth=1,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 question="What is the capital of France?",
                 ground_truth_answer="Paris",
                 verifier=verifier,
@@ -223,7 +255,7 @@ class SimpleBeamSearch(BaseSearch):
 
         try:
             selected_strategies, search_data = self.strategy_selector.select(
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 registry=strategy_registry,
                 depth=depth,
                 num_strategies=self.beam_width,
@@ -272,7 +304,7 @@ class SimpleBeamSearch(BaseSearch):
         self,
         question: str,
         ground_truth_answer: str,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         scorer: BaseScorer,
         verifier: BaseVerifier,
         strategy_registry: StrategyRegistry = default_strategy_registry,
@@ -290,7 +322,7 @@ class SimpleBeamSearch(BaseSearch):
         Args:
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
             scorer (BaseScorer): The scorer used to evaluate different beam options.
             verifier (BaseVerifier): The verifier used to check the correctness of final answers.
             strategy_registry (StrategyRegistry, optional): The registry of available strategies.
@@ -310,32 +342,26 @@ class SimpleBeamSearch(BaseSearch):
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=verifier,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 llm_kwargs=llm_kwargs
             )
         except Exception as e:
             logger.error(f"Error in initializing CoT: {e}")
-            return SearchResult(all_terminal_nodes=None, 
+            return SearchResult(terminal_nodes=None, 
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"error": "Failed to initialize CoT",
-                                          "max_depth": max_depth,
-                                          "question": question,
-                                          "ground_truth_answer": ground_truth_answer}
-                                )
+                                metadata={"depth": 0, "reason": "Failed to initialize CoT"})
             
         # Check if initial node is already successful
         initial_node.success = False
         if initial_node.success:
             return SearchResult(
-                final_node=initial_node,
-                all_terminal_nodes=[initial_node],
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                terminal_nodes=[initial_node],
                 success=True,
-                final_answer=initial_node.response,
-                metadata={"max_depth": max_depth,
-                          "question": question,
-                          "ground_truth_answer": ground_truth_answer}
+                metadata={"depth": 1}
             )
             
         # Initialize the beams
@@ -345,7 +371,7 @@ class SimpleBeamSearch(BaseSearch):
                 strategy_registry=strategy_registry,
                 scorer=scorer,
                 depth=1,
-                reasoning_llm=reasoning_llm,
+                search_llm=search_llm,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 verifier=verifier,
@@ -353,11 +379,12 @@ class SimpleBeamSearch(BaseSearch):
             )
         except Exception as e:
             logger.error(f"Error in initializing beams: {e}")
-            return SearchResult(all_terminal_nodes=None, 
+            return SearchResult(terminal_nodes=None, 
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"error": "Failed to initialize beams"})
+                                metadata={"depth": 1,
+                                          "reason": "Failed to initialize beams"})
             
         # Range starts at 2 because we already have the initial node and beams
         # We will expand the beams at each depth
@@ -374,7 +401,7 @@ class SimpleBeamSearch(BaseSearch):
                 
                 try:
                     selected_strategies, search_data = self.strategy_selector.select(
-                        reasoning_llm=reasoning_llm,
+                        search_llm=search_llm,
                         registry=strategy_registry,
                         depth=depth,
                         question=question,
@@ -429,13 +456,11 @@ class SimpleBeamSearch(BaseSearch):
                     logger.info(f"Beam {i} reached a final node at depth {depth}")
                 
         result = SearchResult(
-            final_node=None,
-            all_terminal_nodes=beams,
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            terminal_nodes=beams,
             success=any(node.success for node in beams),
-            final_answer=None,
-            metadata={"max_depth": max_depth,
-                      "question": question,
-                      "ground_truth_answer": ground_truth_answer}
+            metadata={"depth": depth, "reason": "Max depth reached"}
         )
         
         return result

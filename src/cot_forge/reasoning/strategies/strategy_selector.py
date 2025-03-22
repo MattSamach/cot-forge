@@ -138,6 +138,14 @@ class StrategySelector(ABC):
         
         return [registry.get_strategy(name) for name in strategy_names]
     
+    def __str__(self) -> str:
+        """Return a string representation of the strategy selector."""
+        return f"{self.__class__.__name__}()"
+
+    def __repr__(self) -> str:
+        """Return a detailed string representation of the strategy selector."""
+        return f"{self.__class__.__name__}()"
+    
 class RandomStrategySelector(StrategySelector):
     """Randomly selects a strategy from the registry."""
     
@@ -184,7 +192,7 @@ class ScoredStrategySelector(StrategySelector):
     
     def select(
         self,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
         registry: StrategyRegistry,
         depth: int,
         question: str,
@@ -205,7 +213,7 @@ class ScoredStrategySelector(StrategySelector):
         3. Selects the top-performing strategies based on these scores
         
         Args:
-            reasoning_llm: The LLM provider for generating reasoning chains.
+            search_llm: The LLM provider for generating reasoning chains.
             registry: The strategy registry containing available strategies.
             depth: The current depth in the reasoning chain.
             question: The question being addressed in the reasoning process.
@@ -241,7 +249,7 @@ class ScoredStrategySelector(StrategySelector):
             )
             try:
                 response, cot = generate_and_parse_cot(
-                    reasoning_llm,
+                    search_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,
                     on_error="raise"

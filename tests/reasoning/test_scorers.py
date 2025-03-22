@@ -1,0 +1,143 @@
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from cot_forge.llm import LLMProvider
+from cot_forge.reasoning.scorers.llm_scorers import ProbabilityFinalAnswerScorer
+
+
+class TestProbabilityFinalAnswerScorer:
+    def setup_method(self):
+        # Create a mock LLM provider
+        self.mock_llm_provider = MagicMock(spec=LLMProvider)
+        
+        # Create the scorer
+        self.scorer = ProbabilityFinalAnswerScorer(
+            llm_provider=self.mock_llm_provider,
+            llm_kwargs={"temperature": 0.0}
+        )
+        
+        # Sample CoT list for testing
+        self.cot_list = [
+            {
+                "strategy_name": "strategy_1",
+                "cot": [
+                    {"action": "Inner Thinking", "content": "Let me think..."},
+                    {"action": "Final Answer", "content": "The answer is 42."}
+                ]
+            },
+            {
+                "strategy_name": "strategy_2",
+                "cot": [
+                    {"action": "Inner Thinking", "content": "I need to calculate..."},
+                    {"action": "Final Answer", "content": "The answer is 24."}
+                ]
+            }
+        ]
+    
+    @patch('cot_forge.reasoning.scorers.llm_scorers.extract_final_answer_from_cot')
+    @patch('cot_forge.reasoning.scorers.llm_scorers.generate_and_parse_scores')
+    def test_score_success(self, mock_generate, mock_extract):
+        # Arrange
+        mock_extract.side_effect = ["42", "24"]  # Return values for each call
+        mock_generate.return_value = ({"strategy_1": 0.9, "strategy_2": 0.5}, None)
+        
+        # Act
+        result = self.scorer.score(
+            cot_list=self.cot_list,
+            question="What is the answer?",
+            ground_truth_answer="42"
+        )
+        
+        # Assert
+        assert result == {"strategy_1": 0.9, "strategy_2": 0.5}
+        mock_extract.assert_called()
+        mock_generate.assert_called_once()
+        
+        # Check that the prompt was built correctly
+        prompt_arg = mock_generate.call_args[1]["prompt"]
+        assert "What is the answer?" in prompt_arg
+        assert "42" in prompt_arg  # Ground truth
+        assert "strategy_1: 42" in prompt_arg
+        assert "strategy_2: 24" in prompt_arg
+    
+    @patch('cot_forge.reasoning.scorers.llm_scorers.extract_final_answer_from_cot')
+    def test_score_extraction_error(self, mock_extract):
+        # Arrange
+        mock_extract.side_effect = Exception("Extraction error")
+        
+        # Act
+        result = self.scorer.score(
+            cot_list=self.cot_list,
+            question="What is the answer?",
+            ground_truth_answer="42"
+        )
+        
+        # Assert
+        assert result == {}  # Empty dict returned on error
+        mock_extract.assert_called_once()  # Only called once because it raises an exception
+    
+    @patch('cot_forge.reasoning.scorers.llm_scorers.extract_final_answer_from_cot')
+    @patch('cot_forge.reasoning.scorers.llm_scorers.generate_and_parse_scores')
+    def test_score_llm_error(self, mock_generate, mock_extract):
+        # Arrange
+        mock_extract.side_effect = ["42", "24"]
+        mock_generate.side_effect = RuntimeError("LLM error")
+        
+        # Act
+        with pytest.raises(RuntimeError, match="LLM error"):
+            self.scorer.score(
+                cot_list=self.cot_list,
+                question="What is the answer?",
+                ground_truth_answer="42"
+            )
+        
+        # Assert
+        mock_extract.assert_called()
+        mock_generate.assert_called_once()
+    
+    @patch('cot_forge.reasoning.scorers.llm_scorers.extract_final_answer_from_cot')
+    @patch('cot_forge.reasoning.scorers.llm_scorers.generate_and_parse_scores')
+    def test_score_with_warning(self, mock_generate, mock_extract):
+        # Arrange
+        mock_extract.side_effect = ["42", "24"]
+        mock_generate.return_value = ({"strategy_1": 0.9, "strategy_2": 0.5}, "Some warning")
+        
+        # Act
+        result = self.scorer.score(
+            cot_list=self.cot_list,
+            question="What is the answer?",
+            ground_truth_answer="42"
+        )
+        
+        # Assert
+        assert result == {"strategy_1": 0.9, "strategy_2": 0.5}
+        mock_extract.assert_called()
+        mock_generate.assert_called_once()
+    
+    @patch('cot_forge.reasoning.scorers.llm_scorers.ScorerPromptTemplate')
+    @patch('cot_forge.reasoning.scorers.llm_scorers.extract_final_answer_from_cot')
+    @patch('cot_forge.reasoning.scorers.llm_scorers.parse_json_response')
+    def test_full_integration(self, mock_parse_json, mock_extract, mock_template):
+        # Arrange
+        mock_extract.side_effect = ["42", "24"]
+        mock_template.build_prompt.return_value = "test prompt"
+        mock_parse_json.return_value = {"scoring": {"strategy_1": "0.9", "strategy_2": "0.5"}}
+        
+        mock_response = json.dumps({"scoring": {"strategy_1": "0.9", "strategy_2": "0.5"}})
+        self.mock_llm_provider.generate.return_value = mock_response
+        
+        # Act
+        with patch('cot_forge.reasoning.scorers.llm_scorers.execute_with_fallback',
+                  return_value=({"strategy_1": "0.9", "strategy_2": "0.5"}, None)):
+            result = self.scorer.score(
+                cot_list=self.cot_list,
+                question="What is the answer?",
+                ground_truth_answer="42"
+            )
+        
+        # Assert
+        assert result == {"strategy_1": 0.9, "strategy_2": 0.5}
+        mock_extract.assert_called()
+        mock_template.build_prompt.assert_called_once()

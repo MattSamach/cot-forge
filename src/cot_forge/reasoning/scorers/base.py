@@ -24,6 +24,21 @@ class BaseScorer(ABC):
         self.description = description
         self.llm_provider = llm_provider
         self.llm_kwargs = llm_kwargs or {}
+        
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the scorer to a dictionary representation."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "llm_provider": self.llm_provider.to_dict() if self.llm_provider else None,
+            "llm_kwargs": self.llm_kwargs
+        }
+    
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'BaseScorer':
+        """Create a scorer instance from a dictionary representation."""
+        pass
 
     @abstractmethod
     def score(self,
@@ -80,3 +95,13 @@ class BaseScorer(ABC):
                  **kwargs: Any) -> bool:
         """Call the score method."""
         return self.score(cot_list, question, ground_truth_answer, **kwargs)
+    
+    def __str__(self) -> str:
+        """Return a string representation of the BaseScorer."""
+        llm_info = f", LLM Provider: {self.llm_provider}" if self.llm_provider else ""
+        return f"{self.name}: {self.description}" + llm_info
+
+    def __repr__(self) -> str:
+        """Return a developer-friendly string representation of the BaseScorer."""
+        llm_info = f", LLM Provider: {self.llm_provider}" if self.llm_provider else ""
+        return f"{self.__class__.__name__}(name='{self.name}', description='{self.description}'){llm_info})"

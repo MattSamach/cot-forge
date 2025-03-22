@@ -25,13 +25,13 @@ Example:
     ```python
 
     # Initialize components (replace with your actual implementations)
-    reasoning_llm = GeminiLLMProvider(...)
+    search_llm = GeminiLLMProvider(...)
     search_algorithm = NaiveLinearSearch(...)
     verifier = LLMJudgeVerifier()
 
     # Instantiate CoTBuilder
     cot_builder = CoTBuilder(
-        reasoning_llm=reasoning_llm,
+        search_llm=search_llm,
         search=search_algorithm,
         verifier=verifier
     )
@@ -42,7 +42,7 @@ Example:
     search_result = cot_builder.build(question, ground_truth_answer)
 
     # Access the generated CoT
-    cot = search_result.final_node.get_full_cot()
+    cot = search_result.get_successful_terminal_nodes()[0].get_full_cot()
     print(cot)
     ```
 """
@@ -55,16 +55,13 @@ from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers import BaseScorer
+from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
 
-from .search.search_algorithm import SearchAlgorithm, SearchResult
+from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
-# TODO: Add write to file methods and, logging, and checkpoints
-# TODO: Add __str__ / __repr__ methods to all classes (scorer, verifier, cot_builder, search)
-# TODO: Check all files for docstrings and add them if missing
-# TODO: Add error handling to scorer class, maybe verifier class
-# TODO: Add export of main classes/functions to cot_forge/__init__.py
+# TODO: Add write to file methods, logging, and checkpoints
 
 class CoTBuilder:
     """
@@ -77,7 +74,7 @@ class CoTBuilder:
     3. Verifying correctness of conclusions
 
     Attributes:
-        reasoning_llm (LLMProvider): Language model for generating reasoning steps
+        search_llm (LLMProvider): Language model for generating reasoning steps in search
         search (SearchAlgorithm): Algorithm for exploring reasoning paths
         verifier (BaseVerifier): Validates reasoning conclusions
         scorer (BaseScorer): Evaluates path quality to prioritize exploration
@@ -87,7 +84,7 @@ class CoTBuilder:
     Example:
         ```python
         builder = CoTBuilder(
-            reasoning_llm=llm,
+            search_llm=llm,
             search=search_algo,
             verifier=verifier
         )
@@ -96,14 +93,14 @@ class CoTBuilder:
     """
     
     def __init__(self,
-                 reasoning_llm: LLMProvider,
+                 search_llm: LLMProvider,
                  search: SearchAlgorithm,
                  verifier: BaseVerifier,
                  scorer: BaseScorer = None,
                  strategy_reg: StrategyRegistry = default_strategy_registry,
                  search_llm_kwargs: dict[str, Any] = None,
                  ):
-        self.reasoning_llm = reasoning_llm
+        self.search_llm = search_llm
         self.search_llm_kwargs = search_llm_kwargs or {}
         self.strategy_reg = strategy_reg
         self.search = search
@@ -129,8 +126,8 @@ class CoTBuilder:
 
         Returns:
             SearchResult: Contains:
-                - final_node: Final reasoning state
-                - search_path: List of explored states
+                - terminal_nodes: List of terminal nodes reached in search
+                - succes: Boolean indicating if a valid path was found
                 - metadata: Search statistics and configuration
 
         Example:
@@ -140,7 +137,7 @@ class CoTBuilder:
                 ground_truth_answer="7",
                 temperature=0.7
             )
-            print(result.final_node.get_full_cot())
+            print(result.get_successful_terminal_nodes[0].get_full_cot())
             ```
         """
         llm_kwargs = llm_kwargs or {}
@@ -149,7 +146,7 @@ class CoTBuilder:
             ground_truth_answer=ground_truth_answer,
             verifier=self.verifier,
             scorer=self.scorer,
-            reasoning_llm=self.reasoning_llm,
+            search_llm=self.search_llm,
             llm_kwargs=llm_kwargs,
             strategy_registry=self.strategy_reg,
             **kwargs
@@ -208,7 +205,7 @@ class CoTBuilder:
         if multi_thread:
             return self._multi_thread_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.reasoning_llm,
+                llm=self.search_llm,
                 progress_bar=progress_bar,
                 max_workers=max_workers,
                 llm_kwargs=llm_kwargs,
@@ -217,7 +214,7 @@ class CoTBuilder:
         else:
             return self._single_threaded_batch_build(
                 qa_iterator=qa_iterator,
-                llm=self.reasoning_llm,
+                llm=self.search_llm,
                 progress_bar=progress_bar,
                 total_pairs=total_pairs,
                 llm_kwargs=llm_kwargs,
@@ -291,7 +288,7 @@ class CoTBuilder:
 
     def __repr__(self) -> str:
         return (f"CoTBuilder with:\n"
-            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
@@ -300,7 +297,7 @@ class CoTBuilder:
     
     def __str__(self) -> str:
         return (f"CoTBuilder with:\n"
-            f"\tLLM: {self.reasoning_llm}\n"
+            f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"

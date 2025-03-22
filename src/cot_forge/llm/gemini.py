@@ -47,7 +47,8 @@ class GeminiLLMProvider(LLMProvider):
                 "Install 'google-genai' and 'google-api-core' packages to use Gemini LLM provider."
             ) from err
             
-        super().__init__(min_wait=min_wait,
+        super().__init__(model_name=model_name,
+                         min_wait=min_wait,
                          max_wait=max_wait, 
                          max_retries=max_retries,
                          rate_limit_exceptions=rate_limit_exceptions

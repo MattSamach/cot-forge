@@ -23,7 +23,6 @@ from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import RandomStrategySelector, StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
-from cot_forge.utils.parsing import extract_final_answer_from_cot
 from cot_forge.utils.search_utils import generate_and_parse_cot
 
 from .search_algorithm import BaseSearch
@@ -47,21 +46,49 @@ class NaiveLinearSearch(BaseSearch):
     """
     
     def __init__(self,
-                 max_depth: int = 3,
-                 strategy_registry: StrategyRegistry = default_strategy_registry,
-                 ):
-        self.strategy_registry = strategy_registry
+                 max_depth: int = 3):
         self.max_depth = max_depth
-        self.name = "naive linear search"
-        self.description = "Naive linear search for reasoning chain."
+        self.name = "Naive Linear Search"
+        self.description = ("A sequential search algorithm that randomly selects " 
+                            "and applies reasoning strategies to build a chain of thought. "
+                            "Continues until verification succeeds or max depth is reached.")
         self.strategy_selector = RandomStrategySelector()
+        
+    def to_dict(self):
+        """
+        Convert the search algorithm to a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the search algorithm.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "max_depth": self.max_depth,
+        }
+        
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create a search algorithm instance from a dictionary representation.
+
+        Args:
+            data (dict): Dictionary representation of the search algorithm.
+
+        Returns:
+            NaiveLinearSearch: Instance of the search algorithm.
+        """
+        return cls(
+            max_depth=data.get("max_depth", 3),
+        )
 
     def _search(
         self,
         question: str,
         ground_truth_answer: str,
         verifier: BaseVerifier,
-        reasoning_llm: LLMProvider,
+        search_llm: LLMProvider,
+        strategy_registry: StrategyRegistry = default_strategy_registry,
         llm_kwargs: dict[str, Any] = None,
         **kwargs
     ) -> SearchResult:
@@ -76,7 +103,8 @@ class NaiveLinearSearch(BaseSearch):
             question (str): The question to answer.
             ground_truth_answer (str): The true answer to the question.
             verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
-            reasoning_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+            strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
             **kwargs: Additional keyword arguments for the search algorithm.
 
@@ -93,9 +121,9 @@ class NaiveLinearSearch(BaseSearch):
                 question="What is the capital of France?",
                 ground_truth_answer="Paris",
                 verifier=my_verifier,
-                reasoning_llm=my_llm_provider
+                search_llm=my_llm_provider
             )
-            print(result.final_answer)
+            print(result.success)  # True or False
             ```
         """
                 
@@ -106,7 +134,7 @@ class NaiveLinearSearch(BaseSearch):
         
         for depth in range(self.max_depth):
             # Select next strategy
-            strategies, _ = self.strategy_selector.select(registry = self.strategy_registry, depth = depth)
+            strategies, _ = self.strategy_selector.select(registry = strategy_registry, depth = depth)
             strategy = strategies[0] if isinstance(strategies, list) else strategies
             
             # Build prompt based on selected strategy
@@ -116,7 +144,7 @@ class NaiveLinearSearch(BaseSearch):
             # Generate response and cot.
             try:
                 response, cot = generate_and_parse_cot(
-                    reasoning_llm=reasoning_llm,
+                    search_llm=search_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,
                     logger=logger
@@ -124,14 +152,12 @@ class NaiveLinearSearch(BaseSearch):
             except Exception as e:
                 logger.error(f"Error during LLM generation: {e}")
                 return SearchResult(
-                    final_node=current_node,
-                    all_terminal_nodes=[current_node] if current_node else [],
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    terminal_nodes=[current_node] if current_node else [],
                     success=False,
-                    final_answer=None,
                     metadata={"depth": depth,
-                              "reason": "generation_error",
-                              "question": question,
-                              "ground_truth_answer": ground_truth_answer}
+                              "reason": "generation_error"}
                 )
             
             # Create new reasoning node and incorporate into graph
@@ -159,26 +185,20 @@ class NaiveLinearSearch(BaseSearch):
             # If verification is successful, return the result
             if verification_result:
                 return SearchResult(
-                    final_node=current_node,
-                    all_terminal_nodes=[current_node],
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    terminal_nodes=[current_node],
                     success=True,
-                    final_answer=extract_final_answer_from_cot(current_node.cot),
                     metadata={"depth": depth + 1,
-                              "max_depth": self.max_depth,
-                              "reason": "verifier_success",
-                              "question": question,
-                              "ground_truth_answer": ground_truth_answer},
+                              "reason": "verifier_success"},
                 )
         
         # Max depth reached without success
         return SearchResult(
-            final_node=current_node,
-            all_terminal_nodes=[current_node],
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            terminal_nodes=[current_node],
             success=False,
-            final_answer=extract_final_answer_from_cot(current_node.cot) if current_node else None,
             metadata={"depth": self.max_depth,
-                      "max_depth": self.max_depth,
-                      "reason": "max_depth_reached",
-                      "question": question,
-                      "ground_truth_answer": ground_truth_answer}
+                      "reason": "max_depth_reached"}
         )

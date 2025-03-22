@@ -169,6 +169,39 @@ class Strategy:
         prompt += StrategyPromptTemplate.create_json_format()
         return prompt
     
+    @classmethod
+    def to_dict(cls) -> dict[str, Any]:
+        """Convert the strategy to a dictionary representation.
+        
+        Returns:
+            dict: A dictionary containing the strategy's metadata.
+        """
+        return {
+            "name": cls.name,
+            "description": cls.description,
+            "is_initial": cls.is_initial,
+            "minimum_depth": cls.minimum_depth
+        }
+    
+    def __str__(self) -> str:
+        """Return a string representation of the strategy.
+        
+        Returns:
+            str: A string with the strategy name and description.
+        """
+        return f"Strategy(name='{self.__class__.name}', description='{self.__class__.description[:50]}...')"
+        
+    def __repr__(self) -> str:
+        """Return a detailed representation of the strategy.
+        
+        Returns:
+            str: A detailed string representation including all class attributes.
+        """
+        return (f"Strategy(name='{self.__class__.name}', "
+                f"description='{self.__class__.description[:50]}...', "
+                f"is_initial={self.__class__.is_initial}, "
+                f"minimum_depth={self.__class__.minimum_depth})")
+    
 class StrategyRegistry:
     """
     A registry for managing reasoning strategies.
@@ -220,7 +253,8 @@ class StrategyRegistry:
         self._strategies[strategy_class.name] = strategy_class
         return strategy_class
     
-    def create_and_register(self, name: str, 
+    def create_and_register(self,
+                            name: str, 
                             description: str, 
                             is_initial: bool = False, 
                             minimum_depth: int = 0
@@ -276,6 +310,73 @@ class StrategyRegistry:
             del self._strategies[name]
         else:
             raise ValueError(f"Strategy '{name}' not found in registry.")
+        
+    def serialize(self) -> dict[str, Any]:
+        """
+        Serialize the strategy registry to a dictionary representation.
+        
+        This method converts all registered strategies into a serializable format
+        by creating a mapping of strategy names to their serialized representations.
+        Each strategy is serialized using its `to_dict()` method, capturing its
+        essential properties like name, description, and configuration.
+        
+        Returns:
+            dict[str, Any]: A serializable dictionary containing all registered
+                        strategies in the format {"strategies": {name: strategy_dict}}
+        """
+        return {
+            "strategies": {name: strategy.to_dict() for name, strategy in self._strategies.items()}
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> 'StrategyRegistry':
+        """
+        Reconstruct a StrategyRegistry from its serialized dictionary representation.
+        
+        This class method creates a new StrategyRegistry and populates it with strategies
+        reconstructed from the serialized data. Each strategy is dynamically created using
+        the create_and_register() method with the properties from its serialized form.
+        
+        Args:
+            data (dict[str, Any]): The serialized registry dictionary containing a
+                                "strategies" key mapping to serialized strategy data
+        
+        Returns:
+            StrategyRegistry: A new registry instance populated with all the
+                            deserialized strategies
+        
+        Raises:
+            KeyError: If the serialized data is missing the "strategies" key
+            ValueError: If any strategy's serialized data is invalid
+        """
+        registry = cls()
+        if "strategies" not in data:
+            raise KeyError("Serialized data must contain 'strategies' key.")
+        
+        for name, strategy_data in data["strategies"].items():
+            try:
+                registry.create_and_register(**strategy_data)
+            except Exception as e:
+                raise ValueError(f"Failed to deserialize strategy '{name}': {str(e)}") from e
+            
+        return registry
+        
+    def __str__(self) -> str:
+        """Return a string representation of the registry.
+        
+        Returns:
+            str: A string listing the number of registered strategies.
+        """
+        return f"StrategyRegistry(strategies={len(self._strategies)})"
+        
+    def __repr__(self) -> str:
+        """Return a detailed representation of the registry.
+        
+        Returns:
+            str: A detailed string representation including all registered strategy names.
+        """
+        strategy_names = ", ".join(self._strategies.keys())
+        return f"StrategyRegistry(strategies=[{strategy_names}])"
 
 @dataclass(frozen=True)
 class InitializeCoT(Strategy):

@@ -32,7 +32,6 @@ Example:
     ```
 """
 
-import json
 import logging
 from typing import Any
 
@@ -71,10 +70,26 @@ class LLMJudgeVerifier(BaseVerifier):
             prompt_template (str, optional): Custom prompt template for verification.
                 Defaults to DEFAULT_VERIFICATION_PROMPT.
         """
-        name = "llm_judge_verifier",
+        name = "LLM Judge Verifier",
         description = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
+        
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the verifier to a dictionary representation."""
+        base_dict = super().to_dict()
+        base_dict["prompt_template"] = self.prompt_template
+        return base_dict
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
+        """Create a verifier instance from a dictionary representation."""
+        llm_provider = LLMProvider.from_dict(data["llm_provider"]) if data.get("llm_provider") else None
+        return cls(
+            llm_provider=llm_provider,
+            llm_kwargs=data.get("llm_kwargs"),
+            prompt_template=data.get("prompt_template", DEFAULT_VERIFICATION_PROMPT)
+        )
         
     def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
         """
@@ -114,7 +129,7 @@ class LLMJudgeVerifier(BaseVerifier):
             verification_result = response_json.get("verification", {}).get("result").strip().lower()
             explanation = response_json.get("verification", {}).get("explanation")
             return verification_result, explanation
-        except json.JSONDecodeError as e:
+        except Exception as e:
             logger.error(f"Failed to parse LLM response: {e}")
             return False, f"Error: {str(e)}"
 
