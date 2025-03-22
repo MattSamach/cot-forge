@@ -52,6 +52,8 @@ default_strategy_registry.create_and_register(
 ```
 """
 
+# TODO: Add serialization to strategy
+
 from dataclasses import dataclass
 from typing import Any, ClassVar, Optional
 
@@ -168,6 +170,19 @@ class Strategy:
         prompt += StrategyPromptTemplate.create_response_requirements()
         prompt += StrategyPromptTemplate.create_json_format()
         return prompt
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the strategy to a dictionary representation.
+        
+        Returns:
+            dict: A dictionary containing the strategy's metadata.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "is_initial": self.is_initial,
+            "minimum_depth": self.minimum_depth
+        }
     
     def __str__(self) -> str:
         """Return a string representation of the strategy.
@@ -296,6 +311,49 @@ class StrategyRegistry:
             del self._strategies[name]
         else:
             raise ValueError(f"Strategy '{name}' not found in registry.")
+        
+    def _serialize(self) -> dict[str, Any]:
+        """
+        Serialize the strategy registry to a dictionary representation.
+        
+        This method converts all registered strategies into a serializable format
+        by creating a mapping of strategy names to their serialized representations.
+        Each strategy is serialized using its `to_dict()` method, capturing its
+        essential properties like name, description, and configuration.
+        
+        Returns:
+            dict[str, Any]: A serializable dictionary containing all registered
+                        strategies in the format {"strategies": {name: strategy_dict}}
+        """
+        return {
+            "strategies": {name: strategy.to_dict() for name, strategy in self._strategies.items()}
+        }
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any]) -> 'StrategyRegistry':
+        """
+        Reconstruct a StrategyRegistry from its serialized dictionary representation.
+        
+        This class method creates a new StrategyRegistry and populates it with strategies
+        reconstructed from the serialized data. Each strategy is dynamically created using
+        the create_and_register() method with the properties from its serialized form.
+        
+        Args:
+            data (dict[str, Any]): The serialized registry dictionary containing a
+                                "strategies" key mapping to serialized strategy data
+        
+        Returns:
+            StrategyRegistry: A new registry instance populated with all the
+                            deserialized strategies
+        
+        Raises:
+            KeyError: If the serialized data is missing the "strategies" key
+            ValueError: If any strategy's serialized data is invalid
+        """
+        registry = cls()
+        for strategy_data in data["strategies"].values():
+            registry.create_and_register(**strategy_data)
+        return registry
         
     def __str__(self) -> str:
         """Return a string representation of the registry.
