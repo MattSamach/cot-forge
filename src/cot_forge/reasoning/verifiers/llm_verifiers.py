@@ -77,13 +77,9 @@ class LLMJudgeVerifier(BaseVerifier):
         
     def to_dict(self) -> dict[str, Any]:
         """Convert the verifier to a dictionary representation."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "prompt_template": self.prompt_template,
-            "llm_provider": self.llm_provider.to_dict() if self.llm_provider else None,
-            "llm_kwargs": self.llm_kwargs
-        }
+        base_dict = super().to_dict()
+        base_dict["prompt_template"] = self.prompt_template
+        return base_dict
     
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
