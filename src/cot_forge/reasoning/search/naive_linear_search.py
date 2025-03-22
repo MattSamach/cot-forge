@@ -123,12 +123,12 @@ class NaiveLinearSearch(BaseSearch):
             except Exception as e:
                 logger.error(f"Error during LLM generation: {e}")
                 return SearchResult(
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
                     terminal_nodes=[current_node] if current_node else [],
                     success=False,
                     metadata={"depth": depth,
-                              "reason": "generation_error",
-                              "question": question,
-                              "ground_truth_answer": ground_truth_answer}
+                              "reason": "generation_error"}
                 )
             
             # Create new reasoning node and incorporate into graph
@@ -156,22 +156,20 @@ class NaiveLinearSearch(BaseSearch):
             # If verification is successful, return the result
             if verification_result:
                 return SearchResult(
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
                     terminal_nodes=[current_node],
                     success=True,
                     metadata={"depth": depth + 1,
-                              "max_depth": self.max_depth,
-                              "reason": "verifier_success",
-                              "question": question,
-                              "ground_truth_answer": ground_truth_answer},
+                              "reason": "verifier_success"},
                 )
         
         # Max depth reached without success
         return SearchResult(
+            question=question,
+            ground_truth_answer=ground_truth_answer,
             terminal_nodes=[current_node],
             success=False,
             metadata={"depth": self.max_depth,
-                      "max_depth": self.max_depth,
-                      "reason": "max_depth_reached",
-                      "question": question,
-                      "ground_truth_answer": ground_truth_answer}
+                      "reason": "max_depth_reached"}
         )

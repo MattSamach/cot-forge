@@ -319,21 +319,17 @@ class SimpleBeamSearch(BaseSearch):
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"error": "Failed to initialize CoT",
-                                          "max_depth": max_depth,
-                                          "question": question,
-                                          "ground_truth_answer": ground_truth_answer}
-                                )
+                                metadata={"depth": 0, "reason": "Failed to initialize CoT"})
             
         # Check if initial node is already successful
         initial_node.success = False
         if initial_node.success:
             return SearchResult(
+                question=question,
+                ground_truth_answer=ground_truth_answer,
                 terminal_nodes=[initial_node],
                 success=True,
-                metadata={"max_depth": max_depth,
-                          "question": question,
-                          "ground_truth_answer": ground_truth_answer}
+                metadata={"depth": 1}
             )
             
         # Initialize the beams
@@ -355,7 +351,8 @@ class SimpleBeamSearch(BaseSearch):
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"error": "Failed to initialize beams"})
+                                metadata={"depth": 1,
+                                          "reason": "Failed to initialize beams"})
             
         # Range starts at 2 because we already have the initial node and beams
         # We will expand the beams at each depth
@@ -427,11 +424,11 @@ class SimpleBeamSearch(BaseSearch):
                     logger.info(f"Beam {i} reached a final node at depth {depth}")
                 
         result = SearchResult(
+            question=question,
+            ground_truth_answer=ground_truth_answer,
             terminal_nodes=beams,
             success=any(node.success for node in beams),
-            metadata={"max_depth": max_depth,
-                      "question": question,
-                      "ground_truth_answer": ground_truth_answer}
+            metadata={"depth": depth, "reason": "Max depth reached"}
         )
         
         return result
