@@ -352,8 +352,15 @@ class StrategyRegistry:
             ValueError: If any strategy's serialized data is invalid
         """
         registry = cls()
-        for strategy_data in data["strategies"].values():
-            registry.create_and_register(**strategy_data)
+        if "strategies" not in data:
+            raise KeyError("Serialized data must contain 'strategies' key.")
+        
+        for name, strategy_data in data["strategies"].items():
+            try:
+                registry.create_and_register(**strategy_data)
+            except Exception as e:
+                raise ValueError(f"Failed to deserialize strategy '{name}': {str(e)}")
+            
         return registry
         
     def __str__(self) -> str:
