@@ -98,6 +98,17 @@ class BaseVerifier(ABC):
         """Call the verify method."""
         return self.verify(node, question, ground_truth_answer, **kwargs)
     
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the verifier to a dictionary representation."""
+        pass
+    
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
+        """Create a verifier instance from a dictionary representation."""
+        pass
+    
     def __str__(self) -> str:
         """Return a string representation of the verifier."""
         llm_info = f", llm={self.llm_provider.__class__.__name__}" if self.llm_provider else ""

@@ -70,10 +70,30 @@ class LLMJudgeVerifier(BaseVerifier):
             prompt_template (str, optional): Custom prompt template for verification.
                 Defaults to DEFAULT_VERIFICATION_PROMPT.
         """
-        name = "llm_judge_verifier",
+        name = "LLM Judge Verifier",
         description = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
+        
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the verifier to a dictionary representation."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "prompt_template": self.prompt_template,
+            "llm_provider": self.llm_provider.to_dict() if self.llm_provider else None,
+            "llm_kwargs": self.llm_kwargs
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
+        """Create a verifier instance from a dictionary representation."""
+        llm_provider = LLMProvider.from_dict(data["llm_provider"]) if data.get("llm_provider") else None
+        return cls(
+            llm_provider=llm_provider,
+            llm_kwargs=data.get("llm_kwargs"),
+            prompt_template=data.get("prompt_template", DEFAULT_VERIFICATION_PROMPT)
+        )
         
     def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
         """

@@ -95,7 +95,8 @@ class SimpleBeamSearch(BaseSearch):
         self.branching_factor = branching_factor
         self.max_depth = max_depth
         self.name = "simple beam search"
-        self.description = "Simple beam search to produce multiple parallel reasoning chains."
+        self.description = ("A search algorithm that explores multiple parallel reasoning chains using beam search, "
+                            "maintaining and expanding the most promising paths based on scoring.")
         self.strategy_selector = ScoredStrategySelector()
         
     def to_dict(self):
