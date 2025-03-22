@@ -1047,7 +1047,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         # Check appropriate error handling
         self.assertFalse(result.success)
         self.assertTrue(len(result.terminal_nodes)==0)
-        self.assertEqual(result.metadata["error"], "Failed to initialize CoT")
+        self.assertEqual(result.metadata["reason"], "Failed to initialize CoT")
         
     @patch('cot_forge.reasoning.verifiers.BaseVerifier')
     @patch('cot_forge.llm.LLMProvider')
