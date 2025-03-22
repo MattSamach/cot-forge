@@ -12,7 +12,7 @@ status, the final answer, and any relevant metadata.
 
 from typing import Any, Optional
 
-from cot_forge.reasoning.strategies import Strategy
+from cot_forge.reasoning.strategies import Strategy, StrategyRegistry
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 from uuid import uuid4 as uuid
 
@@ -152,11 +152,7 @@ class SearchResult:
         self.terminal_nodes = terminal_nodes if terminal_nodes else []
         self.success = success
         self.metadata = metadata if metadata else {}
-        
-    # let's get fucked up! (Continue from here, get rid of all places where final_node and final_answer are used.)
-    # Also, change terminal_nodes to terminal_nodes, be more concise bozo) Ya dork! 
-    # just kidding, I love you! not really, but I do love this code.
-        
+
     def get_successful_terminal_nodes(self) -> list[ReasoningNode]:
         """Returns a list of successful terminal nodes."""
         return [node for node in self.terminal_nodes if node.success]
@@ -193,6 +189,24 @@ class SearchResult:
         )
     
     def _serialize(self):
+        """
+        Serializes the SearchResult into a dictionary representation.
+        
+        This method converts the entire reasoning graph structure into a serializable format
+        by creating an adjacency list of parent-child relationships and a map of node IDs to
+        node data. The graph is traversed starting from terminal nodes back to root nodes.
+        
+        The resulting dictionary contains:
+        - adjacency_list: List of (parent_id, child_id) tuples representing graph edges
+        - node_map: Dictionary mapping node IDs to serialized node data
+        - question: The original question
+        - ground_truth_answer: The known correct answer
+        - success: Whether the search was successful
+        - metadata: Additional search information
+        
+        Returns:
+            dict[str, Any]: A serializable dictionary representation of the SearchResult
+        """
         adjacency_list = [] # format: (parent_id, child_id)
         node_map = {} # format: node_map[id] = ReasoningNode
         for terminal_node in self.terminal_nodes:
@@ -223,7 +237,31 @@ class SearchResult:
         return serialized_dict
     
     @classmethod
-    def _deserialize(cls, serialized_dict: dict[str, Any]) -> type['SearchResult']:
+    def _deserialize(
+        cls,
+        serialized_dict: dict[str, Any],
+        strategy_registry: StrategyRegistry
+    ) -> type['SearchResult']:
+        """
+        Reconstructs a SearchResult object from its serialized dictionary representation.
+        
+        This method rebuilds the complete reasoning graph structure by:
+        1. Validating the serialized dictionary contains required keys
+        2. Reconstructing all ReasoningNode objects
+        3. Using provided strategy_registry to reconstruct the nodes' Strategy
+        4. Reestablishing parent-child relationships between nodes
+        5. Identifying terminal nodes (nodes with no children)
+        
+        Args:
+            serialized_dict (dict[str, Any]): The serialized SearchResult dictionary (see SearchResult._serializer)
+            strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objects
+        
+        Returns:
+            SearchResult: A fully reconstructed SearchResult with the complete reasoning graph
+        
+        Raises:
+            ValueError: If the serialized dictionary is missing required keys
+        """
         if not "node_map" in serialized_dict or not "adjacency_list" in serialized_dict:
             raise ValueError("SearchResult deserialization requires keys 'node_map' and 'adjacency_list' for graph.")
         
@@ -239,6 +277,7 @@ class SearchResult:
         
         # Construct all of the reasoning nodes
         for k, v in node_map.items():
+            v['strategy'] = strategy_registry.get_strategy(v['strategy'])
             node_map[k] = ReasoningNode(**v)
             
         # Assume all nodes are terminal nodes and reduce set as we prove otherwise
