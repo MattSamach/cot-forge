@@ -62,6 +62,7 @@ class NaiveLinearSearch(BaseSearch):
             dict: Dictionary representation of the search algorithm.
         """
         return {
+            "class_name": self.__class__.__name__,
             "name": self.name,
             "description": self.description,
             "max_depth": self.max_depth,

@@ -108,6 +108,7 @@ class SimpleBeamSearch(BaseSearch):
             dict: Dictionary representation of the search algorithm.
         """
         return {
+            "class_name": self.__class__.__name__,
             "name": self.name,
             "description": self.description,
             "beam_width": self.beam_width,
