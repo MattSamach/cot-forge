@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any
 
 from cot_forge.reasoning.types import SearchResult
 
@@ -96,12 +96,13 @@ class PersistenceManager:
         Args:
             cot_builder: The CoTBuilder instance to save
         """
+
         config = {
-            "search_llm": cot_builder.search_llm.to_dict() if hasattr(cot_builder.search_llm, "to_dict") else str(cot_builder.search_llm),
-            "search": cot_builder.search.to_dict() if hasattr(cot_builder.search, "to_dict") else str(cot_builder.search),
-            "verifier": cot_builder.verifier.to_dict() if hasattr(cot_builder.verifier, "to_dict") else str(cot_builder.verifier),
-            "scorer": cot_builder.scorer.to_dict() if hasattr(cot_builder.scorer, "to_dict") else str(cot_builder.scorer) if cot_builder.scorer else None,
-            "strategy_reg": cot_builder.strategy_reg.serialize() if hasattr(cot_builder.strategy_reg, "serialize") else str(cot_builder.strategy_reg),
+            "search_llm": cot_builder.search_llm.to_dict(),
+            "search": cot_builder.search.to_dict(),
+            "verifier": cot_builder.verifier.to_dict(),
+            "scorer": cot_builder.scorer.to_dict() if cot_builder.scorer else None,
+            "strategy_reg": cot_builder.strategy_reg.serialize(),
             "search_llm_kwargs": cot_builder.search_llm_kwargs,
             "created_at": datetime.now().isoformat(),
             "dataset_name": self.dataset_name
@@ -125,8 +126,8 @@ class PersistenceManager:
 
             }
         
-        with open(self.metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+            with open(self.metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
     
     def load_metadata(self) -> bool:
         """
@@ -139,7 +140,7 @@ class PersistenceManager:
             return False
         
         try:
-            with open(self.metadata_path, 'r') as f:
+            with open(self.metadata_path) as f:
                 metadata = json.load(f)
             
             self.total_items = metadata.get("total_items", 0)
@@ -204,7 +205,7 @@ class PersistenceManager:
 
         logger.info(f"Saved result for {question_id}: {result.success}")
     
-    def load_results(self) -> List[Dict[str, Any]]:
+    def load_results(self) -> list[dict[str, Any]]:
         """
         Load all results from the results file.
         
@@ -215,7 +216,7 @@ class PersistenceManager:
         if not self.results_path.exists():
             return results
         
-        with open(self.results_path, 'r') as f:
+        with open(self.results_path) as f:
             for line in f:
                 if line.strip():
                     results.append(json.loads(line))
