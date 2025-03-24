@@ -38,7 +38,6 @@ class NaiveLinearSearch(BaseSearch):
     or the maximum depth is reached.
     
     Attributes:
-        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
         max_depth (int): Maximum depth for the search.
         name (str): Name of the search algorithm.
         description (str): Description of the search algorithm.
@@ -48,7 +47,7 @@ class NaiveLinearSearch(BaseSearch):
     def __init__(self,
                  max_depth: int = 3):
         self.max_depth = max_depth
-        self.name = "Naive Linear Search"
+        self.name = "naive_linear_search"
         self.description = ("A sequential search algorithm that randomly selects " 
                             "and applies reasoning strategies to build a chain of thought. "
                             "Continues until verification succeeds or max depth is reached.")
@@ -195,6 +194,9 @@ class NaiveLinearSearch(BaseSearch):
                 )
         
         # Max depth reached without success
+        
+        # Set each terminal node as final
+        current_node.is_final = True
         return SearchResult(
             question=question,
             ground_truth_answer=ground_truth_answer,
