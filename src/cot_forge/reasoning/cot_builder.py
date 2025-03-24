@@ -361,7 +361,7 @@ class CoTBuilder:
             [all existing CoTBuilder parameters]
             dataset_name: Name for this dataset/run (used for storage)
             base_dir: Base directory to store data files
-            auto_resume: Automatically load state on creation
+            auto_resume: If True, automatically load last state when instantiated
             
         Returns:
             CoTBuilder: A configured CoTBuilder instance with persistence

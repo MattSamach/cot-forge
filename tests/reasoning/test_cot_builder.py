@@ -1,11 +1,16 @@
+import json
+import tempfile
 import unittest
-from unittest.mock import MagicMock, Mock
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 from cot_forge.llm import LLMProvider
+from cot_forge.persistence import PersistenceManager
 from cot_forge.reasoning.cot_builder import CoTBuilder
+from cot_forge.reasoning.search.search_algorithm import SearchAlgorithm
 from cot_forge.reasoning.strategies import StrategyRegistry
 from cot_forge.reasoning.types import ReasoningNode, SearchResult
-from cot_forge.reasoning.verifiers import LLMJudgeVerifier
+from cot_forge.reasoning.verifiers import BaseVerifier, LLMJudgeVerifier
 
 
 class TestCoTBuilder(unittest.TestCase):
@@ -188,6 +193,377 @@ class TestCoTBuilder(unittest.TestCase):
         self.assertIn("CoTBuilder", str(self.cot_builder))
         self.assertIn(str(self.mock_llm), str(self.cot_builder))
         self.assertIn(str(self.mock_search), str(self.cot_builder))
+
+
+# TODO: Review all this
+class TestCoTBuilderPersistence(unittest.TestCase):
+    """Tests for the persistence functionality of CoTBuilder."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Mock the core components
+        self.mock_llm = Mock(spec=LLMProvider)
+        self.mock_llm.to_dict = Mock(return_value={"type": "mock_llm"})
+        
+        self.mock_search = Mock(spec=SearchAlgorithm)
+        self.mock_search.name = "MockSearch"
+        self.mock_search.to_dict = Mock(return_value={"type": "mock_search"})
+        
+        self.mock_verifier = Mock(spec=BaseVerifier)
+        self.mock_verifier.to_dict = Mock(return_value={"type": "mock_verifier"})
+        
+        self.mock_strategy_reg = Mock(spec=StrategyRegistry)
+        self.mock_strategy_reg.serialize = Mock(return_value={"strategies": ["mock"]})
+        self.mock_strategy_reg.list_strategies = Mock(return_value=["mock_strategy"])
+        
+        # Create a mock search result
+        self.mock_search_result = Mock(spec=SearchResult)
+        self.mock_search_result.success = True
+        self.mock_search_result.serialize = Mock(return_value={"success": True, "mock": "data"})
+        
+        # Configure the mock search to return the mock result
+        self.mock_search.return_value = self.mock_search_result
+        
+        # Create a temporary directory for persistence
+        self.temp_dir = tempfile.TemporaryDirectory()
+        
+        # Create a real PersistenceManager with the temp directory
+        self.dataset_name = "test_dataset"
+        self.persistence = PersistenceManager(
+            dataset_name=self.dataset_name,
+            search_name=self.mock_search.name,
+            base_dir=self.temp_dir.name,
+            auto_resume=False
+        )
+
+    def tearDown(self):
+        """Clean up after tests."""
+        self.temp_dir.cleanup()
+
+    def test_with_persistence_factory_method(self):
+        """Test the factory method that creates a CoTBuilder with persistence."""
+        with patch("cot_forge.reasoning.cot_builder.PersistenceManager") as mock_pm_class:
+            mock_pm = MagicMock()
+            mock_pm_class.return_value = mock_pm
+            
+            # Create a builder with persistence
+            builder = CoTBuilder.with_persistence(
+                search_llm=self.mock_llm,
+                search=self.mock_search,
+                verifier=self.mock_verifier,
+                dataset_name=self.dataset_name,
+                base_dir="test_dir",
+                auto_resume=True
+            )
+            
+            # Assert PersistenceManager was created with correct parameters
+            mock_pm_class.assert_called_once_with(
+                dataset_name=self.dataset_name,
+                search_name=self.mock_search.name,
+                base_dir="test_dir",
+                auto_resume=True
+            )
+            
+            # Assert the builder has the persistence object
+            self.assertEqual(builder.persistence, mock_pm)
+            
+            # Assert save_config was called
+            mock_pm.save_config.assert_called_once_with(builder)
+
+    def test_save_config(self):
+        """Test that configuration is saved when CoTBuilder is created with persistence."""
+        # Mock the save_config method
+        self.persistence.save_config = MagicMock()
+        
+        # Create the builder with persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        # Assert save_config was called with the builder instance
+        self.persistence.save_config.assert_called_once_with(builder)
+
+    def test_skip_processed_questions(self):
+        """Test that already processed questions are skipped."""
+        # Mock persistence methods
+        self.persistence.should_skip = MagicMock(return_value=True)
+        self.persistence.save_result = MagicMock()
+        
+        # Create the builder with persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        question = "What is 2 + 2?"
+        ground_truth = "4"
+        
+        # Call build
+        result = builder.build(question, ground_truth)
+        
+        # Assert should_skip was called
+        self.persistence.should_skip.assert_called_once_with(question, ground_truth)
+        
+        # Assert search was not called (question was skipped)
+        self.mock_search.assert_not_called()
+        
+        # Assert save_result was not called
+        self.persistence.save_result.assert_not_called()
+        
+        # Assert result is None (skipped)
+        self.assertIsNone(result)
+
+    def test_save_results(self):
+        """Test that results are saved when build is called."""
+        # Mock persistence methods
+        self.persistence.should_skip = MagicMock(return_value=False)
+        self.persistence.save_result = MagicMock()
+        
+        # Create the builder with persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        question = "What is 2 + 2?"
+        ground_truth = "4"
+        
+        # Call build
+        result = builder.build(question, ground_truth)
+        
+        # Assert search was called
+        self.mock_search.assert_called_once()
+        
+        # Assert save_result was called
+        self.persistence.save_result.assert_called_once_with(
+            result=self.mock_search_result,
+            question=question,
+            ground_truth=ground_truth
+        )
+        
+        # Assert result is the mock result
+        self.assertEqual(result, self.mock_search_result)
+
+    def test_batch_processing_with_persistence(self):
+        """Test batch processing with persistence."""
+        # Mock persistence methods
+        self.persistence.should_skip = MagicMock(return_value=False)
+        self.persistence.save_result = MagicMock()
+        self.persistence.setup_batch_run = MagicMock()
+        
+        # Create the builder with persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        questions = ["What is 2 + 2?", "What is 3 + 3?"]
+        ground_truths = ["4", "6"]
+        
+        # Call build_batch
+        results = builder.build_batch(
+            questions=questions,
+            ground_truth_answers=ground_truths,
+            progress_bar=False
+        )
+        
+        # Assert setup_batch_run was called
+        self.persistence.setup_batch_run.assert_called_once_with(len(questions))
+        
+        # Assert should_skip was called for each question
+        self.assertEqual(self.persistence.should_skip.call_count, 2)
+        
+        # Assert search was called for each question
+        self.assertEqual(self.mock_search.call_count, 2)
+        
+        # Assert save_result was called for each question
+        self.assertEqual(self.persistence.save_result.call_count, 2)
+        
+        # Assert results contain the mock results
+        self.assertEqual(len(results), 2)
+        for result in results:
+            self.assertEqual(result, self.mock_search_result)
+
+    def test_load_processed_results(self):
+        """Test loading already processed results when build_batch is called with load_processed=True."""
+        # Setup mock result data
+        mock_result_data = {
+            "id": "test_id",
+            "question": "test_question",
+            "ground_truth": "test_answer",
+            "success": True,
+            "timestamp": "2023-01-01T00:00:00",
+            "result": {"success": True, "mock": "data"}
+        }
+        
+        # Mock persistence methods
+        self.persistence.load_results = MagicMock(return_value=[mock_result_data])
+        self.persistence.should_skip = MagicMock(return_value=True)
+        self.persistence.save_result = MagicMock()
+        self.persistence.setup_batch_run = MagicMock()
+        
+        # Mock SearchResult.deserialize
+        with patch("cot_forge.reasoning.types.SearchResult.deserialize", return_value=self.mock_search_result) as mock_deserialize:
+            # Create the builder with persistence
+            builder = CoTBuilder(
+                search_llm=self.mock_llm,
+                search=self.mock_search,
+                verifier=self.mock_verifier,
+                persistence=self.persistence,
+                strategy_reg=self.mock_strategy_reg
+            )
+            
+            questions = ["What is 2 + 2?"]
+            ground_truths = ["4"]
+            
+            # Call build_batch with load_processed=True
+            results = builder.build_batch(
+                questions=questions,
+                ground_truth_answers=ground_truths,
+                load_processed=True,
+                progress_bar=False
+            )
+            
+            # Assert load_results was called
+            self.persistence.load_results.assert_called_once()
+            
+            # Assert SearchResult.deserialize was called with the result data
+            mock_deserialize.assert_called_once_with(
+                mock_result_data["result"],
+                self.mock_strategy_reg
+            )
+            
+            # Assert results contain the loaded result
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0], self.mock_search_result)
+
+    def test_multi_threaded_batch_with_persistence(self):
+        """Test multi-threaded batch processing with persistence."""
+        # Mock persistence methods
+        self.persistence.should_skip = MagicMock(return_value=False)
+        self.persistence.save_result = MagicMock()
+        self.persistence.setup_batch_run = MagicMock()
+        
+        # Create the builder with persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        questions = ["What is 2 + 2?", "What is 3 + 3?", "What is 4 + 4?"]
+        ground_truths = ["4", "6", "8"]
+        
+        # Call build_batch with multi_thread=True
+        results = builder.build_batch(
+            questions=questions,
+            ground_truth_answers=ground_truths,
+            multi_thread=True,
+            max_workers=2,
+            progress_bar=False
+        )
+        
+        # Assert setup_batch_run was called
+        self.persistence.setup_batch_run.assert_called_once_with(len(questions))
+        
+        # Assert should_skip was called for each question
+        self.assertEqual(self.persistence.should_skip.call_count, 3)
+        
+        # Assert search was called for each question
+        self.assertEqual(self.mock_search.call_count, 3)
+        
+        # Assert save_result was called for each question
+        self.assertEqual(self.persistence.save_result.call_count, 3)
+        
+        # Assert results contain the mock results
+        self.assertEqual(len(results), 3)
+        for result in results:
+            self.assertEqual(result, self.mock_search_result)
+
+    def test_integration_with_real_persistence(self):
+        """Test an end-to-end integration with a real persistence manager."""
+        # Create the builder with real persistence
+        builder = CoTBuilder(
+            search_llm=self.mock_llm,
+            search=self.mock_search,
+            verifier=self.mock_verifier,
+            persistence=self.persistence
+        )
+        
+        question = "What is 2 + 2?"
+        ground_truth = "4"
+        
+        # Call build to save a result
+        builder.build(question, ground_truth)
+        
+        # Assert the config file exists
+        config_path = self.persistence.config_path
+        self.assertTrue(config_path.exists())
+        
+        # Assert the metadata file exists
+        metadata_path = self.persistence.metadata_path
+        self.assertTrue(metadata_path.exists())
+        
+        # Assert the results file exists
+        results_path = self.persistence.results_path
+        self.assertTrue(results_path.exists())
+        
+        # Load the metadata file and check values
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+            self.assertEqual(metadata["dataset_name"], self.dataset_name)
+            self.assertEqual(metadata["search_name"], self.mock_search.name)
+            self.assertEqual(metadata["completed_items"], 1)
+            self.assertEqual(metadata["successful_items"], 1)  # Mock result has success=True
+            self.assertEqual(len(metadata["processed_ids"]), 1)
+        
+        # Reset the mock to verify the second call
+        self.mock_search.reset_mock()
+        
+        # Call build again with the same question (should skip)
+        result2 = builder.build(question, ground_truth)
+        
+        # Assert search was not called (question was skipped)
+        self.mock_search.assert_not_called()
+        
+        # Assert result is None (skipped)
+        self.assertIsNone(result2)
+
+    def test_auto_resume(self):
+        """Test auto-resuming from a previous state."""
+        # Create a persistence manager with auto_resume=True
+        with patch.object(PersistenceManager, 'load_metadata', return_value=True) as mock_load_metadata:
+            persistence = PersistenceManager(
+                dataset_name=self.dataset_name,
+                search_name=self.mock_search.name,
+                base_dir=self.temp_dir.name,
+                auto_resume=True
+            )
+            
+            # Assert load_metadata was called
+            mock_load_metadata.assert_called_once()
+            
+            # Create a persistence manager with auto_resume=False
+            mock_load_metadata.reset_mock()
+            persistence = PersistenceManager(
+                dataset_name=self.dataset_name,
+                search_name=self.mock_search.name,
+                base_dir=self.temp_dir.name,
+                auto_resume=False
+            )
+            
+            # Assert load_metadata was not called
+            mock_load_metadata.assert_not_called()
 
 
 if __name__ == '__main__':

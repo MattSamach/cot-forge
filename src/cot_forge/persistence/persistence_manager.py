@@ -16,6 +16,9 @@ from cot_forge.reasoning.types import SearchResult
 
 logger = logging.getLogger(__name__)
 
+# TODO: Add delete results method
+
+
 class PersistenceManager:
     """
     Manages persistence for CoTBuilder operations.
