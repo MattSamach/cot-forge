@@ -28,7 +28,7 @@ class PersistenceManager:
     Attributes:
         dataset_name (str): Unique identifier for the dataset/run
         base_dir (Path): Base directory for storing data
-        dataset_dir (Path): Directory for this specific dataset
+        search_dir (Path): Directory for this specific dataset
         config_path (Path): Path to config JSON file
         results_path (Path): Path to results JSONL file
         metadata_path (Path): Path to metadata JSON file
@@ -37,6 +37,7 @@ class PersistenceManager:
     def __init__(
         self, 
         dataset_name: str,
+        search_name: str,
         base_dir: str = "data",
         auto_resume: bool = True
     ):
@@ -45,17 +46,19 @@ class PersistenceManager:
         
         Args:
             dataset_name: Unique identifier for this dataset/run
+            search_name: Name of the search algorithm
             base_dir: Base directory for data storage
             auto_resume: If True, automatically load last state when instantiated
         """
         self.dataset_name = dataset_name
+        self.search_name = search_name
         self.base_dir = Path(base_dir)
-        self.dataset_dir = self.base_dir / dataset_name
+        self.search_dir = self.base_dir / dataset_name / search_name
         
         # File paths
-        self.config_path = self.dataset_dir / "config.json"
-        self.results_path = self.dataset_dir / "results.jsonl"
-        self.metadata_path = self.dataset_dir / "metadata.json"
+        self.config_path = self.search_dir / "config.json"
+        self.results_path = self.search_dir / "results.jsonl"
+        self.metadata_path = self.search_dir / "metadata.json"
         
         # Progress tracking
         self.processed_ids = set()
@@ -76,7 +79,7 @@ class PersistenceManager:
     def _initialize_storage(self):
         """Create necessary directories and files if they don't exist."""
         # Create directories
-        self.dataset_dir.mkdir(parents=True, exist_ok=True)
+        self.search_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize metadata file if it doesn't exist
         if not self.metadata_path.exists():
@@ -105,7 +108,8 @@ class PersistenceManager:
             "strategy_reg": cot_builder.strategy_reg.serialize(),
             "search_llm_kwargs": cot_builder.search_llm_kwargs,
             "created_at": datetime.now().isoformat(),
-            "dataset_name": self.dataset_name
+            "dataset_name": self.dataset_name,
+            "search_name": self.search_name,
         }
         
         with open(self.config_path, 'w') as f:
@@ -118,6 +122,7 @@ class PersistenceManager:
         with self._lock:
             metadata = {
                 "dataset_name": self.dataset_name,
+                "search_name": self.search_name,
                 "total_items": self.total_items,
                 "completed_items": self.completed_items,
                 "successful_items": self.successful_items,
