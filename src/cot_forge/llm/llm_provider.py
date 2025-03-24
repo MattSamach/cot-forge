@@ -193,12 +193,6 @@ class LLMProvider(ABC):
             "model_name": self.model_name,
             "input_token_limit": self.input_token_limit,
             "output_token_limit": self.output_token_limit,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            # Don't include exception objects
-            "min_wait": self.min_wait,
-            "max_wait": self.max_wait,
-            "max_retries": self.max_retries,
         }
         
     @classmethod
@@ -221,14 +215,8 @@ class LLMProvider(ABC):
             LLMProvider: A new instance of the LLMProvider class initialized with values from the dictionary.
         The dictionary can contain the following keys:
             - model_name: Name of the language model
-            - rate_limit_exceptions: Exceptions to handle during rate limiting
-            - min_wait (optional): Minimum wait time between requests (default: 0.0)
-            - max_wait (optional): Maximum wait time between requests (default: 0.0)
-            - max_retries (optional): Maximum number of retry attempts (default: 0)
             - input_token_limit (optional): Maximum allowed input tokens
             - output_token_limit (optional): Maximum allowed output tokens
-            - input_tokens (optional): Current count of input tokens used
-            - output_tokens (optional): Current count of output tokens used
         """
         
         input_token_limit = data.get("input_token_limit") if with_rate_limit else None
@@ -241,13 +229,7 @@ class LLMProvider(ABC):
             # Values that can be reset
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
 
             # Values to retrieve from the data
             model_name=data.get("model_name"),
-            rate_limit_exceptions=data.get("rate_limit_exceptions"),
-            min_wait = data.get("min_wait", 0.0),
-            max_wait = data.get("max_wait", 0.0),
-            max_retries = data.get("max_retries", 0)
         )
