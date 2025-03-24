@@ -92,9 +92,8 @@ class ReasoningNode:
         child_count = len(self.children)
         
         return (
-            f"ReasoningNode(id={self.id}, strategy={self.strategy}, "
-            f"prompt=\"{prompt_preview}\", has_parent={self.parent is not None}, "
-            f"response=\"{response_preview}\""
+            f"ReasoningNode(strategy={self.strategy.name}, "
+            f"has_parent={self.parent is not None}, "
             f"children={child_count}, is_final={self.is_final}, "
             f"success={self.success}, cot_steps={cot_count})"
         )
