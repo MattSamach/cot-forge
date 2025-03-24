@@ -62,7 +62,7 @@ from cot_forge.reasoning.verifiers import BaseVerifier
 from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
-#TODO: Add a method to load saved data from disk if persistence is enabled. Mostly relevant to the batch build method, maybe should go there. Or maybe part of the persistence manager?
+# TODO: Consider what to do wrt overwriting/duplicate result data
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,6 @@ class CoTBuilder:
               question: str,
               ground_truth_answer: str,
               llm_kwargs: dict[str, Any] = None,
-              skip_if_processed: bool = True,
               **kwargs) -> SearchResult | None:
         """
         Construct a chain of thought for a single question.
@@ -134,8 +133,6 @@ class CoTBuilder:
             question (str): The question requiring explanation
             ground_truth_answer (str): Known correct answer
             llm_kwargs (dict[str, Any], optional): Additional LLM parameters
-            skip_if_processed (bool, optional): If True and persistence is enabled,
-                skip questions that have already been processed
             **kwargs: Additional parameters for search algorithm
 
         Returns:
@@ -156,8 +153,7 @@ class CoTBuilder:
             ```
         """
         # Check if the question has already been processed
-        if (skip_if_processed and 
-            self.persistence and 
+        if (self.persistence and 
             self.persistence.should_skip(question, ground_truth_answer)
         ):
             logger.info(
@@ -184,7 +180,7 @@ class CoTBuilder:
             self.persistence.save_result(
                 result=result,
                 question=question,
-                ground_truth_answer=ground_truth_answer,
+                ground_truth=ground_truth_answer,
             )
         
         return result
@@ -196,7 +192,6 @@ class CoTBuilder:
                     multi_thread: bool = False,
                     progress_bar: bool = True,
                     max_workers: int | None = 4,
-                    skip_if_processed: bool = True,
                     load_processed: bool = False,
                     **kwargs) -> list[SearchResult]:
         """
@@ -211,8 +206,6 @@ class CoTBuilder:
             multi_thread (bool, optional): Enable parallel processing
             progress_bar (bool, optional): Show progress indicator
             max_workers (int | None, optional): Thread pool size for parallel processing
-            skip_if_processed (bool, optional): If True and persistence is enabled,
-                skip questions that have already been processed
             load_processed (bool, optional): If True and persistence is enabled,
                 load already processed results from disk
             **kwargs: Additional search algorithm parameters
@@ -249,6 +242,7 @@ class CoTBuilder:
         if self.persistence:
             self.persistence.setup_batch_run(total_pairs)
             
+        results = []
         # Load processed results if persistence is enabled and requested
         if self.persistence and load_processed:
             result_dicts = self.persistence.load_results()
@@ -258,42 +252,33 @@ class CoTBuilder:
                 results = [SearchResult.deserialize(item["result"], self.strategy_reg) for item in result_dicts]
                 logger.info(f"Loaded {len(results)} processed results from disk.")
             else:
-                results = []
                 logger.info("No processed results found on disk.")
 
         if multi_thread:
             return self._multi_thread_batch_build(
                 qa_pairs=qa_pairs,
-                llm=self.search_llm,
                 progress_bar=progress_bar,
                 max_workers=max_workers,
                 llm_kwargs=llm_kwargs,
-                skip_if_processed=skip_if_processed,
                 results=results,
                 **kwargs
             )
         else:
             return self._single_threaded_batch_build(
                 qa_pairs=qa_pairs,
-                llm=self.search_llm,
                 progress_bar=progress_bar,
                 total_pairs=total_pairs,
                 llm_kwargs=llm_kwargs,
-                skip_if_processed=skip_if_processed,
                 results=results,
                 **kwargs
             )
-            
-# Question: Should I even return the results if persistence is enabled? It'll be saved anyway.
-# Follow-up: If yes, I'm returning none. Should I look up from disk? May slow stuff significantly.
+
     
     def _single_threaded_batch_build(self,
                                      qa_pairs: list[tuple[str, str]],
-                                     llm: LLMProvider,
                                      progress_bar: bool,
                                      total_pairs: int,
                                      llm_kwargs: dict[str, Any] | None = None,
-                                     skip_if_processed: bool = True,
                                      results: list[SearchResult] | None = None,
                                      **kwargs) -> list[SearchResult]:
         """Execute the search algorithm to build a CoT for a batch of questions in single-threaded mode."""
@@ -311,7 +296,6 @@ class CoTBuilder:
                 question=q,
                 ground_truth_answer=a,
                 llm_kwargs=llm_kwargs,
-                skip_if_processed=skip_if_processed,
                 **kwargs
             )
             if result is not None:
@@ -321,11 +305,9 @@ class CoTBuilder:
     
     def _multi_thread_batch_build(self,
                                   qa_pairs: list[tuple[str, str]],
-                                  llm: LLMProvider,
                                   progress_bar: bool,
                                   max_workers: int,
                                   llm_kwargs: dict[str, Any] | None = None,
-                                  skip_if_processed: bool = True,
                                   results: list[SearchResult] | None = None,
                                   **kwargs) -> list[SearchResult]:
             """Execute the search algorithm to build a CoT for a batch of questions in multi-thread mode."""
@@ -337,7 +319,6 @@ class CoTBuilder:
                         question=q,
                         ground_truth_answer=a,
                         llm_kwargs=llm_kwargs,
-                        skip_if_processed=skip_if_processed,
                         **kwargs
                     )
                     for q, a in qa_pairs
@@ -387,6 +368,7 @@ class CoTBuilder:
         """
         persistence = PersistenceManager(
             dataset_name=dataset_name,
+            search_name=search.name,
             base_dir=base_dir,
             auto_resume=auto_resume
         )
