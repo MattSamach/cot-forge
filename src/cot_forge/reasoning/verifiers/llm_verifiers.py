@@ -70,8 +70,8 @@ class LLMJudgeVerifier(BaseVerifier):
             prompt_template (str, optional): Custom prompt template for verification.
                 Defaults to DEFAULT_VERIFICATION_PROMPT.
         """
-        name = "LLM Judge Verifier",
-        description = "A basic LLM judge verifier that compares a final answer with a ground truth answer.",
+        name = "LLM Judge Verifier"
+        description = "A basic LLM judge verifier that compares a final answer with a ground truth answer."
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = prompt_template
         
