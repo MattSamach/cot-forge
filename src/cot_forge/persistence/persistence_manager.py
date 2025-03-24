@@ -241,3 +241,39 @@ class PersistenceManager:
         with self._lock:
             self.total_items = total_items
             self._save_metadata()
+            
+    def delete_results(self, question: str, ground_truth: str) -> None:
+        """
+        Delete results for a specific question-answer pair.
+        
+        Args:
+            question: The question text
+            ground_truth: The ground truth answer
+        """
+        question_id = self._generate_question_id(question, ground_truth)
+        
+        # Rebuild results file without this entry
+        results = self.load_results()
+        
+        # Count what will be deleted and filter the list
+        deleted_items = [r for r in results if r["id"] == question_id]
+        num_results_deleted = len(deleted_items)
+        num_successes_deleted = sum(1 for r in deleted_items if r["success"])
+        
+        # Create new list without the matching items
+        filtered_results = [r for r in results if r["id"] != question_id]
+                
+        # Write back the updated results
+        with open(self.results_path, 'w') as f:
+            for result in results:
+                f.write(json.dumps(result) + '\n')
+        
+        logger.info(f"Deleted {num_results_deleted} result(s) for {question_id}")
+        
+        # Update metadata
+        self.processed_ids.discard(question_id)
+        self.completed_items -=  num_results_deleted
+        self.successful_items -= num_successes_deleted
+            
+        # Save updated metadata
+        self._save_metadata()
