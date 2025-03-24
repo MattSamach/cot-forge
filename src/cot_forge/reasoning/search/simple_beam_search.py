@@ -410,6 +410,7 @@ class SimpleBeamSearch(BaseSearch):
                         depth=depth,
                         question=question,
                         ground_truth_answer=ground_truth_answer,
+                        num_considered=self.branching_factor,
                         scorer=scorer,
                         node=beam,
                         llm_kwargs=llm_kwargs,
