@@ -11,19 +11,24 @@ class OpenAIProvider(LLMProvider):
     OpenAI LLM provider implementation.
     """
     
-    def __init__(self,
-                 model_name:str = "gpt-4o",
-                 api_key: str | None = None,
-                 min_wait: float | None = None,
-                 max_wait: float | None = None,
-                 max_retries: int | None = None,
-                 ):
+    def __init__(
+        self,
+        model_name:str = "gpt-4o",
+        api_key: str | None = None,
+        input_token_limit: int | None = None,
+        output_token_limit: int | None = None,
+        min_wait: float | None = None,
+        max_wait: float | None = None,
+        max_retries: int | None = None,
+    ):
         """
         Initialize an OpenAI LLM provider instance.
 
         Args:
             model_name (str): OpenAI model ID. Defaults to "gpt-4o".
             api_key (str | None): API key for the OpenAI API. Required to authenticate requests.
+            input_token_limit (int | None): Maximum number of input tokens, for cost control.
+            output_token_limit (int | None): Maximum number of output tokens, for cost control.
             min_wait (float | None): Minimum wait time between retries in seconds. 
                 Defaults to the parent class's behavior.
             max_wait (float | None): Maximum wait time between retries in seconds. 
@@ -59,7 +64,9 @@ class OpenAIProvider(LLMProvider):
             min_wait=min_wait,
             max_wait=max_wait, 
             max_retries=max_retries,
-            rate_limit_exceptions=rate_limit_exceptions
+            rate_limit_exceptions=rate_limit_exceptions,
+            input_token_limit=input_token_limit,
+            output_token_limit=output_token_limit,
         )
         self.client = OpenAI(api_key=api_key)
         self.model_name = model_name

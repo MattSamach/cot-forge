@@ -11,6 +11,8 @@ class GeminiProvider(LLMProvider):
     def __init__(self,
                  model_name:str = "gemini-2.0-flash",
                  api_key: str | None = None,
+                 input_token_limit: int | None = None,
+                 output_token_limit: int | None = None,
                  min_wait: float | None = None,
                  max_wait: float | None = None,
                  max_retries: int | None = None,
@@ -21,6 +23,8 @@ class GeminiProvider(LLMProvider):
         Args:
             model_name (str): Gemini model ID. Defaults to "gemini-2.0-flash".
             api_key (str | None): API key for the Gemini API. Required to authenticate requests.
+            input_token_limit (int | None): Maximum number of input tokens, for cost control.
+            output_token_limit (int | None): Maximum number of output tokens, for cost control.
             min_wait (float | None): Minimum wait time between retries in seconds. 
                 Defaults to the parent class's behavior.
             max_wait (float | None): Maximum wait time between retries in seconds. 
@@ -47,12 +51,15 @@ class GeminiProvider(LLMProvider):
                 "Install 'google-genai' and 'google-api-core' packages to use Gemini LLM provider."
             ) from err
             
-        super().__init__(model_name=model_name,
-                         min_wait=min_wait,
-                         max_wait=max_wait, 
-                         max_retries=max_retries,
-                         rate_limit_exceptions=rate_limit_exceptions
-                         )
+        super().__init__(
+            model_name=model_name,
+            min_wait=min_wait,
+            max_wait=max_wait, 
+            max_retries=max_retries,
+            rate_limit_exceptions=rate_limit_exceptions,
+            input_token_limit=input_token_limit,
+            output_token_limit=output_token_limit,
+        )
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
         self.types = types
