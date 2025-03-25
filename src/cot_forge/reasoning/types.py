@@ -80,11 +80,7 @@ class ReasoningNode:
                 result.extend(node.cot)
         return result
     
-    def __repr__(self):
-        # Truncate long fields
-        prompt_preview = f"{self.prompt[:30]}..." if len(self.prompt) > 30 else self.prompt
-        response_preview = f"{self.response[:30]}..." if len(self.response) > 30 else self.response
-        
+    def __repr__(self):        
         # Count CoT steps instead of showing them
         cot_count = len(self.cot) if isinstance(self.cot, list) else "N/A"
         
@@ -92,9 +88,8 @@ class ReasoningNode:
         child_count = len(self.children)
         
         return (
-            f"ReasoningNode(id={self.id}, strategy={self.strategy}, "
-            f"prompt=\"{prompt_preview}\", has_parent={self.parent is not None}, "
-            f"response=\"{response_preview}\""
+            f"ReasoningNode(strategy={self.strategy.name}, "
+            f"has_parent={self.parent is not None}, "
             f"children={child_count}, is_final={self.is_final}, "
             f"success={self.success}, cot_steps={cot_count})"
         )

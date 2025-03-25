@@ -1,28 +1,32 @@
+import logging
 from typing import Optional
 
 from .llm_provider import LLMProvider
 
+logger = logging.getLogger(__name__)
 
-class GeminiProvider(LLMProvider):
+class HuggingFaceProvider(LLMProvider):
     """
-    Gemini LLM provider implementation.
+    Hugging Face LLM provider implementation.
     """
     
-    def __init__(self,
-                 model_name:str = "gemini-2.0-flash",
-                 api_key: str | None = None,
-                 input_token_limit: int | None = None,
-                 output_token_limit: int | None = None,
-                 min_wait: float | None = None,
-                 max_wait: float | None = None,
-                 max_retries: int | None = None,
-                 ):
+    def __init__(
+        self,
+        model_name:str = "google/gemma-2-2b-it",
+        api_key: str | None = None,
+        input_token_limit: int | None = None,
+        output_token_limit: int | None = None,
+        min_wait: float | None = None,
+        max_wait: float | None = None,
+        max_retries: int | None = None,
+    ):
         """
-        Initialize a Gemini LLM provider instance.
+        Initialize an Hugging Face LLM provider instance.
 
         Args:
-            model_name (str): Gemini model ID. Defaults to "gemini-2.0-flash".
-            api_key (str | None): API key for the Gemini API. Required to authenticate requests.
+            model_name (str): Hugging Face model ID. Defaults to "google/gemma-2-2b-it".
+            api_key (str | None): API key for the Hugging Face API. Required to authenticate requests.
+                Also called "access token" in Hugging Face documentation.
             input_token_limit (int | None): Maximum number of input tokens, for cost control.
             output_token_limit (int | None): Maximum number of output tokens, for cost control.
             min_wait (float | None): Minimum wait time between retries in seconds. 
@@ -33,24 +37,22 @@ class GeminiProvider(LLMProvider):
                 Defaults to the parent class's behavior.
 
         Raises:
-            ImportError: If the required `google-genai` or `google-api-core` packages are not installed.
+            ImportError: If the 'openai' package is not installed.
         """
         
         try:
-            from google import genai
-            from google.api_core import exceptions
-            from google.genai import types
+            from openai import OpenAI, RateLimitError
             
             rate_limit_exceptions = (
-                exceptions.TooManyRequests,
-                exceptions.ResourceExhausted
+                RateLimitError
             )
             
         except ImportError as err:
             raise ImportError(
-                "Install 'google-genai' and 'google-api-core' packages to use Gemini LLM provider."
+                "Install 'openai' package to use OpenAI LLM provider."
             ) from err
-            
+
+        
         super().__init__(
             model_name=model_name,
             min_wait=min_wait,
@@ -60,41 +62,45 @@ class GeminiProvider(LLMProvider):
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
         )
-        self.client = genai.Client(api_key=api_key)
+        self.client = OpenAI(
+            base_url="https://router.huggingface.co/hf-inference/v1",
+            api_key=api_key
+        )
         self.model_name = model_name
-        self.types = types
         
     def generate_completion(self,
                             prompt: str,
                             system_prompt: Optional[str] = None,
                             temperature: float = 0.7,
-                            max_tokens: Optional[int] = None,
+                            max_tokens: Optional[int] = 1024,
                             **kwargs):
         """
-        Generate text using the Gemini LLM API.
+        Generate text using the Hugging Face LLM API.
 
-        This method sends a prompt to the Gemini API and retrieves the generated text.
+        This method sends a prompt to the Hugging Face API and retrieves the generated text.
         It also updates token usage statistics and enforces token limits.
 
         Args:
             prompt (str): The input prompt for the model.
-            system_prompt (Optional[str]): An optional system instruction to guide the model's behavior.
+            system_prompt (Optional[str]): Not used in this implementation.
+                Defaults to None.
             temperature (float): Controls randomness in generation. Higher values produce more random outputs.
                 Defaults to 0.7.
-            max_tokens (Optional[int]): The maximum number of tokens to generate. Defaults to None.
-            **kwargs: Additional arguments for the Gemini API. For example:
+            max_tokens (Optional[int]): The maximum number of output tokens to generate. Defaults to None.
+            **kwargs: Additional arguments for the Hugging Face API. For example:
                 - `llm_kwargs` (dict): A dictionary of additional configuration options for the API.
 
         Returns:
-            str: The generated text from the Gemini API.
+            str: The generated text from the Hugging Face API.
 
         Raises:
             ValueError: If token limits are exceeded.
-            google.api_core.exceptions.GoogleAPIError: If the Gemini API request fails.
+            RateLimitError: If the API rate limit is exceeded.
+            Exception: For other API-related errors.
 
         Example:
             ```python
-            provider = GeminiProvider(api_key="your_api_key")
+            provider = HuggingFaceLLMProvider(api_key="your_api_key")
             response = provider.generate_completion(
                 prompt="Write a poem about the ocean.",
                 temperature=0.8,
@@ -102,28 +108,29 @@ class GeminiProvider(LLMProvider):
             )
             print(response)
             ```
-        """     
-        config_data = {"system_instruction": system_prompt} if system_prompt else {}
-        config_data["temperature"] = temperature
-        config_data["max_output_tokens"] = max_tokens
+        """
+        config_data = {
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
         llm_kwargs = kwargs.get("llm_kwargs", {})
         config_data.update(llm_kwargs)
         
+        # Generate messages for the API
+        messages = [{"role": "user", "content": prompt}]
         
-        # Generate content using the Gemini API    
-        response = self.client.models.generate_content(
+        # Generate content using the Hugging Face API    
+        response = self.client.chat.completions.create(
             model=self.model_name,
-            config=self.types.GenerateContentConfig(
-                **config_data
-            ),
-            contents=[prompt]
+            messages=messages,
+            **config_data
         )
         
         # Update token usage, check limits and raise error if exceeded
-        usage_metadata = response.usage_metadata
+        usage_metadata = response.usage
         self.update_token_usage(
-            input_tokens=usage_metadata.prompt_token_count,
-            output_tokens=usage_metadata.candidates_token_count
+            input_tokens=usage_metadata.prompt_tokens,
+            output_tokens=usage_metadata.completion_tokens
         )
 
-        return response.text            
+        return response.choices[0].message.content

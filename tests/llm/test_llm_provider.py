@@ -2,7 +2,7 @@ import unittest
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
-from src.cot_forge.llm import GeminiLLMProvider, LLMProvider
+from src.cot_forge.llm import GeminiProvider, LLMProvider
 
 
 class TestLLMProviderInterface(unittest.TestCase):
@@ -35,27 +35,15 @@ class TestLLMProviderInterface(unittest.TestCase):
         # Should instantiate successfully
         provider = MinimalProvider(model_name="test-model")
         self.assertEqual(provider.generate("test"), "Test response")
-    
-    def test_generate_batch_not_implemented(self):
-        """Verify generate_batch raises NotImplementedError by default."""
-        class MinimalProvider(LLMProvider):
-            def generate_completion(self, prompt: str, system_prompt: Optional[str] = None, 
-                        temperature: float = 0.7, max_tokens: Optional[int] = None, **kwargs) -> str:
-                return "Test response"
-        
-        provider = MinimalProvider(model_name="test-model")
-        with self.assertRaises(NotImplementedError):
-            provider.generate_batch(["test"])
-
 
 @patch('google.genai.Client')
 @patch('google.genai.types')
-class TestGeminiLLMProvider(unittest.TestCase):
+class TestGeminiProvider(unittest.TestCase):
     """Test the Gemini LLM Provider implementation."""
     
     def test_initialization(self, mock_types, mock_client):
         """Test provider initialization sets up client and configuration correctly."""
-        provider = GeminiLLMProvider(api_key="fake_key", model_name="test-model")
+        provider = GeminiProvider(api_key="fake_key", model_name="test-model")
         
         # Check client was created with API key
         mock_client.assert_called_once_with(api_key="fake_key")
@@ -69,7 +57,7 @@ class TestGeminiLLMProvider(unittest.TestCase):
         """Test appropriate error when Google libraries aren't available."""
         with patch('builtins.__import__', side_effect=ImportError):
             with self.assertRaises(ImportError) as context:
-                GeminiLLMProvider()
+                GeminiProvider()
             self.assertIn("Install 'google-genai'", str(context.exception))
 
     def test_generate_call_structure(self, mock_types, mock_client):
@@ -80,7 +68,7 @@ class TestGeminiLLMProvider(unittest.TestCase):
         mock_client.return_value.models.generate_content.return_value = mock_response
         
         # Create provider and call generate
-        provider = GeminiLLMProvider(api_key="fake_key")
+        provider = GeminiProvider(api_key="fake_key")
         result = provider.generate(
             prompt="Test prompt", 
             system_prompt="System instructions",
@@ -110,7 +98,7 @@ class TestGeminiLLMProvider(unittest.TestCase):
 
 
 class TestRetryLogic(unittest.TestCase):
-    """Test the retry logic in GeminiLLMProvider."""
+    """Test the retry logic in GeminiProvider."""
     
     @patch('google.genai.Client')
     @patch('google.genai.types')
@@ -130,7 +118,7 @@ class TestRetryLogic(unittest.TestCase):
         ]
         
         # Use the tenacity implementation
-        provider = GeminiLLMProvider(
+        provider = GeminiProvider(
             api_key="fake_key",
             max_retries=3,
             min_wait=0,  # Set to 0 to make the test run faster
@@ -160,7 +148,7 @@ class TestRetryLogic(unittest.TestCase):
             mock_response
         ]
         
-        provider = GeminiLLMProvider(
+        provider = GeminiProvider(
             api_key="fake_key",
             max_retries=3,
             min_wait=0,  # Set to 0 to make the test run faster

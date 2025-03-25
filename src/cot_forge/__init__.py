@@ -20,7 +20,7 @@ Modules:
 
 # Core reasoning components
 # LLM Provider exports
-from .llm import GeminiLLMProvider, LLMProvider
+from .llm import GeminiProvider, LLMProvider
 from .reasoning import (
     CoTBuilder,
     NaiveLinearSearch,
@@ -97,7 +97,7 @@ __all__ = [
     
     # LLM Providers
     "LLMProvider",
-    "GeminiLLMProvider",
+    "GeminiProvider",
     
     # Verifiers
     "BaseVerifier", 

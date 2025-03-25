@@ -1,6 +1,6 @@
 import os
 
-from cot_forge.llm import GeminiLLMProvider
+from cot_forge.llm import GeminiProvider
 from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, default_strategy_registry
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
@@ -28,7 +28,7 @@ Margate must show that favoring mothers over fathers is substantially related to
 """
 
 api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
-llm = GeminiLLMProvider(api_key=api_key)
+llm = GeminiProvider(api_key=api_key)
 
 builder = CoTBuilder(
     search_llm=llm,
