@@ -5,6 +5,7 @@ allowing users to easily switch between different models and providers.
 """
 
 from .gemini import GeminiProvider
+from .openai import OpenAIProvider
 from .llm_provider import LLMProvider
 
-__all__ = ["LLMProvider", "GeminiProvider"]
+__all__ = ["LLMProvider", "GeminiProvider", "OpenAIProvider"]
