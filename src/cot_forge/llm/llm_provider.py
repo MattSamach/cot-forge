@@ -221,8 +221,6 @@ class LLMProvider(ABC):
         
         input_token_limit = data.get("input_token_limit") if with_rate_limit else None
         output_token_limit=data.get("output_token_limit") if with_rate_limit else None
-        input_tokens=data.get("input_tokens", 0) if with_token_usage else 0
-        output_tokens=data.get("output_tokens", 0) if with_token_usage else 0
         
         # Create an instance of the class
         return cls(

@@ -249,7 +249,9 @@ class CoTBuilder:
             
             # Assume the strategy registry for saved results is same as current instance
             if result_dicts:
-                results = [SearchResult.deserialize(item["result"], self.strategy_reg) for item in result_dicts]
+                results = [
+                    SearchResult.deserialize(item["result"], self.strategy_reg) for item in result_dicts
+                ]
                 logger.info(f"Loaded {len(results)} processed results from disk.")
             else:
                 logger.info("No processed results found on disk.")

@@ -16,9 +16,6 @@ from cot_forge.reasoning.types import SearchResult
 
 logger = logging.getLogger(__name__)
 
-# TODO: Add delete results method
-
-
 class PersistenceManager:
     """
     Manages persistence for CoTBuilder operations.
@@ -265,7 +262,7 @@ class PersistenceManager:
                 
         # Write back the updated results
         with open(self.results_path, 'w') as f:
-            for result in results:
+            for result in filtered_results:
                 f.write(json.dumps(result) + '\n')
         
         logger.info(f"Deleted {num_results_deleted} result(s) for {question_id}")

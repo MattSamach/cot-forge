@@ -1,7 +1,6 @@
 import json
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 from cot_forge.llm import LLMProvider
@@ -412,7 +411,10 @@ class TestCoTBuilderPersistence(unittest.TestCase):
         self.persistence.setup_batch_run = MagicMock()
         
         # Mock SearchResult.deserialize
-        with patch("cot_forge.reasoning.types.SearchResult.deserialize", return_value=self.mock_search_result) as mock_deserialize:
+        with patch(
+            "cot_forge.reasoning.types.SearchResult.deserialize",
+            return_value=self.mock_search_result
+        ) as mock_deserialize:
             # Create the builder with persistence
             builder = CoTBuilder(
                 search_llm=self.mock_llm,
@@ -543,24 +545,12 @@ class TestCoTBuilderPersistence(unittest.TestCase):
         """Test auto-resuming from a previous state."""
         # Create a persistence manager with auto_resume=True
         with patch.object(PersistenceManager, 'load_metadata', return_value=True) as mock_load_metadata:
-            persistence = PersistenceManager(
-                dataset_name=self.dataset_name,
-                search_name=self.mock_search.name,
-                base_dir=self.temp_dir.name,
-                auto_resume=True
-            )
             
             # Assert load_metadata was called
             mock_load_metadata.assert_called_once()
             
             # Create a persistence manager with auto_resume=False
             mock_load_metadata.reset_mock()
-            persistence = PersistenceManager(
-                dataset_name=self.dataset_name,
-                search_name=self.mock_search.name,
-                base_dir=self.temp_dir.name,
-                auto_resume=False
-            )
             
             # Assert load_metadata was not called
             mock_load_metadata.assert_not_called()
