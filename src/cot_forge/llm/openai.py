@@ -55,7 +55,7 @@ class OpenAIProvider(LLMProvider):
         try:
             from tiktoken import encoding_for_model
             self.enc = encoding_for_model(model_name)
-        except ImportError as err:
+        except ImportError:
             logging.warning("'tiktoken' package not found. Token counting will not be accurate.")
             self.enc = None
         
