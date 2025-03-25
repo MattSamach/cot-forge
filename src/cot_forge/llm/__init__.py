@@ -4,7 +4,7 @@ This module provides a unified interface for various LLM providers,
 allowing users to easily switch between different models and providers.
 """
 
-from .gemini import GeminiLLMProvider
+from .gemini import GeminiProvider
 from .llm_provider import LLMProvider
 
-__all__ = ["LLMProvider", "GeminiLLMProvider"]
+__all__ = ["LLMProvider", "GeminiProvider"]

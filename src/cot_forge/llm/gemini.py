@@ -3,7 +3,7 @@ from typing import Optional
 from .llm_provider import LLMProvider
 
 
-class GeminiLLMProvider(LLMProvider):
+class GeminiProvider(LLMProvider):
     """
     Gemini LLM provider implementation.
     """
@@ -87,7 +87,7 @@ class GeminiLLMProvider(LLMProvider):
 
         Example:
             ```python
-            provider = GeminiLLMProvider(api_key="your_api_key")
+            provider = GeminiProvider(api_key="your_api_key")
             response = provider.generate_completion(
                 prompt="Write a poem about the ocean.",
                 temperature=0.8,

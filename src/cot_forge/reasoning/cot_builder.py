@@ -25,7 +25,7 @@ Example:
     ```python
 
     # Initialize components (replace with your actual implementations)
-    search_llm = GeminiLLMProvider(...)
+    search_llm = GeminiProvider(...)
     search_algorithm = NaiveLinearSearch(...)
     verifier = LLMJudgeVerifier()
 
