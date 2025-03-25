@@ -165,16 +165,6 @@ class LLMProvider(ABC):
             if output_tokens is not None:
                 self.output_tokens += output_tokens
             logger.debug(f"Token usage updated: {self.input_tokens} input, {self.output_tokens} output") 
-               
-    def generate_batch(self,
-                       prompts: list[str],
-                       temperature: float = 0.7,
-                       max_tokens: int | None = None,
-                       **kwargs
-                       ) -> list[str]:
-        """Implementation would use the provider's native batch API if available"""
-
-        raise NotImplementedError("Batch generation is planned for future implementation.")
     
     def __str__(self):
         """String representation of the LLM provider."""
@@ -199,7 +189,6 @@ class LLMProvider(ABC):
     def from_dict(
         cls,
         data: dict,
-        with_token_usage: bool = False,
         with_rate_limit: bool = True,
     ) -> "LLMProvider":
         """
