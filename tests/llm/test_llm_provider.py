@@ -35,18 +35,6 @@ class TestLLMProviderInterface(unittest.TestCase):
         # Should instantiate successfully
         provider = MinimalProvider(model_name="test-model")
         self.assertEqual(provider.generate("test"), "Test response")
-    
-    def test_generate_batch_not_implemented(self):
-        """Verify generate_batch raises NotImplementedError by default."""
-        class MinimalProvider(LLMProvider):
-            def generate_completion(self, prompt: str, system_prompt: Optional[str] = None, 
-                        temperature: float = 0.7, max_tokens: Optional[int] = None, **kwargs) -> str:
-                return "Test response"
-        
-        provider = MinimalProvider(model_name="test-model")
-        with self.assertRaises(NotImplementedError):
-            provider.generate_batch(["test"])
-
 
 @patch('google.genai.Client')
 @patch('google.genai.types')

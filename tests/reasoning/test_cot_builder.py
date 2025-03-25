@@ -543,16 +543,28 @@ class TestCoTBuilderPersistence(unittest.TestCase):
 
     def test_auto_resume(self):
         """Test auto-resuming from a previous state."""
-        # Create a persistence manager with auto_resume=True
+        # Test with auto_resume=True
         with patch.object(PersistenceManager, 'load_metadata', return_value=True) as mock_load_metadata:
+            PersistenceManager(
+                dataset_name=self.dataset_name,
+                search_name=self.mock_search.name,
+                base_dir=self.temp_dir.name,
+                auto_resume=True
+            )
             
             # Assert load_metadata was called
             mock_load_metadata.assert_called_once()
+        
+        # Test with auto_resume=False
+        with patch.object(PersistenceManager, 'load_metadata', return_value=True) as mock_load_metadata:
+            PersistenceManager(
+                dataset_name=self.dataset_name,
+                search_name=self.mock_search.name,
+                base_dir=self.temp_dir.name,
+                auto_resume=False
+            )
             
-            # Create a persistence manager with auto_resume=False
-            mock_load_metadata.reset_mock()
-            
-            # Assert load_metadata was not called
+            # Assert load_metadata was NOT called
             mock_load_metadata.assert_not_called()
 
 
