@@ -9,5 +9,6 @@ from .gemini import GeminiProvider
 from .hugging_face import HuggingFaceProvider
 from .llm_provider import LLMProvider
 from .openai import OpenAIProvider
+from .openrouter import OpenRouterProvider
 
-__all__ = ["LLMProvider", "GeminiProvider", "OpenAIProvider", "AnthropicProvider", "HuggingFaceProvider"]
+__all__ = ["LLMProvider", "GeminiProvider", "OpenAIProvider", "AnthropicProvider", "HuggingFaceProvider", "OpenRouterProvider"]

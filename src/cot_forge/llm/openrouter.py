@@ -5,14 +5,14 @@ from .llm_provider import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-class HuggingFaceProvider(LLMProvider):
+class OpenRouterProvider(LLMProvider):
     """
-    Hugging Face LLM provider implementation.
+    Open Router LLM provider implementation.
     """
     
     def __init__(
         self,
-        model_name:str = "google/gemma-2-2b-it",
+        model_name:str = "deepseek/deepseek-chat-v3-0324:free",
         api_key: str | None = None,
         input_token_limit: int | None = None,
         output_token_limit: int | None = None,
@@ -21,12 +21,11 @@ class HuggingFaceProvider(LLMProvider):
         max_retries: int | None = None,
     ):
         """
-        Initialize an Hugging Face LLM provider instance.
+        Initialize an OpenRouter LLM provider instance.
 
         Args:
-            model_name (str): Hugging Face model ID. Defaults to "google/gemma-2-2b-it".
-            api_key (str | None): API key for the Hugging Face API. Required to authenticate requests.
-                Also called "access token" in Hugging Face documentation.
+            model_name (str): OpenRouter model ID. Defaults to "deepseek/deepseek-chat-v3-0324:free".
+            api_key (str | None): API key for the OpenRouter API. Required to authenticate requests.
             input_token_limit (int | None): Maximum number of input tokens, for cost control.
             output_token_limit (int | None): Maximum number of output tokens, for cost control.
             min_wait (float | None): Minimum wait time between retries in seconds. 
@@ -49,7 +48,7 @@ class HuggingFaceProvider(LLMProvider):
             
         except ImportError as err:
             raise ImportError(
-                "Install 'openai' package to use Hugging Face LLM provider."
+                "Install 'openai' package to use OpenRouter LLM provider."
             ) from err
 
         
@@ -63,8 +62,8 @@ class HuggingFaceProvider(LLMProvider):
             output_token_limit=output_token_limit,
         )
         self.client = OpenAI(
-            base_url="https://router.huggingface.co/hf-inference/v1",
-            api_key=api_key
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
         )
         self.model_name = model_name
         
@@ -75,9 +74,9 @@ class HuggingFaceProvider(LLMProvider):
                             max_tokens: Optional[int] = 1024,
                             **kwargs):
         """
-        Generate text using the Hugging Face LLM API.
+        Generate text using the Open Router LLM API.
 
-        This method sends a prompt to the Hugging Face API and retrieves the generated text.
+        This method sends a prompt to the Open Router API and retrieves the generated text.
         It also updates token usage statistics and enforces token limits.
 
         Args:
@@ -87,11 +86,11 @@ class HuggingFaceProvider(LLMProvider):
             temperature (float): Controls randomness in generation. Higher values produce more random outputs.
                 Defaults to 0.7.
             max_tokens (Optional[int]): The maximum number of output tokens to generate. Defaults to None.
-            **kwargs: Additional arguments for the Hugging Face API. For example:
+            **kwargs: Additional arguments for the Open Router API. For example:
                 - `llm_kwargs` (dict): A dictionary of additional configuration options for the API.
 
         Returns:
-            str: The generated text from the Hugging Face API.
+            str: The generated text from the Open Router API.
 
         Raises:
             ValueError: If token limits are exceeded.
@@ -100,7 +99,7 @@ class HuggingFaceProvider(LLMProvider):
 
         Example:
             ```python
-            provider = HuggingFaceLLMProvider(api_key="your_api_key")
+            provider = OpenRouterProvider(api_key="your_api_key")
             response = provider.generate_completion(
                 prompt="Write a poem about the ocean.",
                 temperature=0.8,
@@ -119,7 +118,7 @@ class HuggingFaceProvider(LLMProvider):
         # Generate messages for the API
         messages = [{"role": "user", "content": prompt}]
         
-        # Generate content using the Hugging Face API    
+        # Generate content using the Open Router API    
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
