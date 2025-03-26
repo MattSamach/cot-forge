@@ -8,6 +8,7 @@ from .anthropic import AnthropicProvider
 from .gemini import GeminiProvider
 from .hugging_face import HuggingFaceProvider
 from .llm_provider import LLMProvider
+from .lm_studio import LMStudioProvider
 from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
 
@@ -17,6 +18,7 @@ __all__ = [
     "OpenAIProvider",
     "AnthropicProvider",
     "HuggingFaceProvider",
-    "OpenRouterProvider"
+    "OpenRouterProvider",
+    "LMStudioProvider"
 ]
 
