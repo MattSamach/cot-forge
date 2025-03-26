@@ -4,7 +4,7 @@ import time
 from typing import Any, Literal
 
 from cot_forge.llm import LLMProvider
-from cot_forge.utils.parsing import extract_cot
+from cot_forge.utils.parsing import extract_cot, parse_json_response
 
 logger = logging.getLogger(__name__)
     
@@ -94,6 +94,84 @@ def execute_with_fallback(
         logger.error(f"Unexpected code path in execute_with_fallback for {operation_name}")
         return None, f"Unexpected error in {operation_name}"
     
+def generate_and_parse_json(
+        search_llm: LLMProvider,
+        prompt: str,
+        llm_kwargs: dict[str, Any] = None,
+        on_error: Literal["continue", "raise", "retry"] = "retry",
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        logger: logging.Logger = logger,
+        retrieval_object: str = None
+    ) -> tuple[str, Any]:
+        """
+        Generate and parse the chain of thought (CoT) from the LLM.
+        
+        Args:
+            search_llm: The LLM provider to use for generation
+            prompt: The prompt to send to the LLM
+            llm_kwargs: Additional kwargs for LLM generation
+            on_error: How to handle errors during generation
+            max_retries: Maximum number of retries if on_error="retry"
+            retry_delay: Delay between retries in seconds
+            logger: Logger instance for recording events
+            retrieval_object: The object to retrieve from the json response. If None, the entire response is returned as a dict.
+        Returns:
+            tuple[str, Any]: The generated response and parsed CoT
+        Raises:
+            RuntimeError: If the operation fails and on_error="raise" or "retry"
+        Example:
+            >>> response, natural_reasoning = generate_and_parse_cot(
+            ...     search_llm,
+            ...     prompt="What is the capital of France?",
+            ...     llm_kwargs={"temperature": 0.7},
+            ...     on_error="retry",
+            ...     max_retries=5,
+            ...     retry_delay=2.0,
+            ...     retrieval_object="NaturalReasoning"
+            ... )
+            >>> print("Response:", response)
+            >>> print("Natural Reasoning:", natural_reasoning)
+        """
+        
+        def helper_function():
+            # Generate the response using the LLM
+            response = search_llm.generate(prompt, **(llm_kwargs or {}))
+            # Extract the CoT from the response
+            if retrieval_object:
+                object = parse_json_response(response)[retrieval_object]
+            else:
+                object = parse_json_response(response)
+            return response, object
+        
+        # Execute the operation with error handling
+        result, error_msg = execute_with_fallback(
+            operation_name="LLM generation and json parsing",
+            operation_func=helper_function,
+            on_error=on_error,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+            logger=logger,
+            fallback_value=(None, None)
+        )
+        if error_msg and (on_error == "raise" or on_error == "retry"):
+            # Log the error and raise an exception
+            logger.error(f"LLM generation and json parsing failed: {error_msg}")
+            raise RuntimeError(f"LLM generation and json parsing failed: {error_msg}")
+        elif error_msg and on_error == "continue":
+            # Log the error but continue
+            logger.error(f"LLM generation and json parsing failed: {error_msg}")
+            return None, None
+        
+        # If the operation was successful, unpack the result
+        response, object = result
+        if response is None or object is None:
+            # Handle the case where the operation failed
+            logger.error("LLM generation and json parsing returned None")
+            return None, None
+        # Return the generated response and parsed CoT
+        return response, object
+
 def generate_and_parse_cot(
         search_llm: LLMProvider,
         prompt: str,
@@ -130,37 +208,13 @@ def generate_and_parse_cot(
             >>> print("CoT:", cot)
         """
         
-        def helper_function():
-            # Generate the response using the LLM
-            response = search_llm.generate(prompt, **(llm_kwargs or {}))
-            # Extract the CoT from the response
-            cot = extract_cot(response)
-            return response, cot
-        
-        # Execute the operation with error handling
-        result, error_msg = execute_with_fallback(
-            operation_name="LLM generation and CoT extraction",
-            operation_func=helper_function,
+        return generate_and_parse_json(
+            search_llm=search_llm,
+            prompt=prompt,
+            llm_kwargs=llm_kwargs,
             on_error=on_error,
             max_retries=max_retries,
             retry_delay=retry_delay,
             logger=logger,
-            fallback_value=(None, None)
+            retrieval_object="CoT"
         )
-        if error_msg and (on_error == "raise" or on_error == "retry"):
-            # Log the error and raise an exception
-            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
-            raise RuntimeError(f"LLM generation and CoT extraction failed: {error_msg}")
-        elif error_msg and on_error == "continue":
-            # Log the error but continue
-            logger.error(f"LLM generation and CoT extraction failed: {error_msg}")
-            return None, None
-        
-        # If the operation was successful, unpack the result
-        response, cot = result
-        if response is None or cot is None:
-            # Handle the case where the operation failed
-            logger.error("LLM generation and CoT extraction returned None")
-            return None, None
-        # Return the generated response and parsed CoT
-        return response, cot

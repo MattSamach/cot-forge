@@ -26,7 +26,7 @@ from .parsing import (
                       extract_final_answer_from_str,
                       parse_json_response,
 )
-from .search_utils import execute_with_fallback, generate_and_parse_cot
+from .search_utils import execute_with_fallback, generate_and_parse_cot, generate_and_parse_json
 
 __all__ = [
     extract_cot,
@@ -34,5 +34,6 @@ __all__ = [
     extract_final_answer_from_str,
     parse_json_response,
     execute_with_fallback,
-    generate_and_parse_cot
+    generate_and_parse_cot,
+    generate_and_parse_json
 ]

@@ -60,6 +60,7 @@ from .utils import (
     extract_final_answer_from_cot,
     extract_final_answer_from_str,
     generate_and_parse_cot,
+    generate_and_parse_json,
     parse_json_response,
 )
 
@@ -94,6 +95,7 @@ __all__ = [
     "parse_json_response",
     "execute_with_fallback",
     "generate_and_parse_cot",
+    "generate_and_parse_json",
     
     # LLM Providers
     "LLMProvider",
