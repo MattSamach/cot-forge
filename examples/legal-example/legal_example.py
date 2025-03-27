@@ -1,8 +1,7 @@
 import os
 
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import (CoTBuilder, NaiveLinearSearch,
-                                 SimpleBeamSearch, default_strategy_registry)
+from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch, default_strategy_registry
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 

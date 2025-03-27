@@ -4,7 +4,7 @@ import time
 from typing import Any, Literal
 
 from cot_forge.llm import LLMProvider
-from cot_forge.utils.parsing import extract_cot, parse_json_response
+from cot_forge.utils.parsing import parse_json_response
 
 logger = logging.getLogger(__name__)
     
@@ -115,7 +115,8 @@ def generate_and_parse_json(
             max_retries: Maximum number of retries if on_error="retry"
             retry_delay: Delay between retries in seconds
             logger: Logger instance for recording events
-            retrieval_object: The object to retrieve from the json response. If None, the entire response is returned as a dict.
+            retrieval_object: The object to retrieve from the json response.
+                If None, the entire response is returned as a dict.
         Returns:
             tuple[str, Any]: The generated response and parsed CoT
         Raises:

@@ -6,17 +6,15 @@ import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
-from cot_forge.reasoning.strategies import (StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
-from cot_forge.utils.parsing import parse_json_response
 from cot_forge.utils.search_utils import generate_and_parse_json
 
-from .prompts import (build_formal_response_prompt,
-                      build_natural_language_cot_prompt)
+from .prompts import build_formal_response_prompt, build_natural_language_cot_prompt
 
 logger = logging.getLogger(__name__)
 
+# TODO: Add tests for this module
 # TODO: Add concurrency support for batch processing
 # TODO: Add write line by line to output file so we can process large files, 
     # ^ also should be something like that in persistence
@@ -49,7 +47,8 @@ class ReasoningProcessor:
             llm_kwargs: Additional arguments for the LLM provider
             base_dir: Base directory for loading data (should match CoTBuilder's base_dir)
             strategy_reg: Strategy registry for deserializing results
-            output_path: Path to save post-processed results (defaults to base_dir/dataset_name/search_name/processed.jsonl)
+            output_path: Path to save post-processed results:
+                (default base_dir/dataset_name/search_name/processed.jsonl)
         """
         self.llm_kwargs = llm_kwargs or {}
         self.llm_provider = llm_provider
@@ -142,7 +141,9 @@ class ReasoningProcessor:
             # Get the nodes to process. If only_successful is True, we only process successful nodes.
             # Otherwise, we process all terminal nodes.
             nodes_to_process = (
-                search_result.get_successful_terminal_nodes() if only_successful else search_result.terminal_nodes
+                search_result.get_successful_terminal_nodes()
+                if only_successful
+                else search_result.terminal_nodes
             )
             for node in nodes_to_process:
                 cot = node.get_full_cot()

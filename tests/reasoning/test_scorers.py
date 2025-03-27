@@ -1,11 +1,9 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.scorers.llm_scorers import ProbabilityFinalAnswerScorer
-from cot_forge.utils.search_utils import execute_with_fallback
 
 
 class TestProbabilityFinalAnswerScorer:
