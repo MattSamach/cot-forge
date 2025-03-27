@@ -1,7 +1,8 @@
 import os
 
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, default_strategy_registry
+from cot_forge.reasoning import (CoTBuilder, NaiveLinearSearch,
+                                 SimpleBeamSearch, default_strategy_registry)
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -27,13 +28,13 @@ ground_truth_answer = """
 Margate must show that favoring mothers over fathers is substantially related to an important governmental interest.
 """
 
-api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")
 llm = GeminiProvider(api_key=api_key)
 
 builder = CoTBuilder(
     search_llm=llm,
-    # search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
-    search=NaiveLinearSearch(max_depth=3),
+    search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
+    # search=NaiveLinearSearch(max_depth=3),
     verifier=LLMJudgeVerifier(llm),
     strategy_reg=default_strategy_registry,
     scorer=ProbabilityFinalAnswerScorer(llm)
