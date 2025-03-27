@@ -161,7 +161,7 @@ def generate_and_parse_json(
         elif error_msg and on_error == "continue":
             # Log the error but continue
             logger.error(f"LLM generation and json parsing failed: {error_msg}")
-            return None, None
+            return error_msg, None
         
         # If the operation was successful, unpack the result
         response, object = result

@@ -11,6 +11,8 @@ import tenacity
 
 logger = logging.getLogger(__name__)
 
+# TODO: Make every subclass able to read api keys from environment variables
+
 class LLMProvider(ABC):
     """
     Abstract base class for LLM providers.

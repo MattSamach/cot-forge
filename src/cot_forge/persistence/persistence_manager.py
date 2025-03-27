@@ -116,6 +116,23 @@ class PersistenceManager:
             json.dump(config, f, indent=2)
         
         logger.info(f"Saved CoTBuilder configuration to {self.config_path}")
+        
+    def load_config(self) -> dict[str, Any]:
+        """
+        Load the CoTBuilder configuration from disk.
+        
+        Returns:
+            dict: The loaded configuration
+        """
+        if not self.config_path.exists():
+            logger.warning(f"Config file {self.config_path} does not exist.")
+            return {}
+        
+        with open(self.config_path) as f:
+            config = json.load(f)
+        
+        logger.info(f"Loaded CoTBuilder configuration from {self.config_path}")
+        return config
     
     def _save_metadata(self) -> None:
         """Save current progress metadata."""
