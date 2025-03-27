@@ -1,58 +1,107 @@
 # CoT Forge
+
 A Python library for generating high-quality Chain of Thought (CoT) reasoning data for training and fine-tuning large language models.
 
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Python](https://img.shields.io/badge/python-≥3.9-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 ## Overview
+
 CoT Forge helps you create synthetic training data that includes complex reasoning chains, enabling LLMs to learn more robust and transparent reasoning capabilities. Inspired by research like [HuatuoGPT-o1](https://github.com/FreedomIntelligence/HuatuoGPT-o1), this library implements a flexible framework for:
 
 * Creating verifiable question/answer pairs
 * Finding optimal reasoning paths through tree search
-* Formatting natural-sounding reasoning for supervised fine-tuning
+* Converting rigid reasoning paths into natural language
+* Formatting responses suitable for supervised fine-tuning
 
 ## Installation
+
+CoT Forge is compatible with Python 3.9 and above. You can install it via pip or clone the repository directly.
+
+```bash
+# Install using pip
+pip install cot-forge
+
+# Or directly from the repository
+pip install git+https://github.com/your-username/cot-forge.git
+```
+
 ## Quick Start
-## Features
-* Flexible problem creation: Convert various sources (text, multiple-choice questions, etc.) into verifiable problems
-* Quality filtering: Ensure problems are appropriate for reasoning training
-* Multiple reasoning strategies: Implement diverse approaches to find optimal reasoning paths
-* Extensible framework: Add custom reasoning strategies, verifiers, and more
+
+```python
+from cot_forge.llm import GeminiProvider
+from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch
+from cot_forge.reasoning.verifiers import LLMJudgeVerifier
+
+# Initialize LLM provider
+llm = GeminiProvider(api_key="your-api-key")
+
+# Setup CoT builder with essential components
+builder = CoTBuilder(
+    search_llm=llm,
+    search=NaiveLinearSearch(max_depth=3),
+    verifier=LLMJudgeVerifier(llm)
+)
+
+# Generate CoT reasoning for a question
+question = "What is the capital of France, and why did it become the capital?"
+ground_truth = "Paris is the capital of France. It became the capital due to its central location and political importance."
+
+search_result = builder.build(
+    question=question,
+    ground_truth_answer=ground_truth,
+)
+
+# Access the best reasoning paths
+best_node = search_result.get_best_node()
+print(best_node.get_full_cot())
+
+# Process reasoning into natural language for training
+from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
+
+processor = ReasoningProcessor(
+    llm_provider=llm, 
+    dataset_name="my_dataset",
+    search_name="naive_search"
+)
+
+processed = processor.process(
+    question=question,
+    cot=best_node.get_full_cot()
+)
+
+print(processed)
+```
+
+## Core Features
+
+* **Multiple LLM Providers**: Support for OpenAI, Anthropic Claude, and Google Gemini models
+* **Flexible Search Strategies**: Choose from beam search, naive linear, and more
+* **Quality Verification**: Built-in verifiers to ensure reasoning is correct
+* **Result Scoring**: Various scoring methods to select the best reasoning paths  
+* **Natural Language Processing**: Convert structured reasoning into natural language for training
+* **Persistence**: Save and resume reasoning generation for large datasets
+* **Extensibility**: Easily add custom reasoning strategies, verifiers, and more
+
 
 ## Documentation
+
+For detailed documentation, see the [docs folder](./docs/):
+
+- [Core Concepts](./docs/core-concepts.md)
+- [LLM Providers](./docs/llm-providers.md)
+- [Strategies](./docs/strategies.md)
+- [Search Algorithms](./docs/search-algorithms.md)
+- [Verification](./docs/verification.md)
+- [Post-Processing](./docs/post-processing.md)
+- [Persistence](./docs/persistence.md)
+- [Examples](./docs/examples.md)
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Poetry
-Poetry is used for dependency management and packaging in Python. To install Poetry, follow the instructions [here](https://python-poetry.org/docs/#installation).
 
-To add a dependency:
-```bash
-poetry add <package-name>
-```
+### Contributing
 
-To install all dependencies:
-```bash
-poetry install
-```
-
-
-
-## Linting
-Using Ruff as linter. Installation instructions can be found [here.](https://github.com/astral-sh/ruff?tab=readme-ov-file#getting-started)
-
-To run Ruff as a linter, try any of the following:
-```bash
-ruff check                          # Lint all files in the current directory (and any subdirectories).
-ruff check path/to/code/            # Lint all files in `/path/to/code` (and any subdirectories).
-ruff check path/to/code/*.py        # Lint all `.py` files in `/path/to/code`.
-ruff check path/to/code/to/file.py  # Lint `file.py`.
-ruff check @arguments.txt           # Lint using an input file, treating its contents as newline-delimited command-line arguments.
-```
-
-Or, to run Ruff as a formatter:
-```bash
-ruff format                          # Format all files in the current directory (and any subdirectories).
-ruff format path/to/code/            # Format all files in `/path/to/code` (and any subdirectories).
-ruff format path/to/code/*.py        # Format all `.py` files in `/path/to/code`.
-ruff format path/to/code/to/file.py  # Format `file.py`.
-ruff format @arguments.txt           # Format using an input file, treating its contents as newline-delimited command-line arguments.
-```
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this project.
