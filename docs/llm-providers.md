@@ -103,9 +103,7 @@ Each provider accepts model-specific parameters on initialization and when calli
 response = openai.generate(
     prompt,
     temperature=0.7,
-    top_p=1.0,
-    presence_penalty=0.0,
-    frequency_penalty=0.0
+    top_p=1.0
 )
 
 # Gemini-specific parameters
@@ -113,7 +111,6 @@ response = gemini.generate(
     prompt,
     temperature=0.9,
     top_k=40,
-    top_p=0.95
 )
 
 # Claude-specific parameters
@@ -136,15 +133,11 @@ class MyCustomProvider(LLMProvider):
         # Your initialization code
         pass
         
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate_completion(self, prompt: str, **kwargs) -> str:
         # Your generation logic
         return generated_text
         
-    def get_token_count(self, text: str) -> int:
+    def estimate_input_tokens(self, text: str) -> int:
         # Your token counting logic
         return token_count
-        
-    def get_token_limit(self) -> int:
-        # Return max tokens for your model
-        return max_tokens
 ```
