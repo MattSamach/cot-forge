@@ -38,8 +38,11 @@ from typing import Any
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers.base import BaseVerifier
-from cot_forge.reasoning.verifiers.prompts import DEFAULT_VERIFICATION_PROMPT, VERIFICATION_FORMAT_PROMPT
-from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_response
+from cot_forge.reasoning.verifiers.prompts import (DEFAULT_VERIFICATION_PROMPT,
+                                                   STRICT_VERIFICATION_PROMPT,
+                                                   VERIFICATION_FORMAT_PROMPT)
+from cot_forge.utils.parsing import (extract_final_answer_from_cot,
+                                     parse_json_response)
 
 logger = logging.getLogger(__name__)
 
@@ -57,23 +60,25 @@ class LLMJudgeVerifier(BaseVerifier):
         llm_kwargs (dict): Additional parameters for LLM calls
     """
     
-    def __init__(self,
-                 llm_provider: LLMProvider,
-                 llm_kwargs: dict[str, Any] | None = None,
-                 prompt_template: str = DEFAULT_VERIFICATION_PROMPT):
+    def __init__(
+        self,
+        llm_provider: LLMProvider,
+        llm_kwargs: dict[str, Any] | None = None,
+        strict: bool = False,
+    ):
         """
         Initialize the LLM judge verifier.
 
         Args:
             llm_provider (LLMProvider): Provider for LLM access
             llm_kwargs (dict, optional): Additional parameters for LLM calls
-            prompt_template (str, optional): Custom prompt template for verification.
-                Defaults to DEFAULT_VERIFICATION_PROMPT.
+            strict (bool, optional): If True, verifier will be strict in comparing
+                ground truth to provided answer. Defaults to False.
         """
         name = "LLM Judge Verifier"
         description = "A basic LLM judge verifier that compares a final answer with a ground truth answer."
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
-        self.prompt_template = prompt_template
+        self.prompt_template = STRICT_VERIFICATION_PROMPT if strict else DEFAULT_VERIFICATION_PROMPT
         
     def to_dict(self) -> dict[str, Any]:
         """Convert the verifier to a dictionary representation."""

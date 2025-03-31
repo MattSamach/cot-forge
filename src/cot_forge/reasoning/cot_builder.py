@@ -63,6 +63,7 @@ from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Consider what to do wrt overwriting/duplicate result data
+# TODO: Change all references of python version to python3.10+
 
 logger = logging.getLogger(__name__)
 
