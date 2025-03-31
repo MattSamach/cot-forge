@@ -75,7 +75,7 @@ class LLMJudgeVerifier(BaseVerifier):
             strict (bool, optional): If True, verifier will be strict in comparing
                 ground truth to provided answer. Defaults to False.
         """
-        name = "LLM Judge Verifier"
+        name = "llm_judge_verifier"
         description = "A basic LLM judge verifier that compares a final answer with a ground truth answer."
         super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
         self.prompt_template = STRICT_VERIFICATION_PROMPT if strict else DEFAULT_VERIFICATION_PROMPT

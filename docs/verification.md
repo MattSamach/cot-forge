@@ -15,13 +15,13 @@ from cot_forge.llm import GeminiProvider
 llm = GeminiProvider(api_key="your-api-key")
 verifier = LLMJudgeVerifier(
     llm_provider=llm,
-    strict_mode=True  # Enable strict verification
+    strict=True  # Enable strict verification
 )
 ```
 
 Parameters:
 - `llm_provider`: LLM provider used for verification
-- `strict_mode`: Whether to use stricter verification criteria (default: False)
+- `strict`: Whether to use stricter verification criteria (default: False)
 - `system_prompt`: Custom system prompt for verification (optional)
 
 ### ExactMatchVerifier
@@ -94,31 +94,4 @@ class MyCustomVerifier(Verifier):
         similarity = calculate_similarity(answer, ground_truth)
         is_correct = similarity > self.threshold
         return is_correct, similarity
-```
-
-## Verification without Ground Truth
-
-Some verifiers can operate without ground truth by evaluating reasoning quality:
-
-```python
-# Use without ground truth
-result = builder.build(question="What is the capital of France?")
-
-# Use with ground truth for more reliable verification
-result = builder.build(
-    question="What is the capital of France?",
-    ground_truth_answer="Paris"
-)
-```
-
-## Handling Verification Errors
-
-CoT Forge can handle verification failures gracefully:
-
-```python
-try:
-    result = builder.build(question, ground_truth)
-except VerificationError as e:
-    print(f"Verification failed: {e}")
-    # Handle the error
 ```
