@@ -193,8 +193,6 @@ class TestCoTBuilder(unittest.TestCase):
         self.assertIn(str(self.mock_llm), str(self.cot_builder))
         self.assertIn(str(self.mock_search), str(self.cot_builder))
 
-
-# TODO: Review all this
 class TestCoTBuilderPersistence(unittest.TestCase):
     """Tests for the persistence functionality of CoTBuilder."""
 
