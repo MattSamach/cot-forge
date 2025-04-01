@@ -54,8 +54,10 @@ search_result = builder.build(
 )
 
 # Access the best reasoning paths
-best_node = search_result.get_best_node()
-print(best_node.get_full_cot())
+successful_nodes = result.get_successful_terminal_nodes()
+# Get the full chain of thought for a successful node as a dictionary
+success_node = successful_nodes[0]
+print(success_node.get_full_cot())
 
 # Process reasoning into natural language for training
 from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
@@ -68,7 +70,7 @@ processor = ReasoningProcessor(
 
 processed = processor.process(
     question=question,
-    cot=best_node.get_full_cot()
+    cot=success_node.get_full_cot()
 )
 
 print(processed)
@@ -102,6 +104,6 @@ For detailed documentation, see the [docs folder](./docs/):
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 
-### Contributing
+## Contributing
 
 Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this project.
