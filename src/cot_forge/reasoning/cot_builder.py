@@ -237,7 +237,7 @@ class CoTBuilder:
             raise ValueError("max_workers must be specified when multi_thread is True.")
 
         total_pairs = len(questions)
-        qa_pairs = list(zip(questions, ground_truth_answers))
+        qa_pairs = list(zip(questions, ground_truth_answers, strict=False))
         
         # Set up persistence for batch processing
         if self.persistence:

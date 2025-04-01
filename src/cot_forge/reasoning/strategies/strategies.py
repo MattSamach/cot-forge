@@ -53,7 +53,7 @@ default_strategy_registry.create_and_register(
 """
 
 from dataclasses import dataclass
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from . import prompts
 from .prompts import StrategyPromptTemplate
@@ -292,7 +292,7 @@ class StrategyRegistry:
         self._strategies[name] = strategy
         return strategy
     
-    def get_strategy(self, name: str) -> Optional[Strategy]:
+    def get_strategy(self, name: str) -> Strategy | None:
         """Get a strategy by name, or None if not found."""
         return self._strategies.get(name, None)
     
