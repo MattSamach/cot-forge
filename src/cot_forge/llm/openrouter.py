@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from .llm_provider import LLMProvider
@@ -61,6 +62,14 @@ class OpenRouterProvider(LLMProvider):
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
         )
+        # Check if the API key is provided
+        if api_key is None:
+            api_key = os.getenv("OPENROUTER_API_KEY")
+        if api_key is None:
+            raise ValueError(
+                "API key is required. "
+                "Set it as an argument or in the environment variable 'OPENROUTER_API_KEY'."
+            )
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,

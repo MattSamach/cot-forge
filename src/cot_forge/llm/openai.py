@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from .llm_provider import LLMProvider
@@ -68,6 +69,11 @@ class OpenAIProvider(LLMProvider):
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
         )
+        # Set the API key for OpenAI
+        if api_key is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+        if api_key is None:
+            raise ValueError("API key for OpenAI not provided.")
         self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
         

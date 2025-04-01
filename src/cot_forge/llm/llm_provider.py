@@ -19,15 +19,16 @@ class LLMProvider(ABC):
     Abstract base class for LLM providers.
     """
     
-    def __init__(self,
-                model_name: str,
-                min_wait: float = 0.0,
-                max_wait: float = 0.0,
-                max_retries: int = 0,
-                rate_limit_exceptions: tuple[Exception] | None = None,
-                input_token_limit: int | None = None,
-                output_token_limit: int | None = None,
-                ):
+    def __init__(
+        self,
+        model_name: str,
+        min_wait: float = 0.0,
+        max_wait: float = 0.0,
+        max_retries: int = 0,
+        rate_limit_exceptions: tuple[Exception] | None = None,
+        input_token_limit: int | None = None,
+        output_token_limit: int | None = None,
+    ):
         """
         Initialize an LLM provider instance.
 
