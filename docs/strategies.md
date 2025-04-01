@@ -82,7 +82,13 @@ builder = CoTBuilder(
 
 # Creating custom registry
 custom_registry = StrategyRegistry()
-custom_registry.register_strategy(MyCustomStrategy)
+custom_registry.register(MyCustomStrategy)
+
+# Serializing registry
+serialized = custom_registry.serialize()
+
+# Deserializing registry
+restored_registry = StrategyRegistry.deserialize(serialized)
 ```
 
 ## Dynamic Strategy Creation
