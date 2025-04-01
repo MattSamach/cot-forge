@@ -14,8 +14,6 @@ from cot_forge.utils import extract_final_answer_from_cot
 
 logger = logging.getLogger(__name__)
 
-# TODO: Add tests
-
 
 class ExactMatchVerifier(BaseVerifier):
     """
