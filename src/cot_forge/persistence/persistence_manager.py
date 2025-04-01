@@ -10,7 +10,10 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cot_forge.reasoning.cot_builder import CoTBuilder
 
 from cot_forge.reasoning.types import SearchResult
 
