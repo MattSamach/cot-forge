@@ -11,6 +11,7 @@ from .llm_provider import LLMProvider
 from .lm_studio import LMStudioProvider
 from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
+from .groq import GroqProvider
 
 __all__ = [
     "LLMProvider",
@@ -19,6 +20,7 @@ __all__ = [
     "AnthropicProvider",
     "HuggingFaceProvider",
     "OpenRouterProvider",
-    "LMStudioProvider"
+    "LMStudioProvider",
+    "GroqProvider",
 ]
 

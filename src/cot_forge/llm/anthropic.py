@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+import os
 
 from .llm_provider import LLMProvider
 
@@ -60,6 +61,12 @@ class AnthropicProvider(LLMProvider):
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
         )
+        # Initialize the Anthropic client
+        # If api_key is None, it will be read from the environment variable ANTHROPIC_API_KEY
+        if api_key is None:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+        if api_key is None:
+            raise ValueError("API key is required for Anthropic LLM provider.")
         self.client = Anthropic(api_key=api_key)
         self.model_name = model_name
         
@@ -105,8 +112,9 @@ class AnthropicProvider(LLMProvider):
         """     
         config_data = {
             "temperature": temperature,
-            "max_tokens": max_tokens
         }
+        # Anthropic requires the max_tokens parameter to be set, so default to 1024 if not provided
+        config_data["max_tokens"] = max_tokens or 1024
         if system_prompt:
             config_data["system"] = system_prompt
         llm_kwargs = kwargs.get("llm_kwargs", {})

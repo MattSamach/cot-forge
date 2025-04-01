@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from .llm_provider import LLMProvider
@@ -60,6 +61,12 @@ class GeminiProvider(LLMProvider):
             input_token_limit=input_token_limit,
             output_token_limit=output_token_limit,
         )
+        # Set up the Gemini client
+        # If api_key is not provided, try to read from the environment variable GOOGLE_API_KEY
+        if not api_key:
+            api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("API key is required for Gemini LLM provider.")
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
         self.types = types
