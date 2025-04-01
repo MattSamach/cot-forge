@@ -42,7 +42,7 @@ class BaseScorer(ABC):
 
     @abstractmethod
     def score(self,
-              cot_list: list[dict[str, dict[str, Any]]],
+              cot_list: list[dict],
               question: str,
               ground_truth_answer: str,
               **kwargs: Any) -> dict[str, float]:
