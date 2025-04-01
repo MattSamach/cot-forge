@@ -6,7 +6,7 @@ authors = [
     {name = "Matthew Samach",email = "msamach94@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "google-genai (>=1.3.0,<2.0.0)",
     "tenacity (>=9.0.0,<10.0.0)",

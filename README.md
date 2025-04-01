@@ -3,7 +3,7 @@
 A Python library for generating high-quality Chain of Thought (CoT) ⛓️ reasoning data for training and fine-tuning large language models. 🧠
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![Python](https://img.shields.io/badge/python-≥3.9-blue)
+![Python](https://img.shields.io/badge/python-≥3.10-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Overview
@@ -96,10 +96,10 @@ For detailed documentation, see the [docs folder](./docs/):
 - [Verification](./docs/verification.md)
 - [Post-Processing](./docs/post-processing.md)
 - [Persistence](./docs/persistence.md)
-- [Examples](./docs/examples.md)
+- [Examples](./examples/README.md)
 
 ## License 📝
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 ## Contributing 🤝
 
