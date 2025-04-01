@@ -12,7 +12,6 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from cot_forge.reasoning import CoTBuilder
 from cot_forge.reasoning.types import SearchResult
 
 logger = logging.getLogger(__name__)
@@ -93,7 +92,7 @@ class PersistenceManager:
         # Create a hash from the question and answer
         return hashlib.md5(f"{question}:{ground_truth}".encode()).hexdigest()
     
-    def save_config(self, cot_builder: CoTBuilder) -> None:
+    def save_config(self, cot_builder: 'CoTBuilder') -> None:
         """
         Save the CoTBuilder configuration.
         

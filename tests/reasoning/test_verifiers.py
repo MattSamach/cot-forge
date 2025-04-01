@@ -394,12 +394,12 @@ class TestExactMatchVerifier:
         
         # Same case should pass
         is_correct, explanation = verifier.verify(self.node, "Paris")
-        assert not is_correct
+        assert is_correct
         assert "matches" in explanation
 
         # Different case should also pass
         is_correct, explanation = verifier.verify(self.node, "paris")
-        assert not is_correct
+        assert is_correct
         assert "matches" in explanation
 
     def test_none_cot(self):
