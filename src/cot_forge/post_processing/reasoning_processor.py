@@ -16,7 +16,6 @@ from .prompts import build_formal_response_prompt, build_natural_language_cot_pr
 logger = logging.getLogger(__name__)
 
 # TODO: Add tests for this module
-# TODO: Add concurrency support for batch processing
 # TODO: Add write line by line to output file so we can process large files, 
     # ^ also should be something like that in persistence
 
