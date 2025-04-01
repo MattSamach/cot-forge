@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from .llm_provider import LLMProvider
 
@@ -69,9 +68,9 @@ class LMStudioProvider(LLMProvider):
         
     def generate_completion(self,
                             prompt: str,
-                            system_prompt: Optional[str] = None,
+                            system_prompt: str | None = None,
                             temperature: float = 0.7,
-                            max_tokens: Optional[int] = 1024,
+                            max_tokens: int | None = 1024,
                             **kwargs):
         """
         Generate text using the LM Studio LLM API.

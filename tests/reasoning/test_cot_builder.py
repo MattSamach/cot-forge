@@ -140,7 +140,7 @@ class TestCoTBuilder(unittest.TestCase):
         }
         
         # Assert all question-answer pairs were processed
-        expected_params = set(zip(questions, ground_truths))
+        expected_params = set(zip(questions, ground_truths, strict=False))
         self.assertEqual(call_params, expected_params)
         
         # Assert the results are as expected

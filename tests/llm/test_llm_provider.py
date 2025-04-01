@@ -1,5 +1,4 @@
 import unittest
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 from src.cot_forge.llm import GeminiProvider, LLMProvider
@@ -26,9 +25,9 @@ class TestLLMProviderInterface(unittest.TestCase):
         class MinimalProvider(LLMProvider):
             def generate_completion(self, 
                                     prompt: str,
-                                    system_prompt: Optional[str] = None,
+                                    system_prompt: str | None = None,
                                     temperature: float = 0.7,
-                                    max_tokens: Optional[int] = None,
+                                    max_tokens: int | None = None,
                                     **kwargs) -> str:
                 return "Test response"
                 
@@ -171,9 +170,9 @@ class TestTokenLimits(unittest.TestCase):
         class TestProvider(LLMProvider):
             def generate_completion(self, 
                                 prompt: str,
-                                system_prompt: Optional[str] = None,
+                                system_prompt: str | None = None,
                                 temperature: float = 0.7,
-                                max_tokens: Optional[int] = None,
+                                max_tokens: int | None = None,
                                 **kwargs) -> str:
                 # Simple implementation that just returns test response
                 return "Test response"
