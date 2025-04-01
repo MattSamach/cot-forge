@@ -48,7 +48,7 @@ from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
 llm = GeminiProvider(api_key="your-api-key")
 verifier = LLMJudgeVerifier(llm_provider=llm)
-search = SimpleBeamSearch(max_depth=3, branching_factor=2)
+search = NaiveLinearSearch(max_depth=3)
 
 # Create builder with persistence
 builder = CoTBuilder.with_persistence(
@@ -56,7 +56,6 @@ builder = CoTBuilder.with_persistence(
     search=search,
     verifier=verifier,
     dataset_name="my_dataset",
-    search_name="beam_search",
     base_dir="data"
 )
 
@@ -118,7 +117,7 @@ from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
 processor = ReasoningProcessor(
     llm_provider=llm,
     dataset_name="my_dataset",
-    search_name="beam_search",
+    search_name="naive_linear_search",
     base_dir="data"  # Same base_dir as the persistence manager
 )
 
@@ -138,14 +137,6 @@ persistence = PersistenceManager(
     base_dir="/path/to/custom/directory",
     auto_resume=False  # Disable auto-resuming, will overwrite existing data
 )
-
-# Save custom configuration
-persistence.save_config({
-    "model": "gemini-pro",
-    "temperature": 0.7,
-    "strategy_registry": strategy_registry.serialize(),
-    "custom_parameter": "value"
-})
 ```
 
 ## Managing Multiple Search Strategies
@@ -158,8 +149,7 @@ linear_builder = CoTBuilder.with_persistence(
     search_llm=llm,
     search=NaiveLinearSearch(),
     verifier=verifier,
-    dataset_name="math_problems",
-    search_name="linear_search"
+    dataset_name="math_problems"
 )
 
 # Beam search on same dataset
@@ -167,7 +157,6 @@ beam_builder = CoTBuilder.with_persistence(
     search_llm=llm,
     search=SimpleBeamSearch(),
     verifier=verifier,
-    dataset_name="math_problems",
-    search_name="beam_search"
+    dataset_name="math_problems"
 )
 ```
