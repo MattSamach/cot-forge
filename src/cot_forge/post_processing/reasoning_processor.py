@@ -7,13 +7,11 @@ import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
-from cot_forge.reasoning.strategies import (StrategyRegistry,
-                                            default_strategy_registry)
+from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_registry
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.utils.search_utils import generate_and_parse_json
 
-from .prompts import (build_formal_response_prompt,
-                      build_natural_language_cot_prompt)
+from .prompts import build_formal_response_prompt, build_natural_language_cot_prompt
 
 logger = logging.getLogger(__name__)
 

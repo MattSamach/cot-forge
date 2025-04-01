@@ -10,13 +10,12 @@ It exports:
 
 from .base import BaseVerifier
 from .llm_verifiers import LLMJudgeVerifier
-from .prompts import (DEFAULT_VERIFICATION_PROMPT, STRICT_VERIFICATION_PROMPT,
-                      VERIFICATION_FORMAT_PROMPT)
+from .prompts import DEFAULT_VERIFICATION_PROMPT, STRICT_VERIFICATION_PROMPT, VERIFICATION_FORMAT_PROMPT
 from .rule_verifiers import ExactMatchVerifier
 
 __all__ = [
     "LLMJudgeVerifier",
-    "BaseVerifier"
+    "BaseVerifier",
     "ExactMatchVerifier",
     "DEFAULT_VERIFICATION_PROMPT",
     "STRICT_VERIFICATION_PROMPT",

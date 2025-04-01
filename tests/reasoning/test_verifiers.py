@@ -4,11 +4,14 @@ from unittest.mock import MagicMock, patch
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import Strategy
 from cot_forge.reasoning.types import ReasoningNode
-from cot_forge.reasoning.verifiers import (DEFAULT_VERIFICATION_PROMPT,
-                                           STRICT_VERIFICATION_PROMPT,
-                                           VERIFICATION_FORMAT_PROMPT,
-                                           BaseVerifier, ExactMatchVerifier,
-                                           LLMJudgeVerifier)
+from cot_forge.reasoning.verifiers import (
+    DEFAULT_VERIFICATION_PROMPT,
+    STRICT_VERIFICATION_PROMPT,
+    VERIFICATION_FORMAT_PROMPT,
+    BaseVerifier,
+    ExactMatchVerifier,
+    LLMJudgeVerifier,
+)
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 
 
@@ -363,12 +366,12 @@ class TestExactMatchVerifier:
     def test_initialization(self):
         """Test verifier initialization and attributes"""
         verifier = ExactMatchVerifier(match_case=True)
-        assert verifier.match_case == True
+        assert verifier.match_case
         assert verifier.name == "exact_match_verifier"
         assert isinstance(verifier.description, str)
 
         verifier = ExactMatchVerifier()  # default
-        assert verifier.match_case == False
+        assert not verifier.match_case
 
     def test_case_sensitive_matching(self):
         """Test case-sensitive matching behavior"""
@@ -376,13 +379,13 @@ class TestExactMatchVerifier:
         
         # Exact match should pass
         is_correct, explanation = verifier.verify(self.node, "Paris")
-        assert is_correct == True
+        assert is_correct
         assert "matches" in explanation
 
         # Different case should fail
         
         is_correct, explanation = verifier.verify(self.node, "paris")
-        assert is_correct == False
+        assert not is_correct
         assert "does not match" in explanation
 
     def test_case_insensitive_matching(self):
@@ -391,12 +394,12 @@ class TestExactMatchVerifier:
         
         # Same case should pass
         is_correct, explanation = verifier.verify(self.node, "Paris")
-        assert is_correct == True
+        assert not is_correct
         assert "matches" in explanation
 
         # Different case should also pass
         is_correct, explanation = verifier.verify(self.node, "paris")
-        assert is_correct == True
+        assert not is_correct
         assert "matches" in explanation
 
     def test_none_cot(self):
@@ -409,7 +412,7 @@ class TestExactMatchVerifier:
         )
         
         is_correct, explanation = self.verifier.verify(node, "test")
-        assert is_correct == False
+        assert not is_correct
         assert "Node.cot is None" in explanation
 
     def test_missing_final_conclusion(self):
@@ -422,7 +425,7 @@ class TestExactMatchVerifier:
         )
         
         is_correct, explanation = self.verifier.verify(node, "test")
-        assert is_correct == False
+        assert not is_correct
         assert node.metadata.get("warning") == "missing_final_conclusion"
 
     def test_from_dict(self):
@@ -437,7 +440,7 @@ class TestExactMatchVerifier:
         assert verifier.description == (
             "A verifier that checks if a final answer and ground truth answer are exact matches."
         )
-        assert verifier.match_case == True
+        assert verifier.match_case
         
 
     def test_whitespace_handling(self):
@@ -451,10 +454,10 @@ class TestExactMatchVerifier:
         
         # Should match despite extra whitespace
         is_correct, explanation = self.verifier.verify(node, "Paris")
-        assert is_correct == True
+        assert is_correct
         assert "matches" in explanation
         
         # Should match with whitespace in ground truth
         is_correct, explanation = self.verifier.verify(node, "  Paris  ")
-        assert is_correct == True
+        assert is_correct
         assert "matches" in explanation
