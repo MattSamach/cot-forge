@@ -1,7 +1,5 @@
-# Git Commit Message Schema for cot-forge
-We encourage you to follow the commit message schema below when contributing to cot-forge. This helps maintain a clean and understandable project history.
-
 ### Commit Message Format
+We encourage you to follow the commit message schema below when contributing to cot-forge. This helps maintain a clean and understandable project history.
 ```
 <type>(<scope>): <short summary>
 
