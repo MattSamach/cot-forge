@@ -192,10 +192,6 @@ class SimpleBeamSearch(BaseSearch):
             on_error='continue',
             logger=logger
         )
-        
-        # DEBUG
-        # current_node.is_final = False
-        # current_node.success = False
 
         return initial_node
     
