@@ -1,4 +1,3 @@
-import os
 
 from cot_forge.llm import AnthropicProvider
 from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch, default_strategy_registry

@@ -6,12 +6,12 @@ allowing users to easily switch between different models and providers.
 
 from .anthropic import AnthropicProvider
 from .gemini import GeminiProvider
+from .groq import GroqProvider
 from .hugging_face import HuggingFaceProvider
 from .llm_provider import LLMProvider
 from .lm_studio import LMStudioProvider
 from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
-from .groq import GroqProvider
 
 __all__ = [
     "LLMProvider",
