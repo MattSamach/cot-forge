@@ -1,6 +1,6 @@
-# CoT Forge
+# CoT Forge ✨
 
-A Python library for generating high-quality Chain of Thought (CoT) reasoning data for training and fine-tuning large language models.
+A Python library for generating high-quality Chain of Thought (CoT) ⛓️ reasoning data for training and fine-tuning large language models. 🧠
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Python](https://img.shields.io/badge/python-≥3.9-blue)
@@ -8,16 +8,15 @@ A Python library for generating high-quality Chain of Thought (CoT) reasoning da
 
 ## Overview
 
-CoT Forge helps you create synthetic training data that includes complex reasoning chains, enabling LLMs to learn more robust and transparent reasoning capabilities. Inspired by research like [HuatuoGPT-o1](https://github.com/FreedomIntelligence/HuatuoGPT-o1), this library implements a flexible framework for:
+CoT Forge helps you create synthetic training data that includes complex reasoning chains, enabling LLMs to learn more robust and transparent reasoning capabilities. 🚀 Inspired by research like [HuatuoGPT-o1](https://github.com/FreedomIntelligence/HuatuoGPT-o1), this library implements a flexible framework for:
 
-* Creating verifiable question/answer pairs
-* Finding optimal reasoning paths through tree search
-* Converting rigid reasoning paths into natural language
-* Formatting responses suitable for supervised fine-tuning
+* Creating verifiable question/answer pairs 🎯
+* Finding optimal reasoning paths through tree search algorithms 🌳
+* Reformatting reasoning chains into natural language ✍️
 
 ## Installation
 
-CoT Forge is compatible with Python 3.9 and above. You can install it via pip or clone the repository directly.
+CoT Forge is compatible with Python 3.10 and above. You can install it via pip or clone the repository directly. ⬇️
 
 ```bash
 # Install using pip
@@ -27,7 +26,7 @@ pip install cot-forge
 pip install git+https://github.com/MattSamach/cot-forge
 ```
 
-## Quick Start
+## Quick Start 🏃‍♀️
 
 ```python
 from cot_forge.llm import GeminiProvider
@@ -76,18 +75,17 @@ processed = processor.process(
 print(processed)
 ```
 
-## Core Features
+## Core Features ⚙️
 
 * **Multiple LLM Providers**: Support for OpenAI, Anthropic Claude, and Google Gemini models
 * **Flexible Search Strategies**: Choose from beam search, naive linear, and more
 * **Quality Verification**: Built-in verifiers to ensure reasoning is correct
-* **Result Scoring**: Various scoring methods to select the best reasoning paths  
-* **Natural Language Processing**: Convert structured reasoning into natural language for training
+* **Result Scoring**: Various scoring methods to select the best reasoning paths
+* **Natural Language Reformatting**: Convert structured reasoning into natural language for training
 * **Persistence**: Save and resume reasoning generation for large datasets
 * **Extensibility**: Easily add custom reasoning strategies, verifiers, and more
 
-
-## Documentation
+## Documentation 📚
 
 For detailed documentation, see the [docs folder](./docs/):
 
@@ -100,10 +98,9 @@ For detailed documentation, see the [docs folder](./docs/):
 - [Persistence](./docs/persistence.md)
 - [Examples](./docs/examples.md)
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## License 📝
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details. 
 
+## Contributing 🤝
 
-## Contributing
-
-Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this project.
+Please see [CONTRIBUTING](./CONTRIBUTING.md) for guidelines on contributing to this project.
