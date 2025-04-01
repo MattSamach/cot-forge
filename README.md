@@ -24,7 +24,7 @@ CoT Forge is compatible with Python 3.9 and above. You can install it via pip or
 pip install cot-forge
 
 # Or directly from the repository
-pip install git+https://github.com/your-username/cot-forge.git
+pip install git+https://github.com/MattSamach/cot-forge
 ```
 
 ## Quick Start
