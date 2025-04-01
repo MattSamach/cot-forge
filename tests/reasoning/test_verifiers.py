@@ -4,9 +4,14 @@ from unittest.mock import MagicMock, patch
 from cot_forge.llm import LLMProvider
 from cot_forge.reasoning.strategies import Strategy
 from cot_forge.reasoning.types import ReasoningNode
-from cot_forge.reasoning.verifiers.base import BaseVerifier
-from cot_forge.reasoning.verifiers.llm_verifiers import LLMJudgeVerifier
-from cot_forge.reasoning.verifiers.prompts import DEFAULT_VERIFICATION_PROMPT, VERIFICATION_FORMAT_PROMPT
+from cot_forge.reasoning.verifiers import (
+    DEFAULT_VERIFICATION_PROMPT,
+    STRICT_VERIFICATION_PROMPT,
+    VERIFICATION_FORMAT_PROMPT,
+    BaseVerifier,
+    ExactMatchVerifier,
+    LLMJudgeVerifier,
+)
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 
 
@@ -53,13 +58,12 @@ class TestLLMJudgeVerifier:
         assert self.verifier.llm_kwargs == {"temperature": 0.0}
         assert self.verifier.prompt_template == DEFAULT_VERIFICATION_PROMPT
         
-        # Test with custom prompt template
-        custom_template = "Custom template: {final_answer} vs {ground_truth_answer}"
+        # Test with strict verification
         custom_verifier = LLMJudgeVerifier(
             llm_provider=self.mock_llm_provider,
-            prompt_template=custom_template
+            strict=True
         )
-        assert custom_verifier.prompt_template == custom_template
+        assert custom_verifier.prompt_template == STRICT_VERIFICATION_PROMPT
 
     def test_build_prompt(self):
         """Test building the verification prompt."""
@@ -337,3 +341,123 @@ class TestBaseVerifier:
         )
         assert is_correct is True
         assert explanation == "Answer is correct"
+
+class TestExactMatchVerifier:
+    def setup_method(self):
+        """Set up test fixtures for each test method"""
+        # Create mock strategy
+        self.mock_strategy = MagicMock(spec=Strategy)
+        self.mock_strategy.name = "test_strategy"
+
+        # Create basic verifier instance
+        self.verifier = ExactMatchVerifier(match_case=False)
+        
+        # Create a sample reasoning node with CoT
+        self.node = ReasoningNode(
+            strategy=self.mock_strategy,
+            prompt="What is the capital of France?",
+            response="Let me think about European capitals. The answer is Paris.",
+            cot=[
+                {"action": "Inner Thinking", "content": "Let me think about European capitals."},
+                {"action": "Final Conclusion", "content": "Paris"}
+            ]
+        )
+
+    def test_initialization(self):
+        """Test verifier initialization and attributes"""
+        verifier = ExactMatchVerifier(match_case=True)
+        assert verifier.match_case
+        assert verifier.name == "exact_match_verifier"
+        assert isinstance(verifier.description, str)
+
+        verifier = ExactMatchVerifier()  # default
+        assert not verifier.match_case
+
+    def test_case_sensitive_matching(self):
+        """Test case-sensitive matching behavior"""
+        verifier = ExactMatchVerifier(match_case=True)
+        
+        # Exact match should pass
+        is_correct, explanation = verifier.verify(self.node, "Paris")
+        assert is_correct
+        assert "matches" in explanation
+
+        # Different case should fail
+        
+        is_correct, explanation = verifier.verify(self.node, "paris")
+        assert not is_correct
+        assert "does not match" in explanation
+
+    def test_case_insensitive_matching(self):
+        """Test case-insensitive matching behavior"""
+        verifier = ExactMatchVerifier(match_case=False)
+        
+        # Same case should pass
+        is_correct, explanation = verifier.verify(self.node, "Paris")
+        assert is_correct
+        assert "matches" in explanation
+
+        # Different case should also pass
+        is_correct, explanation = verifier.verify(self.node, "paris")
+        assert is_correct
+        assert "matches" in explanation
+
+    def test_none_cot(self):
+        """Test behavior with None CoT"""
+        node = ReasoningNode(
+            strategy=self.mock_strategy,
+            prompt="test",
+            response="test",
+            cot=None
+        )
+        
+        is_correct, explanation = self.verifier.verify(node, "test")
+        assert not is_correct
+        assert "Node.cot is None" in explanation
+
+    def test_missing_final_conclusion(self):
+        """Test behavior when no final conclusion can be extracted"""
+        node = ReasoningNode(
+            strategy=self.mock_strategy,
+            prompt="test",
+            response="test",
+            cot=[{"action": "Inner Thinking", "content": "just thinking"}]  # No Final Conclusion
+        )
+        
+        is_correct, explanation = self.verifier.verify(node, "test")
+        assert not is_correct
+        assert node.metadata.get("warning") == "missing_final_conclusion"
+
+    def test_from_dict(self):
+        """Test creation from dictionary"""
+        data = {
+            "match_case": True,
+        }
+        
+        verifier = ExactMatchVerifier.from_dict(data)
+        assert isinstance(verifier, ExactMatchVerifier)
+        assert verifier.name == "exact_match_verifier"
+        assert verifier.description == (
+            "A verifier that checks if a final answer and ground truth answer are exact matches."
+        )
+        assert verifier.match_case
+        
+
+    def test_whitespace_handling(self):
+        """Test handling of whitespace in answers"""
+        node = ReasoningNode(
+            strategy=self.mock_strategy,
+            prompt="test",
+            response="test",
+            cot=[{"action": "Final Conclusion", "content": "  Paris  "}]
+        )
+        
+        # Should match despite extra whitespace
+        is_correct, explanation = self.verifier.verify(node, "Paris")
+        assert is_correct
+        assert "matches" in explanation
+        
+        # Should match with whitespace in ground truth
+        is_correct, explanation = self.verifier.verify(node, "  Paris  ")
+        assert is_correct
+        assert "matches" in explanation

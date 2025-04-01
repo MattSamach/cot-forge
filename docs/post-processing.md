@@ -10,8 +10,6 @@ The `ReasoningProcessor` class is the main tool for post-processing:
 from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
 from cot_forge.llm import GeminiProvider
 
-llm = GeminiProvider(api_key="your-api-key")
-
 processor = ReasoningProcessor(
     llm_provider=llm,
     dataset_name="math_problems",
@@ -118,31 +116,16 @@ result = builder.build(
 processor = ReasoningProcessor(
     llm_provider=llm,
     dataset_name="geometry",
-    search_name="naive_search"
+    search_name="naive_linear_search"
 )
 
-best_node = result.get_best_node()
+successful_node = result.get_successful_terminal_nodes()[0]
 processed, _ = processor.process(
     question="What is the sum of angles in a triangle?",
-    cot=best_node.get_full_cot()
+    cot=successful_node.get_full_cot()
 )
 
 print(processed["natural_reasoning"])
-```
-
-## Customizing Prompts
-
-The post-processing module uses prompt templates that can be customized:
-
-```python
-from cot_forge.post_processing.prompts import build_natural_language_cot_prompt
-
-# Custom prompt for natural reasoning
-custom_prompt = build_natural_language_cot_prompt(
-    question="What is quantum entanglement?",
-    cot=reasoning_cot,
-    additional_instructions="Use simple analogies in your explanation."
-)
 ```
 
 ## Processing Large Datasets

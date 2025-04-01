@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from typing import Any, Literal
@@ -175,7 +176,6 @@ class ReasoningProcessor:
     
     def _save_processed_result(self, result: dict[str, Any]) -> None:
         """Save a processed result to the processed results file."""
-        import json
         
         with open(self.output_path, 'a') as f:
             f.write(json.dumps(result) + '\n')
@@ -187,7 +187,6 @@ class ReasoningProcessor:
         Returns:
             List of processed result dictionaries
         """
-        import json
         
         results = []
         if not self.output_path.exists():

@@ -1,112 +1,112 @@
 # Scorers
 
-Scorers are used to rank different reasoning paths by quality, helping CoT Forge select the best chains of thought.
+Scorers are used to rank different reasoning paths by quality, helping CoT Forge select the best chains of thought (CoTs).
 
 ## Available Scorers
 
 ### ProbabilityFinalAnswerScorer
 
-Scores paths based on the model's probability estimate for the final answer:
+Scores paths based on the model's probability estimate for the final answer matching the ground truth:
 
 ```python
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
-from cot_forge.llm import GeminiProvider
+from cot_forge.llm import LLMProvider
 
-llm = GeminiProvider(api_key="your-api-key")
+llm = LLMProvider(api_key="your-api-key")
 scorer = ProbabilityFinalAnswerScorer(llm_provider=llm)
 ```
 
 Parameters:
-- `llm_provider`: LLM provider used for scoring
+- `llm_provider`: Required LLM provider used for scoring
+- `llm_kwargs`: Optional dictionary of additional LLM provider arguments
 
 ## Scorer Interface
 
-All scorers implement the `ReasoningScorer` interface:
+All scorers implement the `BaseScorer` abstract base class:
 
 ```python
-class ReasoningScorer:
+class BaseScorer:
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        llm_provider: LLMProvider = None,
+        llm_kwargs: dict[str, Any] | None = None,
+        **kwargs
+    ):
+        """Initialize the scorer."""
+        pass
+
     def score(
-        self, 
-        question: str, 
-        node: ReasoningNode
-    ) -> float:
+        self,
+        cot_list: list[dict],
+        question: str,
+        ground_truth_answer: str,
+        **kwargs: Any
+    ) -> dict[str, float]:
         """
-        Score a reasoning path.
+        Score a list of reasoning paths.
         
         Args:
-            question: The original question
-            node: The reasoning node to score
+            cot_list: List of CoTs to be scored. Each CoT contains:
+                     - strategy_name: Name of the strategy
+                     - cot: Dictionary containing the chain of thought
+            question: The question being answered
+            ground_truth_answer: The true answer to compare against
             
         Returns:
-            float: Score (higher is better)
+            Dictionary mapping strategy names to float scores
         """
         pass
 ```
 
 ## Using with CoTBuilder
 
-Scorers are typically passed to the CoTBuilder to rank reasoning paths:
+Scorers are typically passed to the CoTBuilder:
 
 ```python
-from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch
+from cot_forge.reasoning import CoTBuilder
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 
 scorer = ProbabilityFinalAnswerScorer(llm_provider=llm)
 
 builder = CoTBuilder(
     search_llm=llm,
-    search=SimpleBeamSearch(),
-    verifier=verifier,
     scorer=scorer
 )
 ```
 
-## Creating Custom Scorers
+## Creating Custom Scorers 
 
-You can create custom scorers by implementing the `ReasoningScorer` interface:
+You can create custom scorers by inheriting from `BaseScorer`:
 
 ```python
-from cot_forge.reasoning.scorers import ReasoningScorer
-from cot_forge.reasoning.types import ReasoningNode
+from cot_forge.reasoning.scorers import BaseScorer
 
-class MyCustomScorer(ReasoningScorer):
+class MyCustomScorer(BaseScorer):
     def __init__(self, weight_factor=1.0):
+        super().__init__(
+            name="My Custom Scorer",
+            description="Scores based on custom logic"
+        )
         self.weight_factor = weight_factor
         
-    def score(self, question: str, node: ReasoningNode) -> float:
-        # Your scoring logic
-        # Return a float score (higher is better)
-        
-        # Example: Score based on reasoning length and keywords
-        cot = node.get_full_cot()
-        
-        # Higher score for more detailed reasoning (more steps)
-        step_score = len(node.thoughts) * 0.5
-        
-        # Higher score for mentioning certain keywords
-        keyword_score = sum(1.0 for keyword in ['because', 'therefore', 'since'] 
-                          if keyword in cot.lower())
-                          
-        return (step_score + keyword_score) * self.weight_factor
-```
-
-## Using Scorers for Selection
-
-In search strategies that explore multiple paths, scorers help select the best nodes:
-
-```python
-# Inside a search strategy implementation
-def search(self, question, llm_provider, verifier, scorer):
-    # Generate multiple reasoning paths
-    nodes = [generate_node(question) for _ in range(5)]
-    
-    if scorer:
-        # Score each node
-        scores = [scorer.score(question, node) for node in nodes]
-        
-        # Select best node based on scores
-        best_node = nodes[scores.index(max(scores))]
-    else:
-        # Default selection if no scorer provided
-        best_node = nodes[0]
+    def score(
+        self,
+        cot_list: list[dict],
+        question: str,
+        ground_truth_answer: str,
+        **kwargs
+    ) -> dict[str, float]:
+        scores = {}
+        for cot_item in cot_list:
+            strategy_name = cot_item["strategy_name"]
+            cot = cot_item["cot"]
+            
+            # Example scoring logic:
+            # Score based on number of reasoning steps
+            score = len(cot) * self.weight_factor
+            scores[strategy_name] = score
+            
+        return scores
 ```

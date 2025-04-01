@@ -54,7 +54,7 @@ CoT Forge provides several search algorithms:
 
 ### NaiveLinearSearch
 
-The simplest search strategy that generates a single reasoning path:
+The simplest search strategy that generates a single reasoning path by randomly selecting strategies at each node:
 
 ```python
 from cot_forge.reasoning import NaiveLinearSearch
@@ -109,21 +109,30 @@ Parameters:
 The general search process follows these steps:
 
 1. **Initialization**: Create initial node(s) using an initial strategy
-2. **Expansion**: Generate child nodes using various reasoning strategies
-3. **Evaluation**: Verify and score nodes to determine quality
-4. **Selection**: Choose which nodes to expand further
-5. **Termination**: Stop when success criteria are met or resources exhausted
-6. **Return**: Package the results into a SearchResult object
+2. **Expansion**: Generate candidate child nodes using various reasoning strategies
+3. **Scoring**: Evaluate nodes using a scorer (if the search selects for a subset of candidate nodes)
+4. **Selection**: Choose which nodes to add to the chains
+5. **Verification**: Verify if the child node has reached the success criteria
+   - If yes, mark it as a successful terminal node
+   - If no, continue expanding the node
+6. **Termination**: Stop when success criteria are met or termination conditions reached
+7. **Return**: Package the results into a SearchResult object
 
 ## Search Result
 
 The `SearchResult` class contains the outcome of a search:
 
 ```python
-# Access search results
-successful_nodes = result.get_successful_terminal_nodes()
+# Get all terminal nodes, including possibly failed ones
 terminal_nodes = result.terminal_nodes
-successfull_answers = result.get_successful_answers()
+# Get just successful terminal nodes
+successful_nodes = result.get_successful_terminal_nodes()
+# Get just the successful answers (strings)
+successful_answers = result.get_successful_final_answers()
+# Get all nodes in reasoning chain for one of the successful nodes
+successful_chain = successful_nodes[0].get_full_node_chain()
+# Get the full chain of thought for the successful node as a dictionary
+successful_chain_dict = successful_nodes[0].get_full_cot()
 ```
 
 SearchResult contains:
@@ -146,7 +155,7 @@ node = self.create_node(
     parent=parent_node
 )
 
-# Verify a node
+# Verify a node to check if it meets the success criteria
 success, error = self.verify_node(
     node=node,
     question=question,
@@ -184,11 +193,15 @@ linear = NaiveLinearSearch(max_depth=3)
 beam = SimpleBeamSearch(max_depth=3, beam_width=2, branching_factor=2)
 mcts = MonteCarloTreeSearch(max_iterations=10)
 
+# Create verifier and scorer
+verifier = LLMJudgeVerifier(llm_provider = llm)
+scorer = ProbabilityFinalAnswerScorer(llm_provider = llm)
+
 # Create builders using each algorithm
 builders = {
     "linear": CoTBuilder(search_llm=llm, search=linear, verifier=verifier),
-    "beam": CoTBuilder(search_llm=llm, search=beam, verifier=verifier),
-    "mcts": CoTBuilder(search_llm=llm, search=mcts, verifier=verifier)
+    "beam": CoTBuilder(search_llm=llm, search=beam, verifier=verifier, scorer=scorer),
+    "mcts": CoTBuilder(search_llm=llm, search=mcts, verifier=verifier, scorer=scorer)
 }
 
 # Compare results

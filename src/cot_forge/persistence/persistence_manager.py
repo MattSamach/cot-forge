@@ -10,7 +10,10 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cot_forge.reasoning.cot_builder import CoTBuilder
 
 from cot_forge.reasoning.types import SearchResult
 
@@ -92,7 +95,7 @@ class PersistenceManager:
         # Create a hash from the question and answer
         return hashlib.md5(f"{question}:{ground_truth}".encode()).hexdigest()
     
-    def save_config(self, cot_builder) -> None:
+    def save_config(self, cot_builder: 'CoTBuilder') -> None:
         """
         Save the CoTBuilder configuration.
         
@@ -286,7 +289,7 @@ class PersistenceManager:
         
         # Update metadata
         self.processed_ids.discard(question_id)
-        self.completed_items -=  num_results_deleted
+        self.completed_items -= num_results_deleted
         self.successful_items -= num_successes_deleted
             
         # Save updated metadata
