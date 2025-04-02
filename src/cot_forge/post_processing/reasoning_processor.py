@@ -340,4 +340,7 @@ class ReasoningProcessor:
             natural_reasoning=natural_reasoning
         )
         
+        if not formal_response:
+            return {}, "Failed to generate formal response."
+        
         return {"natural_reasoning": natural_reasoning, "formal_response": formal_response}, None
