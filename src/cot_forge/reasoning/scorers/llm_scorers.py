@@ -36,7 +36,7 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
     ) -> tuple[dict, str | None]:
         """Generate and parse scores using the LLM provider."""
         return generate_and_parse_json(
-            search_llm=self.llm_provider,
+            generation_llm=self.llm_provider,
             prompt=prompt,
             on_error=on_error,
             llm_kwargs=self.llm_kwargs,

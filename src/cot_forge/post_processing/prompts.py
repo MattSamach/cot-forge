@@ -15,34 +15,36 @@ version should:
 2. Avoid structured titles or formatting, focusing on natural transitions. Use casual and natural language for
 transitions or validations, such as "hmm," "oh," "also," "actually," or "wait."
 3. Expand the content, making the reasoning richer, more detailed, and logically clear while still being
-conversational and intuitive.
-Return directly the revised natural thinking in JSON format as follows:
+conversational and intuitive."""
+
+NATURAL_LANGUAGE_FORMAT_PROMPT = """\n\n**Output Format:**
+Strictly follow the JSON structure below. 
 
 ```json
 {
 "NaturalReasoning": "<INSERT_CONTENT_HERE>"
 }
-```
-"""
+```"""
 
 def build_natural_language_cot_prompt(
     question: str,
-    cot: dict,
+    cot: list[dict],
 ) -> str:
     """
     Build the natural language chain of thought prompt.
 
     Args:
         question (str): The question to be answered.
-        cot (dict): The chain of thought to be reformatted.
+        cot (list[dict]): The chain of thought to be reformatted.
 
     Returns:
         str: The formatted prompt.
     """
-    return NATURAL_LANGUAGE_COT_PROMPT.format(
-        Question=question,
+    prompt =  NATURAL_LANGUAGE_COT_PROMPT.format(
         Thought_Process=str(cot),
-    )
+        Question=question
+    ) + NATURAL_LANGUAGE_FORMAT_PROMPT
+    return prompt
     
 FORMAL_RESPONSE_PROMPT = """<Thinking>
 {natural_reasoning}

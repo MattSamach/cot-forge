@@ -108,7 +108,7 @@ class PersistenceManager:
             "search": cot_builder.search.to_dict(),
             "verifier": cot_builder.verifier.to_dict(),
             "scorer": cot_builder.scorer.to_dict() if cot_builder.scorer else None,
-            "strategy_reg": cot_builder.strategy_reg.serialize(),
+            "strategy_registry": cot_builder.strategy_registry.serialize(),
             "search_llm_kwargs": cot_builder.search_llm_kwargs,
             "created_at": datetime.now().isoformat(),
             "dataset_name": self.dataset_name,

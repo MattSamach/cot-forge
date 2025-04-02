@@ -61,7 +61,7 @@ class ReasoningNode:
 
     def add_child(self, child: 'ReasoningNode'):
         self.children.append(child)
-        
+
     def get_full_node_chain(self) -> list['ReasoningNode']:
         """Get the complete chain from the root to this node."""
         chain = []
@@ -234,7 +234,7 @@ class SearchResult:
         }
         
         return serialized_dict
-    
+
     @classmethod
     def deserialize(
         cls,
@@ -255,10 +255,10 @@ class SearchResult:
             serialized_dict (dict[str, Any]): The serialized SearchResult dictionary 
                 (see SearchResult.serializer)
             strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objs
-        
+
         Returns:
             SearchResult: A fully reconstructed SearchResult with the complete reasoning graph
-        
+
         Raises:
             ValueError: If the serialized dictionary is missing required keys
         """
