@@ -19,7 +19,7 @@ class TestCoTBuilder(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_llm = Mock(spec=LLMProvider)
         self.mock_search = Mock()
-        self.mock_strategy_reg = Mock(spec=StrategyRegistry)
+        self.mock_strategy_registry = Mock(spec=StrategyRegistry)
         self.mock_verifier = Mock(spec=LLMJudgeVerifier)
         
         # Create a mock search result to be returned by the search algorithm
@@ -37,7 +37,7 @@ class TestCoTBuilder(unittest.TestCase):
         self.cot_builder = CoTBuilder(
             search_llm=self.mock_llm,
             search=self.mock_search,
-            strategy_reg=self.mock_strategy_reg,
+            strategy_registry=self.mock_strategy_registry,
             verifier=self.mock_verifier
         )
 
@@ -63,7 +63,7 @@ class TestCoTBuilder(unittest.TestCase):
             ground_truth_answer=ground_truth,
             search_llm=self.mock_llm,
             llm_kwargs=llm_kwargs,
-            strategy_registry=self.mock_strategy_reg,
+            strategy_registry=self.mock_strategy_registry,
             verifier=self.mock_verifier,
             scorer=None,
             max_depth=3,
@@ -209,9 +209,9 @@ class TestCoTBuilderPersistence(unittest.TestCase):
         self.mock_verifier = Mock(spec=BaseVerifier)
         self.mock_verifier.to_dict = Mock(return_value={"type": "mock_verifier"})
         
-        self.mock_strategy_reg = Mock(spec=StrategyRegistry)
-        self.mock_strategy_reg.serialize = Mock(return_value={"strategies": ["mock"]})
-        self.mock_strategy_reg.list_strategies = Mock(return_value=["mock_strategy"])
+        self.mock_strategy_registry = Mock(spec=StrategyRegistry)
+        self.mock_strategy_registry.serialize = Mock(return_value={"strategies": ["mock"]})
+        self.mock_strategy_registry.list_strategies = Mock(return_value=["mock_strategy"])
         
         # Create a mock search result
         self.mock_search_result = Mock(spec=SearchResult)
@@ -419,7 +419,7 @@ class TestCoTBuilderPersistence(unittest.TestCase):
                 search=self.mock_search,
                 verifier=self.mock_verifier,
                 persistence=self.persistence,
-                strategy_reg=self.mock_strategy_reg
+                strategy_registry=self.mock_strategy_registry
             )
             
             questions = ["What is 2 + 2?"]
@@ -439,7 +439,7 @@ class TestCoTBuilderPersistence(unittest.TestCase):
             # Assert SearchResult.deserialize was called with the result data
             mock_deserialize.assert_called_once_with(
                 mock_result_data["result"],
-                self.mock_strategy_reg
+                self.mock_strategy_registry
             )
             
             # Assert results contain the loaded result
