@@ -120,7 +120,6 @@ class ReasoningNode:
             "success": self.success,
             "metadata": self.metadata
         }
-        
 
 class SearchResult:
     """

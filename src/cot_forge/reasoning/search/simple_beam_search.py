@@ -33,6 +33,11 @@ Logical flow:
     5. Result: Return all beams.
 """
 # TODO: Experiment with multithreading in beam generation
+# TODO: Look into implementing more true branching and pruning into search
+# TODO: Make sure I have robust retry for error handling in intialize beams, strategy selection, etc
+# TODO: Make sure counting and reporting depth correctly
+# TODO: Throw error if no scorer is provided
+# TODO: Somehow include pruned nodes in the final result / chains / whatever
 
 import logging
 from typing import Any
@@ -168,7 +173,7 @@ class SimpleBeamSearch(BaseSearch):
         prompt = strategy.build_prompt(question)
         
         response, cot = generate_and_parse_cot(
-            search_llm=search_llm,
+            llm_provider=search_llm,
             prompt=prompt,
             llm_kwargs=llm_kwargs,
             logger=logger,

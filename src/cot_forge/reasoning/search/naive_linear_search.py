@@ -144,7 +144,7 @@ class NaiveLinearSearch(BaseSearch):
             # Generate response and cot.
             try:
                 response, cot = generate_and_parse_cot(
-                    search_llm=search_llm,
+                    llm_provider=search_llm,
                     prompt=prompt,
                     llm_kwargs=llm_kwargs,
                     logger=logger

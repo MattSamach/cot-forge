@@ -91,8 +91,11 @@ class ReasoningProcessor:
             auto_resume=True
         )
         
-        # Set output directory
-        self.output_path = self.persistence.search_dir / output_file
+        # Set output directory - handle absolute vs relative paths
+        output_path = Path(output_file)
+        if not output_path.is_absolute():
+            output_path = self.persistence.search_dir / output_file
+        self.output_path = output_path
         
         # Create output directory if it doesn't exist
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -255,7 +258,7 @@ class ReasoningProcessor:
         
         # Generate and parse reasoning using the LLM
         response, natural_reasoning = generate_and_parse_json(
-            generation_llm=self.llm_provider,
+            llm_provider=self.llm_provider,
             prompt=prompt,
             on_error=on_error,
             llm_kwargs=llm_kwargs,

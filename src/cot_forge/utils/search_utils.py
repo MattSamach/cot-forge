@@ -95,7 +95,7 @@ def execute_with_fallback(
         return None, f"Unexpected error in {operation_name}"
 
 def generate_and_parse_json(
-        generation_llm: LLMProvider,
+        llm_provider: LLMProvider,
         prompt: str,
         llm_kwargs: dict[str, Any] = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
@@ -108,7 +108,7 @@ def generate_and_parse_json(
         Generate and parse the chain of thought (CoT) from the LLM.
         
         Args:
-            generation_llm: The LLM provider to use for generation
+            llm_provider: The LLM provider to use for generation
             prompt: The prompt to send to the LLM
             llm_kwargs: Additional kwargs for LLM generation
             on_error: How to handle errors during generation
@@ -123,7 +123,7 @@ def generate_and_parse_json(
             RuntimeError: If the operation fails and on_error="raise" or "retry"
         Example:
             >>> response, natural_reasoning = generate_and_parse_cot(
-            ...     generation_llm,
+            ...     llm_provider,
             ...     prompt="What is the capital of France?",
             ...     llm_kwargs={"temperature": 0.7},
             ...     on_error="retry",
@@ -137,7 +137,7 @@ def generate_and_parse_json(
         
         def helper_function():
             # Generate the response using the LLM
-            response = generation_llm.generate(prompt, **(llm_kwargs or {}))
+            response = llm_provider.generate(prompt, **(llm_kwargs or {}))
             # Extract the CoT from the response
             if retrieval_object:
                 object = parse_json_response(response)[retrieval_object]
@@ -174,7 +174,7 @@ def generate_and_parse_json(
         return response, object
 
 def generate_and_parse_cot(
-        generation_llm: LLMProvider,
+        llm_provider: LLMProvider,
         prompt: str,
         llm_kwargs: dict[str, Any] = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
@@ -186,7 +186,7 @@ def generate_and_parse_cot(
         Generate and parse the chain of thought (CoT) from the LLM.
         
         Args:
-            generation_llm: The LLM provider to use for generation
+            llm_provider: The LLM provider to use for generation
             prompt: The prompt to send to the LLM
             llm_kwargs: Additional kwargs for LLM generation
             on_error: How to handle errors during generation
@@ -198,7 +198,7 @@ def generate_and_parse_cot(
             RuntimeError: If the operation fails and on_error="raise" or "retry"
         Example:
             >>> response, cot = generate_and_parse_cot(
-            ...     generation_llm,
+            ...     llm_provider,
             ...     prompt="What is the capital of France?",
             ...     llm_kwargs={"temperature": 0.7},
             ...     on_error="retry",
@@ -210,7 +210,7 @@ def generate_and_parse_cot(
         """
         
         return generate_and_parse_json(
-            generation_llm=generation_llm,
+            llm_provider=llm_provider,
             prompt=prompt,
             llm_kwargs=llm_kwargs,
             on_error=on_error,
