@@ -32,7 +32,6 @@ Logical flow:
     4. Termination: Continue until a termination condition is met (e.g., maximum depth reached).
     5. Result: Return all beams.
 """
-# TODO: Experiment with multithreading in beam generation
 # TODO: Look into implementing more true branching and pruning into search
 # TODO: Make sure I have robust retry for error handling in intialize beams, strategy selection, etc
 # TODO: Make sure counting and reporting depth correctly
@@ -342,6 +341,10 @@ class SimpleBeamSearch(BaseSearch):
         Raises:
             ValueError: If an error occurs during strategy selection or beam initialization.
         """
+        # Assert that scorer is provided
+        if scorer is None:
+            raise ValueError("Scorer must be provided for beam search.")
+        
         # Create initial node
         try:
             initial_node = self.initialize_cot(
