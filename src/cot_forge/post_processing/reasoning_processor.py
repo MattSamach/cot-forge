@@ -23,7 +23,6 @@ Example Usage:
     processed_results = processor.process_batch(limit=100)
     
 TODO:
-- Add tests for this module to ensure reliability and correctness.
 - Implement line-by-line writing to the output file to support processing of large files
 This will allow for more efficient memory management when dealing with extensive datasets.
 """

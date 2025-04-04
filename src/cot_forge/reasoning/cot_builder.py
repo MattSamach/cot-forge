@@ -63,7 +63,6 @@ from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Consider what to do wrt overwriting/duplicate result data
-# TODO: Whenever there is a retry, make sure log shows # / n attempts
 
 logger = logging.getLogger(__name__)
 
