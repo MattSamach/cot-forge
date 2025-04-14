@@ -132,9 +132,9 @@ class NaiveLinearSearch(BaseSearch):
         # Initialize the reasoning node
         current_node = None
         
-        for depth in range(self.max_depth):
+        for depth in range(self.max_depth+1):
             # Select next strategy
-            strategies, _ = self.strategy_selector.select(registry = strategy_registry, depth = depth)
+            strategies = self.strategy_selector.select(registry = strategy_registry, depth = depth)['selected_strategies']
             strategy = strategies[0] if isinstance(strategies, list) else strategies
             
             # Build prompt based on selected strategy
@@ -189,7 +189,7 @@ class NaiveLinearSearch(BaseSearch):
                     ground_truth_answer=ground_truth_answer,
                     terminal_nodes=[current_node],
                     success=True,
-                    metadata={"depth": depth + 1,
+                    metadata={"depth": depth,
                               "reason": "verifier_success"},
                 )
         
