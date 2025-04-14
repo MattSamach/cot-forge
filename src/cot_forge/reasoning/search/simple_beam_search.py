@@ -33,11 +33,8 @@ Logical flow:
     5. Result: Return all beams.
 """
 # TODO: Implement true branching by comparing across all beams
-# TODO: Implement pruning nodes
 # TODO: Make sure I have robust retry for error handling in intialize beams, strategy selection, etc
-# TODO: Make sure counting and reporting depth correctly
-# TODO: Throw error if no scorer is provided
-# TODO: Somehow include pruned nodes in the final result / chains / whatever
+# TODO: Multithread the beam search
 
 import logging
 from typing import Any
@@ -469,7 +466,7 @@ class SimpleBeamSearch(BaseSearch):
                         prompt=strat_data['prompt'],
                         response=strat_data['response'],
                         cot=strat_data['cot'],
-                        parent=initial_node,
+                        parent=beam,
                         pruned=True,
                         metadata={"is_initial": False, "score": strat_data['score']}
                     )
