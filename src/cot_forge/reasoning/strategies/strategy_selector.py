@@ -65,7 +65,7 @@ class StrategySelector(ABC):
                registry: StrategyRegistry,
                depth: int,
                num_strategies: int = 1,
-               **kwargs) -> tuple[list[Strategy], dict[str, Any]]:
+               **kwargs) -> dict[str, Any]:
         """
         Select strategies based on the provided registry and current reasoning state.
         
@@ -79,9 +79,9 @@ class StrategySelector(ABC):
             **kwargs: Additional arguments for specific implementations.
             
         Returns:
-            tuple: A tuple containing:
-                - list[Strategy]: A list of selected strategy objects.
-                - dict[str, Any]: A dictionary with optional additional information about the selection.
+            - dict[str, Any]: A dictionary cotaining:
+                - "selected_strategies": The list of selected strategies.
+                - Any additional information relevant to the selection process.
         """
         pass
     
@@ -155,7 +155,7 @@ class RandomStrategySelector(StrategySelector):
         depth: int, 
         num_strategies: int = 1, 
         **kwargs
-    ) -> tuple[list[Strategy], dict[str, Any]]:
+    ) -> dict[str, Any]:
         """
         Select random strategies from the eligible options in the registry.
         
@@ -166,9 +166,8 @@ class RandomStrategySelector(StrategySelector):
             **kwargs: Unused additional arguments.
             
         Returns:
-            tuple: A tuple containing:
-                - list[Strategy]: A list of randomly selected strategy objects.
-                - dict: An empty dictionary as no additional selection info is provided.
+            - dict: A dictionary containing:
+                - "selected_strategies": The list of selected strategies.
                 
         Raises:
             ValueError: If no eligible strategies are found or if requesting more
@@ -178,7 +177,7 @@ class RandomStrategySelector(StrategySelector):
         strategy_options = self.get_strategy_options(registry, depth)
         selected_strategies = random.sample(strategy_options, num_strategies)
         logger.debug(f"Selected strategies: {[strategy.name for strategy in strategy_options]}")
-        return selected_strategies, {}
+        return {"selected_strategies": selected_strategies}
     
 class ScoredStrategySelector(StrategySelector):
     """
@@ -203,7 +202,7 @@ class ScoredStrategySelector(StrategySelector):
         node: 'ReasoningNode' = None,
         llm_kwargs: dict[str, Any] = None,
         **kwargs
-    ) -> tuple[list[Strategy], dict[str, Any]]:
+    ) -> tuple[dict[str, Any]]:
         """
         Select strategies by scoring their performance on the given question.
         
@@ -227,12 +226,12 @@ class ScoredStrategySelector(StrategySelector):
             **kwargs: Unused additional arguments.
             
         Returns:
-            tuple: A tuple containing:
-                - list[Strategy]: A list of the highest-scoring strategy objects.
-                - dict: A dictionary containing:
-                    - "strategies_dict": Detailed information about each strategy evaluation.
-                    - "scores": The scores assigned to each strategy.
-                    
+        - dict: A dictionary containing:
+            - "strategies_dict": Detailed information about each strategy evaluation.
+            - "scores": The scores assigned to each strategy.
+            - "selected_strategies": The list of selected strategies.
+            - "rejected_strategies": The list of strategies that were not selected.
+
         Raises:
             ValueError: If no eligible strategies are found or if no strategies 
                 could be successfully scored.
@@ -251,8 +250,7 @@ class ScoredStrategySelector(StrategySelector):
                 response, cot = generate_and_parse_cot(
                     search_llm,
                     prompt=prompt,
-                    llm_kwargs=llm_kwargs,
-                    on_error="raise"
+                    llm_kwargs=llm_kwargs
                 )
             except Exception as e:
                 logger.error(f"Error generating COT for strategy {strategy.name}: {e}")
@@ -296,17 +294,21 @@ class ScoredStrategySelector(StrategySelector):
         # Select the top strategies
         # If num_strategies is greater than the number of available strategies, loop back to the start
         i = 0
-        selected_strategy_names = []
-        while len(selected_strategy_names) < num_strategies:
-            strat_name = sorted_strategies[i % len(sorted_strategies)][0]
-            selected_strategy_names.append(strat_name)
+        selected_strategies = []
+        while len(selected_strategies) < num_strategies:
+            strat = registry.get_strategy(sorted_strategies[i % len(sorted_strategies)][0])
+            selected_strategies.append(strat)
             i += 1
-            
-        # Convert strategy names to Strategy objects
-        selected_strategies = [registry.get_strategy(strat_name) for strat_name in selected_strategy_names]
-        logger.debug(f"Selected strategies: {[strategy_name for strategy_name in selected_strategy_names]}")
         
-        return selected_strategies, {
+        # Get rejected strategies
+        rejected_strategies = [strategy for strategy in strategy_options if strategy not in selected_strategies]
+        
+        # Create dict for additional search info including strategies dict, scores, and rejected strategies
+        search_info = {
             "strategies_dict": strategies_dict,
             "scores": scores,
+            "selected_strategies": selected_strategies,
+            "rejected_strategies": rejected_strategies,
         }
+        
+        return search_info
