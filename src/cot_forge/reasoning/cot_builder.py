@@ -63,6 +63,7 @@ from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Consider what to do wrt overwriting/duplicate result data
+# TODO: Make CoTBuilder a one-stop-shop for end-to-end batch processing with a single method
 
 logger = logging.getLogger(__name__)
 
@@ -118,11 +119,13 @@ class CoTBuilder:
         if self.persistence:
             self.persistence.save_config(self)
         
-    def build(self,
-              question: str,
-              ground_truth_answer: str,
-              llm_kwargs: dict[str, Any] = None,
-              **kwargs) -> SearchResult | None:
+    def build(
+        self,
+        question: str,
+        ground_truth_answer: str,
+        llm_kwargs: dict[str, Any] = None,
+        **kwargs
+        ) -> SearchResult | None:
         """
         Construct a chain of thought for a single question.
 
