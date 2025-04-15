@@ -40,7 +40,7 @@ from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_re
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.utils.search_utils import generate_and_parse_json
 
-from .prompts import build_formal_response_prompt, build_natural_language_cot_prompt
+from .prompts import build_formal_answer_prompt, build_natural_language_cot_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class ReasoningProcessor:
         llm_kwargs: dict[str, Any] | None = None,
         base_dir: str = "data",
         output_file: str = "processed_results.jsonl",
+        thinking_tag: str = "thinking",
         **kwargs
     ):
         """
@@ -75,12 +76,14 @@ class ReasoningProcessor:
             strategy_reg: Strategy registry for deserializing results
             output_file: Path to save post-processed results:
                 (default base_dir/dataset_name/search_name/processed_results.jsonl)
+            thinking_tag: Tag for the reasoning process, default is "thinking" i.e. <thinking>
         """
         self.llm_kwargs = llm_kwargs or {}
         self.llm_provider = llm_provider
         self.dataset_name = dataset_name
         self.search_name = search_name
         self.base_dir = Path(base_dir)
+        self.thinking_tag = thinking_tag
         
         # Create persistence manager to read results (but not write to them)
         self.persistence = PersistenceManager(
@@ -175,20 +178,34 @@ class ReasoningProcessor:
                 cot = node.get_full_cot()
                 
                 # Generate natural reasoning
-                response_dict, error = self.process(question=question, cot=cot)
+                response_dict, error = self.process(
+                    question=question, 
+                    cot=cot,
+                    on_error=on_error,
+                    llm_kwargs=llm_kwargs,
+                    max_retries=max_retries,
+                    retry_delay=retry_delay
+                )
                 if error:
                     logger.warning(f"Error generating natural reasoning: {error}")
                     continue
                 natural_reasoning = response_dict.get("natural_reasoning")
-                formal_response = response_dict.get("formal_response")
+                formal_answer = response_dict.get("formal_answer")
+                
+                # Create the full response with reasoning in thinking tags and formal answer 
+                full_response = (
+                    "<" + self.thinking_tag + ">" + 
+                    natural_reasoning + 
+                    "</" + self.thinking_tag + ">" +
+                    "\n\n" + formal_answer
+                )
 
                 # Create processed result
                 processed_result = {
                     "id": result["id"],
                     "question": question,
                     "ground_truth": ground_truth,
-                    "natural_reasoning": natural_reasoning,
-                    "formal_response": formal_response,
+                    "chain_of_thought_response": full_response,
                 }
                 
                 # Add to results list
@@ -275,13 +292,14 @@ class ReasoningProcessor:
         return natural_reasoning
             
         
-    def generate_formal_response(
+    def generate_formal_answer(
         self,
         question: str,
         natural_reasoning: str
     ) -> str:
         """
-        Generate a formal response based on the natural reasoning.
+        Generate a formal answer based on the natural reasoning.
+
         Args:
             question (str): The question to be answered.
             natural_reasoning (str): The natural reasoning process.
@@ -289,7 +307,7 @@ class ReasoningProcessor:
             str: The formatted formal response.
         """
         # Build the formal response prompt
-        prompt = build_formal_response_prompt(
+        prompt = build_formal_answer_prompt(
             question=question,
             natural_reasoning=natural_reasoning,
         )
@@ -333,13 +351,13 @@ class ReasoningProcessor:
         if not natural_reasoning:
             return {}, "Failed to generate natural reasoning."
         
-        # Generate formal response
-        formal_response = self.generate_formal_response(
+        # Generate formal answer
+        formal_answer = self.generate_formal_answer(
             question=question,
             natural_reasoning=natural_reasoning
         )
         
-        if not formal_response:
+        if not formal_answer:
             return {}, "Failed to generate formal response."
         
-        return {"natural_reasoning": natural_reasoning, "formal_response": formal_response}, None
+        return {"natural_reasoning": natural_reasoning, "formal_answer": formal_answer}, None

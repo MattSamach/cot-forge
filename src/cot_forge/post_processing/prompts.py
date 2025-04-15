@@ -59,12 +59,12 @@ a rich and high-quality final response to the user. If there is a clear answer, 
 final response closely follows the <Question>. Output only your final response, without any additional content.
 """
 
-def build_formal_response_prompt(
+def build_formal_answer_prompt(
     question: str,
     natural_reasoning: str,
 ) -> str:
     """
-    Build the formal response prompt.
+    Build the formal answer prompt.
 
     Args:
         question (str): The question to be answered.
