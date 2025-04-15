@@ -124,11 +124,11 @@ The `SearchResult` class contains the outcome of a search:
 
 ```python
 # Get all terminal nodes, including possibly failed ones
-terminal_nodes = result.terminal_nodes
+terminal_nodes = search_result.terminal_nodes
 # Get just successful terminal nodes
-successful_nodes = result.get_successful_terminal_nodes()
+successful_nodes = search_result.get_successful_terminal_nodes()
 # Get just the successful answers (strings)
-successful_answers = result.get_successful_final_answers()
+successful_answers = search_result.get_successful_final_answers()
 # Get all nodes in reasoning chain for one of the successful nodes
 successful_chain = successful_nodes[0].get_full_node_chain()
 # Get the full chain of thought for the successful node as a dictionary

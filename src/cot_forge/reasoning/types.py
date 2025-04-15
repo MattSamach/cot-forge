@@ -10,6 +10,7 @@ reasoning node, the question, the ground truth answer, all terminal nodes, the s
 status, the final answer, and any relevant metadata.
 """
 
+from collections import deque
 from typing import Any, Optional
 from uuid import uuid4 as uuid
 
@@ -31,6 +32,7 @@ class ReasoningNode:
         children (list[ReasoningNode]): The child nodes of this node.
         is_final (bool): Indicates if this node is the final node in its chain.
         success (bool): Indicates if the reasoning at this node was successful.
+        pruned (bool): Indicates if this node was pruned during the search.
         metadata (dict[str, Any]): Additional information about this node.
     Methods:
         add_child(child: 'ReasoningNode'): Adds a child node to this node.
@@ -46,6 +48,7 @@ class ReasoningNode:
              parent: Optional['ReasoningNode'] = None,
              is_final: bool = False,
              success: bool = False,
+             pruned: bool = False,
              metadata: dict[str, Any] = None
              ):
         self.id = id if id else str(uuid())
@@ -57,11 +60,12 @@ class ReasoningNode:
         self.children: list[ReasoningNode] = []
         self.is_final = is_final
         self.success = success
+        self.pruned = pruned
         self.metadata = {} if metadata is None else metadata
 
     def add_child(self, child: 'ReasoningNode'):
         self.children.append(child)
-        
+
     def get_full_node_chain(self) -> list['ReasoningNode']:
         """Get the complete chain from the root to this node."""
         chain = []
@@ -79,6 +83,13 @@ class ReasoningNode:
             if node.cot:
                 result.extend(node.cot)
         return result
+    
+    def get_root(self) -> 'ReasoningNode':
+        """Get the root node of the reasoning chain."""
+        current_node = self
+        while current_node.parent:
+            current_node = current_node.parent
+        return current_node
     
     def __repr__(self):        
         # Count CoT steps instead of showing them
@@ -120,7 +131,6 @@ class ReasoningNode:
             "success": self.success,
             "metadata": self.metadata
         }
-        
 
 class SearchResult:
     """
@@ -128,6 +138,7 @@ class SearchResult:
     Attributes:
         question (str): The original question posed to the search algorithm.
         ground_truth_answer (str): The known correct answer to the question.
+        root_node (ReasoningNode): The root node of the reasoning graph.
         terminal_nodes (list[ReasoningNode] | None): A list of all terminal nodes reached in search.
         success (bool): Indicates whether the search was successful in finding a valid answer.
         metadata (dict[str, Any]): Additional information or statistics about the search process.
@@ -146,6 +157,8 @@ class SearchResult:
         self.terminal_nodes = terminal_nodes if terminal_nodes else []
         self.success = success
         self.metadata = metadata if metadata else {}
+        # Assumption is that all terminal nodes share the same root node
+        self.root_node = self.terminal_nodes[0].get_root() if self.terminal_nodes else None
 
     def get_successful_terminal_nodes(self) -> list[ReasoningNode]:
         """Returns a list of successful terminal nodes."""
@@ -208,22 +221,26 @@ class SearchResult:
         adjacency_list = [] # format: (parent_id, child_id)
         traversed_relationships = set()
         node_map = {} # format: node_map[id] = ReasoningNode
-        for terminal_node in self.terminal_nodes:
-            node = terminal_node
-
-            # Traverse through all chains starting at terminal node
-            while node:
+        
+        # Breadth-first traversal of the reasoning graph
+        queue = deque([self.root_node])
+        while queue:
+            current_node = queue.popleft()
+            if current_node:
                 # Add to the node map
-                node_map[node.id] = node    
+                node_map[current_node.id] = current_node
                 
                 # Add to the adjacency_list if not already traversed
-                current_relationship = (str(node.parent.id) if node.parent else None, str(node.id))
+                current_relationship = (
+                    str(current_node.parent.id) if current_node.parent else None, str(current_node.id)
+                )
                 if current_relationship not in traversed_relationships:
                     adjacency_list.append(current_relationship)
                     traversed_relationships.add(current_relationship)
-                
-                node = node.parent
-                
+                # Add children to the queue
+                for child in current_node.children:
+                    queue.append(child)
+
         serialized_dict = {
             "adjacency_list": adjacency_list,
             "node_map": {k: v.to_dict() for k, v in node_map.items()},
@@ -234,7 +251,7 @@ class SearchResult:
         }
         
         return serialized_dict
-    
+
     @classmethod
     def deserialize(
         cls,
@@ -255,10 +272,10 @@ class SearchResult:
             serialized_dict (dict[str, Any]): The serialized SearchResult dictionary 
                 (see SearchResult.serializer)
             strategy_registry (StrategyRegistry): Registry to convert strategy names to Strategy objs
-        
+
         Returns:
             SearchResult: A fully reconstructed SearchResult with the complete reasoning graph
-        
+
         Raises:
             ValueError: If the serialized dictionary is missing required keys
         """

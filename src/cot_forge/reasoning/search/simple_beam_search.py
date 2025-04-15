@@ -32,7 +32,9 @@ Logical flow:
     4. Termination: Continue until a termination condition is met (e.g., maximum depth reached).
     5. Result: Return all beams.
 """
-# TODO: Experiment with multithreading in beam generation
+# TODO: Implement true branching by comparing across all beams
+# TODO: Make sure I have robust retry for error handling in intialize beams, strategy selection, etc
+# TODO: Multithread the beam search
 
 import logging
 from typing import Any
@@ -168,7 +170,7 @@ class SimpleBeamSearch(BaseSearch):
         prompt = strategy.build_prompt(question)
         
         response, cot = generate_and_parse_cot(
-            search_llm=search_llm,
+            llm_provider=search_llm,
             prompt=prompt,
             llm_kwargs=llm_kwargs,
             logger=logger,
@@ -195,17 +197,18 @@ class SimpleBeamSearch(BaseSearch):
 
         return initial_node
     
-    def initialize_beams(self,
-                         initial_node: ReasoningNode,
-                         strategy_registry: StrategyRegistry,
-                         scorer: BaseScorer,
-                         depth: int,
-                         search_llm: LLMProvider,
-                         question: str,
-                         ground_truth_answer: str,
-                         verifier: BaseVerifier,
-                         llm_kwargs: dict[str, Any] = None,
-                         )-> list[ReasoningNode]:
+    def initialize_beams(
+        self,
+        initial_node: ReasoningNode,
+        strategy_registry: StrategyRegistry,
+        scorer: BaseScorer,
+        depth: int,
+        search_llm: LLMProvider,
+        question: str,
+        ground_truth_answer: str,
+        verifier: BaseVerifier,
+        llm_kwargs: dict[str, Any] = None,
+    )-> list[ReasoningNode]:
         """
         Initialize the beams for the beam search by creating multiple reasoning nodes.
 
@@ -249,13 +252,13 @@ class SimpleBeamSearch(BaseSearch):
         """
         
         llm_kwargs = llm_kwargs or {}
-        #  Set the number of strategies to consider as the maximum of the branching factor and beam width
-        # This ensures that we consider enough strategies to fill the beams
+        # Set the number of strategies to consider as the maximum of the branching factor and beam width
+        # This ensures that we consider enough strategies to fulfill the beam width
         # If the number of strategies is less than the beam width, we can reuse strategies
         num_considered_strategies = max(self.branching_factor, self.beam_width)
 
         try:
-            selected_strategies, search_data = self.strategy_selector.select(
+            search_data = self.strategy_selector.select(
                 search_llm=search_llm,
                 registry=strategy_registry,
                 depth=depth,
@@ -272,7 +275,25 @@ class SimpleBeamSearch(BaseSearch):
             logger.error("Error in selecting strategies")
             raise ValueError("Failed to select strategies") from e
         
-        strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
+        # Unpack the search data
+        strategies_dict = search_data['strategies_dict']
+        selected_strategies = search_data['selected_strategies']
+        rejected_strategies = search_data['rejected_strategies']
+        
+        # Create pruned nodes for rejected strategies
+        for strategy in rejected_strategies:
+            strat_data = strategies_dict[strategy.name]
+            # Create a new node for each rejected strategy, marking it as pruned
+            self.create_node(
+                strategy=strat_data['strategy'],
+                prompt=strat_data['prompt'],
+                response=strat_data['response'],
+                cot=strat_data['cot'],
+                parent=initial_node,
+                pruned=True,
+                metadata={"is_initial": False, "score": strat_data['score']}
+            )
+        
         # Create beams with initial node as parent
         beams = []
         for strategy in selected_strategies:
@@ -284,7 +305,7 @@ class SimpleBeamSearch(BaseSearch):
                 response=strat_data['response'],
                 cot=strat_data['cot'],
                 parent=initial_node,
-                metadata={"is_initial": False, "scores": scores}
+                metadata={"is_initial": False, "score": strat_data['score']}
             )
             
             beams.append(new_beam)
@@ -311,7 +332,7 @@ class SimpleBeamSearch(BaseSearch):
         verifier: BaseVerifier,
         strategy_registry: StrategyRegistry = default_strategy_registry,
         llm_kwargs: dict[str, Any] = None,
-        max_depth: int = 3
+        max_depth: int = 2
     ) -> SearchResult:
         """
         Perform a beam search to generate possible chains of thought.
@@ -328,7 +349,7 @@ class SimpleBeamSearch(BaseSearch):
             verifier (BaseVerifier): The verifier used to check the correctness of final answers.
             strategy_registry (StrategyRegistry, optional): The registry of available strategies.
             llm_kwargs (dict[str, Any], optional): Additional keyword arguments for reasoning LLM calls.
-            max_depth (int, optional): Maximum depth of the search tree. Defaults to 3.
+            max_depth (int, optional): Maximum depth of the search tree. Defaults to 2.
             beam_width (int, optional): Number of beams to maintain at each step. Defaults to 3.
 
         Returns:
@@ -337,6 +358,10 @@ class SimpleBeamSearch(BaseSearch):
         Raises:
             ValueError: If an error occurs during strategy selection or beam initialization.
         """
+        # Assert that scorer is provided
+        if scorer is None:
+            raise ValueError("Scorer must be provided for beam search.")
+        
         # Create initial node
         try:
             initial_node = self.initialize_cot(
@@ -352,7 +377,7 @@ class SimpleBeamSearch(BaseSearch):
                                 question=question,
                                 ground_truth_answer=ground_truth_answer,
                                 success=False,
-                                metadata={"depth": 0, "reason": "Failed to initialize CoT"})
+                                metadata={"depth": -1, "reason": "Failed to initialize CoT"})
             
         # Check if initial node is already successful
         if initial_node.success:
@@ -361,7 +386,7 @@ class SimpleBeamSearch(BaseSearch):
                 ground_truth_answer=ground_truth_answer,
                 terminal_nodes=[initial_node],
                 success=True,
-                metadata={"depth": 1, "reason": "Initial node is already successful"}
+                metadata={"depth": 0, "reason": "Initial node is already successful"}
             )
             
         # Initialize the beams
@@ -379,19 +404,30 @@ class SimpleBeamSearch(BaseSearch):
             )
         except Exception as e:
             logger.error(f"Error in initializing beams: {e}")
-            return SearchResult(terminal_nodes=None, 
-                                question=question,
-                                ground_truth_answer=ground_truth_answer,
-                                success=False,
-                                metadata={"depth": 1,
-                                          "reason": "Failed to initialize beams"})
+            return SearchResult(
+                terminal_nodes=None, 
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                success=False,
+                metadata={
+                    "depth": 0,
+                    "reason": "Failed to initialize beams"
+                }
+            )
             
-        # Range starts at 2 because we already have the initial node and beams
+        # Check if all beams are already successful
+        if all(beam.success for beam in beams):
+            return SearchResult(
+                question=question,
+                ground_truth_answer=ground_truth_answer,
+                terminal_nodes=beams,
+                success=True,
+                metadata={"depth": 1, "reason": "All beams successful at initialization"}
+            )
+            
+        # Range starts at 2 because we already have the initial node and beams, zero based indexing
         # We will expand the beams at each depth
-        for depth in range(2, max_depth):
-            # Check if all beams are final
-            if all(beam.is_final for beam in beams):
-                break
+        for depth in range(2, max_depth+1):
             
             # Expand each beam
             for i, beam in enumerate(beams):
@@ -400,7 +436,7 @@ class SimpleBeamSearch(BaseSearch):
                     continue
                 
                 try:
-                    selected_strategies, search_data = self.strategy_selector.select(
+                    search_data = self.strategy_selector.select(
                         search_llm=search_llm,
                         registry=strategy_registry,
                         depth=depth,
@@ -416,9 +452,26 @@ class SimpleBeamSearch(BaseSearch):
                     logger.error("Error in selecting strategies")
                     raise ValueError("Failed to select strategies") from e
                 
-                strategies_dict, scores = search_data['strategies_dict'], search_data['scores']
+                # Unpack the search data
+                strategies_dict = search_data['strategies_dict']
+                selected_strategies = search_data['selected_strategies']
+                rejected_strategies = search_data['rejected_strategies']
                 
-                # If strategies_tracker is None, consider it a failure
+                # Create pruned nodes for rejected strategies
+                for strategy in rejected_strategies:
+                    strat_data = strategies_dict[strategy.name]
+                    # Create a new node for each rejected strategy, marking it as pruned
+                    self.create_node(
+                        strategy=strat_data['strategy'],
+                        prompt=strat_data['prompt'],
+                        response=strat_data['response'],
+                        cot=strat_data['cot'],
+                        parent=beam,
+                        pruned=True,
+                        metadata={"is_initial": False, "score": strat_data['score']}
+                    )
+                                
+                # If strategies_dict is None, consider it a failure
                 # and skip this beam at this depth
                 if strategies_dict is None:
                     continue
@@ -433,14 +486,13 @@ class SimpleBeamSearch(BaseSearch):
                     response=best_strategy_dict['response'],
                     cot=best_strategy_dict['cot'],
                     parent=beam,
-                    metadata={"is_initial": False, "scores": scores}
+                    metadata={"is_initial": False, "score": best_strategy_dict['score']}
                 )
                
                 beams[i] = new_node
                 
-                # Check if the new node is a terminal node with verifier
-                # If the verification fails, continue with the beam search
-                verification_result, error = self.verify_node(
+                # Verify the new node 
+                self.verify_node(
                     node=new_node,
                     question=question,
                     ground_truth_answer=ground_truth_answer,
@@ -448,24 +500,25 @@ class SimpleBeamSearch(BaseSearch):
                     on_error='continue',
                     logger=logger
                 )
-                # If verification fails, skip this node at this depth
-                if error is not None:
-                    continue
 
-                # If verification is successful, log the result
-                if verification_result:
-                    logger.info(f"Beam {i} reached a final node at depth {depth}")
+            # Check if all beams are final, if so, break the loop
+            if all(beam.is_final for beam in beams):
+                break
         
         # Set each terminal node as final
         for beam in beams:
             beam.is_final = True
-            
+        
+        reason = "Max depth reached" if depth == max_depth else "All beams successful"
         result = SearchResult(
             question=question,
             ground_truth_answer=ground_truth_answer,
             terminal_nodes=beams,
             success=any(node.success for node in beams),
-            metadata={"depth": depth, "reason": "All beams processed"}
+            metadata={
+                "depth": depth, 
+                "reason": reason
+            }
         )
         
         return result

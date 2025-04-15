@@ -1,6 +1,7 @@
+from cot_forge.llm import GeminiProvider
+from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch
 
-from cot_forge.llm import AnthropicProvider
-from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch, default_strategy_registry
+# from cot_forge.reasoning import SimpleBeamSearch
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -26,22 +27,23 @@ ground_truth_answer = """
 Margate must show that favoring mothers over fathers is substantially related to an important governmental interest.
 """
 
-llm = AnthropicProvider()
-llm.generate("Hello, world!")
+question = "Decipher this code: 73102109109112338811211510910134."
+ground_truth = "Hello World!"
+
+llm = GeminiProvider()
 
 builder = CoTBuilder(
     search_llm=llm,
-    search=SimpleBeamSearch(max_depth=3, beam_width=3, branching_factor=2),
-    # search=NaiveLinearSearch(max_depth=3),
-    verifier=LLMJudgeVerifier(llm),
-    strategy_reg=default_strategy_registry,
+    # search=SimpleBeamSearch(max_depth=2, beam_width=3, branching_factor=2),
+    search=NaiveLinearSearch(max_depth=3),
+    verifier=LLMJudgeVerifier(llm, strict=True),
     scorer=ProbabilityFinalAnswerScorer(llm)
 )
 
 def main():
     search_result = builder.build(
-        question=legal_facts_question,
-        ground_truth_answer=ground_truth_answer,
+        question=question,
+        ground_truth_answer=ground_truth,
     )
     return search_result
 

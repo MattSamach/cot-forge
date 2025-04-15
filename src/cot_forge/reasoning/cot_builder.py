@@ -63,6 +63,7 @@ from .search.search_algorithm import SearchAlgorithm
 from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Consider what to do wrt overwriting/duplicate result data
+# TODO: Make CoTBuilder a one-stop-shop for end-to-end batch processing with a single method
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class CoTBuilder:
         search (SearchAlgorithm): Algorithm for exploring reasoning paths
         verifier (BaseVerifier): Validates reasoning conclusions
         scorer (BaseScorer): Evaluates path quality to prioritize exploration
-        strategy_reg (StrategyRegistry): Available reasoning strategies
+        strategy_registry (StrategyRegistry): Available reasoning strategies
         search_llm_kwargs (dict): Additional LLM configuration
         persistence (PersistenceManager): Manages data storage and retrieval
 
@@ -102,13 +103,13 @@ class CoTBuilder:
         search: SearchAlgorithm,
         verifier: BaseVerifier,
         scorer: BaseScorer = None,
-        strategy_reg: StrategyRegistry = default_strategy_registry,
+        strategy_registry: StrategyRegistry = default_strategy_registry,
         search_llm_kwargs: dict[str, Any] = None,
         persistence: PersistenceManager = None
     ):
         self.search_llm = search_llm
         self.search_llm_kwargs = search_llm_kwargs or {}
-        self.strategy_reg = strategy_reg
+        self.strategy_registry = strategy_registry
         self.search = search
         self.verifier = verifier
         self.scorer = scorer
@@ -118,11 +119,13 @@ class CoTBuilder:
         if self.persistence:
             self.persistence.save_config(self)
         
-    def build(self,
-              question: str,
-              ground_truth_answer: str,
-              llm_kwargs: dict[str, Any] = None,
-              **kwargs) -> SearchResult | None:
+    def build(
+        self,
+        question: str,
+        ground_truth_answer: str,
+        llm_kwargs: dict[str, Any] = None,
+        **kwargs
+        ) -> SearchResult | None:
         """
         Construct a chain of thought for a single question.
 
@@ -171,7 +174,7 @@ class CoTBuilder:
             scorer=self.scorer,
             search_llm=self.search_llm,
             llm_kwargs=llm_kwargs,
-            strategy_registry=self.strategy_reg,
+            strategy_registry=self.strategy_registry,
             **kwargs
         )
         
@@ -250,7 +253,7 @@ class CoTBuilder:
             # Assume the strategy registry for saved results is same as current instance
             if result_dicts:
                 results = [
-                    SearchResult.deserialize(item["result"], self.strategy_reg) for item in result_dicts
+                    SearchResult.deserialize(item["result"], self.strategy_registry) for item in result_dicts
                 ]
                 logger.info(f"Loaded {len(results)} processed results from disk.")
             else:
@@ -350,7 +353,7 @@ class CoTBuilder:
                          dataset_name: str,
                          base_dir: str = "data",
                          scorer: BaseScorer = None,
-                         strategy_reg: StrategyRegistry = default_strategy_registry,
+                         strategy_registry: StrategyRegistry = default_strategy_registry,
                          search_llm_kwargs: dict[str, Any] = None,
                          auto_resume: bool = True) -> 'CoTBuilder':
         """
@@ -380,7 +383,7 @@ class CoTBuilder:
             search=search,
             verifier=verifier,
             scorer=scorer,
-            strategy_reg=strategy_reg,
+            strategy_registry=strategy_registry,
             search_llm_kwargs=search_llm_kwargs,
             persistence=persistence
         )
@@ -394,7 +397,7 @@ class CoTBuilder:
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
-            f"\tStrategy Registry: {self.strategy_reg}\n"
+            f"\tStrategy Registry: {self.strategy_registry}\n"
             f"\tSearch LLM Kwargs: {self.search_llm_kwargs}")
     
     def __str__(self) -> str:
@@ -403,4 +406,4 @@ class CoTBuilder:
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
-            f"\tStrategies: {self.strategy_reg.list_strategies()}")
+            f"\tStrategies: {self.strategy_registry.list_strategies()}")

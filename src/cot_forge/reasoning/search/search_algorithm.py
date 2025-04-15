@@ -257,6 +257,7 @@ class BaseSearch(ABC, SearchAlgorithm):
         cot: list[dict[str, str]] = None,
         parent: ReasoningNode = None,
         metadata: dict[str, Any] = None,
+        pruned: bool = False,
         **kwargs: Any
     ) -> ReasoningNode:
         """
@@ -267,6 +268,7 @@ class BaseSearch(ABC, SearchAlgorithm):
             response: The response from the LLM (may be None if not yet generated)
             cot: The extracted chain of thought (may be None if not yet extracted)
             parent: The parent node (may be None if root node)
+            pruned: Whether the node is pruned
             metadata: Optional metadata dictionary for the node
             **kwargs: Additional attributes to add to the node
         Returns:
@@ -279,6 +281,7 @@ class BaseSearch(ABC, SearchAlgorithm):
             response=response or "",
             cot=cot,
             parent=parent,
+            pruned=pruned,
             metadata=metadata or {}
         )
         
