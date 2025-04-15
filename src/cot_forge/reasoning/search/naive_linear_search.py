@@ -134,7 +134,10 @@ class NaiveLinearSearch(BaseSearch):
         
         for depth in range(self.max_depth+1):
             # Select next strategy
-            strategies = self.strategy_selector.select(registry = strategy_registry, depth = depth)['selected_strategies']
+            strategies = self.strategy_selector.select(
+                registry = strategy_registry, depth = depth
+            )['selected_strategies']
+            
             strategy = strategies[0] if isinstance(strategies, list) else strategies
             
             # Build prompt based on selected strategy

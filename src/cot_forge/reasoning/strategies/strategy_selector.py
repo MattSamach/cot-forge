@@ -301,7 +301,9 @@ class ScoredStrategySelector(StrategySelector):
             i += 1
         
         # Get rejected strategies
-        rejected_strategies = [strategy for strategy in strategy_options if strategy not in selected_strategies]
+        rejected_strategies = [
+            strategy for strategy in strategy_options if strategy not in selected_strategies
+        ]
         
         # Create dict for additional search info including strategies dict, scores, and rejected strategies
         search_info = {

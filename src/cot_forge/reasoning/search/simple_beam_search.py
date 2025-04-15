@@ -486,7 +486,7 @@ class SimpleBeamSearch(BaseSearch):
                     response=best_strategy_dict['response'],
                     cot=best_strategy_dict['cot'],
                     parent=beam,
-                    metadata={"is_initial": False, "score": strat_data['score']}
+                    metadata={"is_initial": False, "score": best_strategy_dict['score']}
                 )
                
                 beams[i] = new_node
@@ -508,7 +508,8 @@ class SimpleBeamSearch(BaseSearch):
         # Set each terminal node as final
         for beam in beams:
             beam.is_final = True
-            
+        
+        reason = "Max depth reached" if depth == max_depth else "All beams successful"
         result = SearchResult(
             question=question,
             ground_truth_answer=ground_truth_answer,
@@ -516,7 +517,7 @@ class SimpleBeamSearch(BaseSearch):
             success=any(node.success for node in beams),
             metadata={
                 "depth": depth, 
-                "reason": "All beams successful" if all(beam.success for beam in beams) else "Max depth reached",
+                "reason": reason
             }
         )
         
