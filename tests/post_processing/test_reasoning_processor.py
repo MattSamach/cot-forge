@@ -1,11 +1,12 @@
 import unittest
-from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
+from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
 from cot_forge.reasoning.strategies import StrategyRegistry
+
 
 class TestReasoningProcessor(unittest.TestCase):
     """Tests for the ReasoningProcessor class."""
@@ -25,7 +26,10 @@ class TestReasoningProcessor(unittest.TestCase):
         self.mock_persistence.load_config.return_value = mock_config
         
         # Patch PersistenceManager so we don't create real directories
-        patcher = patch('cot_forge.post_processing.reasoning_processor.PersistenceManager', return_value=self.mock_persistence)
+        patcher = patch(
+            'cot_forge.post_processing.reasoning_processor.PersistenceManager',
+            return_value=self.mock_persistence
+        )
         self.addCleanup(patcher.stop)
         self.mock_persistence_class = patcher.start()
 
