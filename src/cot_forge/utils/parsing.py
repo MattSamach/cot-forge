@@ -7,14 +7,27 @@ logger = logging.getLogger(__name__)
 
 def extract_curly_bracket_content(text: str) -> str:
     """Extracts the curly bracketed json content within a string."""
-    pattern = r"\{.*\}"
-    match = re.search(pattern, text, re.DOTALL)
-    return match.group(0) if match else None
+    # Strip any markdown code block markers
+    text = re.sub(r'```json\n|\n```', '', text)
+    
+    # Check if JSON can be extracted
+    try:
+        # Try to parse as is first
+        json.loads(text, strict=False)
+        return text
+    except json.JSONDecodeError:
+        # If that fails, try to extract just the JSON part
+        pattern = r"\{.*\}"
+        match = re.search(pattern, text, re.DOTALL)
+        if not match:
+            return None
+        json_str = match.group(0)
+        return json_str
 
 def parse_json_response(response: str) -> Any:
     """Extracts json formatting from a reasoning response."""
     try:
-        data = json.loads(extract_curly_bracket_content(response))
+        data = json.loads(extract_curly_bracket_content(response), strict=False)
         return data
     except (json.JSONDecodeError, TypeError) as err:
         logger.error(f"Error decoding JSON: {err}")
