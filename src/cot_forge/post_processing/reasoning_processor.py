@@ -23,6 +23,7 @@ Example Usage:
     processed_results = processor.process_batch(limit=100)
     
 TODO:
+- Multithreading support for LLM calls
 - Implement line-by-line writing to the output file to support processing of large files
 This will allow for more efficient memory management when dealing with extensive datasets.
 """
@@ -140,6 +141,7 @@ class ReasoningProcessor:
         Returns:
             List of processed results
         """
+        llm_kwargs = llm_kwargs or {}
         # Load all results
         results_data = self.persistence.load_results()
         
@@ -164,6 +166,7 @@ class ReasoningProcessor:
             search_result = SearchResult.deserialize(result["result"], strategy_registry)
             
             # Get question and ground truth
+            id = result["id"]
             question = result["question"]
             ground_truth = result["ground_truth"]
             
@@ -174,6 +177,10 @@ class ReasoningProcessor:
                 if only_successful
                 else search_result.terminal_nodes
             )
+            
+            # There may be multiple nodes to process per question
+            # We will store the results in a list
+            thought_chains = []
             for node in nodes_to_process:
                 cot = node.get_full_cot()
                 
@@ -199,20 +206,23 @@ class ReasoningProcessor:
                     "</" + self.thinking_tag + ">" +
                     "\n\n" + formal_answer
                 )
+                
+                # Add full response to the list of thought chains
+                thought_chains.append(full_response)
 
-                # Create processed result
-                processed_result = {
-                    "id": result["id"],
-                    "question": question,
-                    "ground_truth": ground_truth,
-                    "chain_of_thought_response": full_response,
-                }
+            # Create processed result
+            processed_result = {
+                "id": id,
+                "question": question,
+                "ground_truth": ground_truth,
+                "chain_of_thought_responses": thought_chains,
+            }
                 
-                # Add to results list
-                processed_results.append(processed_result)
+            # Add to results list
+            processed_results.append(processed_result)
                 
-                # Save to file
-                self._save_processed_result(processed_result)
+            # Save to file
+            self._save_processed_result(processed_result)
             
         return processed_results
     
