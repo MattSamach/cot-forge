@@ -55,6 +55,7 @@ from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
+from cot_forge.post_processing import ReasoningProcessor
 from cot_forge.reasoning.scorers import BaseScorer
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.reasoning.verifiers import BaseVerifier
@@ -64,6 +65,8 @@ from .strategies import StrategyRegistry, default_strategy_registry
 
 # TODO: Consider what to do wrt overwriting/duplicate result data
 # TODO: Make CoTBuilder a one-stop-shop for end-to-end batch processing with a single method
+# TODO: Add limit to number of questions to process in batch build
+# TODO: Make the batch process linear from cot-builder to post-processor so can be run in a single thread
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +88,7 @@ class CoTBuilder:
         strategy_registry (StrategyRegistry): Available reasoning strategies
         search_llm_kwargs (dict): Additional LLM configuration
         persistence (PersistenceManager): Manages data storage and retrieval
+        post_processor (ReasoningProcessor): Post-processes reasoning steps into natural language
 
     Example:
         ```python
@@ -105,7 +109,8 @@ class CoTBuilder:
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry,
         search_llm_kwargs: dict[str, Any] = None,
-        persistence: PersistenceManager = None
+        persistence: PersistenceManager = None,
+        post_processor: ReasoningProcessor = None,
     ):
         self.search_llm = search_llm
         self.search_llm_kwargs = search_llm_kwargs or {}
@@ -114,6 +119,7 @@ class CoTBuilder:
         self.verifier = verifier
         self.scorer = scorer
         self.persistence = persistence
+        self.post_processor = post_processor
         
         # Save the configuration if persistence is enabled
         if self.persistence:
@@ -277,8 +283,51 @@ class CoTBuilder:
                 results=results,
                 **kwargs
             )
+            
+    def process_batch(
+        self,
+        questions: list[str],
+        ground_truth_answers: list[str],
+        llm_kwargs: dict[str, Any] | None = None,
+        post_processing_llm_kwargs: dict[str, Any] | None = None,
+        multi_thread: bool = False,
+        progress_bar: bool = True,
+        max_workers: int | None = 4,
+        load_processed: bool = False,
+        only_successful: bool = False,
+        limit: int | None = None,
+        **kwargs
+    ) -> list[SearchResult]:
+        """
+        Process a batch of questions and ground truth answers through full pipeline.
+        This includes building the CoT and post-processing the results into natural language.
+        Requires a post-processor to not be none.
 
-    
+        This method is a wrapper around `build_batch` to provide a consistent interface.
+        """
+        if self.post_processor is None:
+            raise ValueError("Post-processor is required for processing batch.")
+        
+        self.build_batch(
+            questions=questions,
+            ground_truth_answers=ground_truth_answers,
+            llm_kwargs=llm_kwargs,
+            multi_thread=multi_thread,
+            progress_bar=progress_bar,
+            max_workers=max_workers,
+            load_processed=load_processed,
+            **kwargs
+        )
+        
+        # Process the results using the post-processor
+        # TODO: Add limits once in batch build
+        return self.post_processor.process_batch(
+            only_successful=only_successful,
+            llm_kwargs=post_processing_llm_kwargs,
+            progress_bar=progress_bar,
+            limit=limit
+        )
+
     def _single_threaded_batch_build(self,
                                      qa_pairs: list[tuple[str, str]],
                                      progress_bar: bool,
@@ -346,27 +395,33 @@ class CoTBuilder:
         
     # Factory method to create a CoTBuilder with persistence
     @classmethod
-    def with_persistence(cls,
-                         search_llm: LLMProvider,
-                         search: SearchAlgorithm,
-                         verifier: BaseVerifier,
-                         dataset_name: str,
-                         base_dir: str = "data",
-                         scorer: BaseScorer = None,
-                         strategy_registry: StrategyRegistry = default_strategy_registry,
-                         search_llm_kwargs: dict[str, Any] = None,
-                         auto_resume: bool = True) -> 'CoTBuilder':
+    def with_persistence(
+        cls,
+        search_llm: LLMProvider,
+        search: SearchAlgorithm,
+        verifier: BaseVerifier,
+        post_processing_llm: LLMProvider,
+        dataset_name: str,
+        base_dir: str = "data",
+        scorer: BaseScorer = None,
+        strategy_registry: StrategyRegistry = default_strategy_registry,
+        search_llm_kwargs: dict[str, Any] = None,
+        post_processsing_llm_kwargs: dict[str, Any] = None,
+        auto_resume: bool = True
+    ) -> 'CoTBuilder':
         """
-        Create a CoTBuilder instance with persistence enabled.
+        Create a CoTBuilder instance with persistence and post-processing enabled
         
         This factory method simplifies the creation of a CoTBuilder with
         persistence configuration.
         
         Args:
             [all existing CoTBuilder parameters]
+            post_processing_llm: LLM for post-processing the reasoning steps into natural language
             dataset_name: Name for this dataset/run (used for storage)
             base_dir: Base directory to store data files
             auto_resume: If True, automatically load last state when instantiated
+            post_processing_llm_kwargs: Additional kwargs for the post-processing LLM
             
         Returns:
             CoTBuilder: A configured CoTBuilder instance with persistence
@@ -378,6 +433,16 @@ class CoTBuilder:
             auto_resume=auto_resume
         )
         
+        post_processor = ReasoningProcessor(
+            llm_provider=post_processing_llm,
+            dataset_name=dataset_name,
+            search_name=search.name,
+            llm_kwargs=post_processsing_llm_kwargs,
+            base_dir=base_dir,
+            output_file="processed_results.jsonl",
+            thinking_tag="thinking"
+        )
+        
         return cls(
             search_llm=search_llm,
             search=search,
@@ -385,25 +450,31 @@ class CoTBuilder:
             scorer=scorer,
             strategy_registry=strategy_registry,
             search_llm_kwargs=search_llm_kwargs,
-            persistence=persistence
+            persistence=persistence,
+            post_processor=post_processor,
         )
 
-
     def __repr__(self) -> str:
-        persistence_info = (f"\n\tPersistence: Enabled ({self.persistence.dataset_name})" 
-                            if self.persistence else "\n\tPersistence: Disabled")
-        return (f"CoTBuilder with:{persistence_info}\n"
+        persistence_info = (
+            f"\n\tPersistence: Enabled ({self.persistence.dataset_name})" 
+            if self.persistence else "\n\tPersistence: Disabled"
+        )
+        return (
+            f"CoTBuilder with:{persistence_info}\n"
             f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
             f"\tStrategy Registry: {self.strategy_registry}\n"
-            f"\tSearch LLM Kwargs: {self.search_llm_kwargs}")
+            f"\tSearch LLM Kwargs: {self.search_llm_kwargs}"
+        )
     
     def __str__(self) -> str:
-        return (f"CoTBuilder with:\n"
+        return (
+            f"CoTBuilder with:\n"
             f"\tLLM: {self.search_llm}\n"
             f"\tSearch Algorithm: {self.search}\n"
             f"\tVerifier: {self.verifier}\n"
             f"\tScorer: {self.scorer}\n"
-            f"\tStrategies: {self.strategy_registry.list_strategies()}")
+            f"\tStrategies: {self.strategy_registry.list_strategies()}"
+        )
