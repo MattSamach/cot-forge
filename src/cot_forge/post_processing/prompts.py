@@ -17,12 +17,12 @@ transitions or validations, such as "hmm," "oh," "also," "actually," or "wait."
 3. Expand the content, making the reasoning richer, more detailed, and logically clear while still being
 conversational and intuitive."""
 
-NATURAL_LANGUAGE_FORMAT_PROMPT = """\n\n**Output Format:**
+NATURAL_LANGUAGE_FORMAT_PROMPT = """\###Output Format:
 Strictly follow the JSON structure below. 
 
 ```json
 {
-"NaturalReasoning": "<INSERT_CONTENT_HERE>"
+"NaturalReasoning": "<INSERT_NATURAL_LANGUAGE_REASONING_HERE>"
 }
 ```"""
 
@@ -43,7 +43,7 @@ def build_natural_language_cot_prompt(
     prompt =  NATURAL_LANGUAGE_COT_PROMPT.format(
         Thought_Process=str(cot),
         Question=question
-    ) + NATURAL_LANGUAGE_FORMAT_PROMPT
+    ) + '\n\n' + NATURAL_LANGUAGE_FORMAT_PROMPT
     return prompt
     
 FORMAL_RESPONSE_PROMPT = """<Thinking>
