@@ -12,7 +12,7 @@ class AnthropicProvider(LLMProvider):
     
     def __init__(
         self,
-        model_name:str = "claude-3-7-sonnet-20250219",
+        model_name:str = "claude-3-5-sonnet-20241022",
         api_key: str | None = None,
         input_token_limit: int | None = None,
         output_token_limit: int | None = None,
