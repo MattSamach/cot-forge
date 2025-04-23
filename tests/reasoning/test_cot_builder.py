@@ -246,6 +246,7 @@ class TestCoTBuilderPersistence(unittest.TestCase):
             # Create a builder with persistence
             builder = CoTBuilder.with_persistence(
                 search_llm=self.mock_llm,
+                post_processing_llm=self.mock_llm,
                 search=self.mock_search,
                 verifier=self.mock_verifier,
                 dataset_name=self.dataset_name,
