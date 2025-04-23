@@ -30,7 +30,9 @@ You may skip the **Review** step if you are starting a new reasoning chain.
     def create_new_instruction(strategy_description: str) -> str:
         return f"""<question> represents the question to be answered, and <previous_reasoning> contains your prior reasoning.
 <new_instruction>Your task is to continue from the last ’Final Conclusion’ step. We have assessed the reasoning and
-determined that the **Final Conclusion** is false. Create a new chain of thought by: {strategy_description}. Then construct a new Final Conclusion.</new_instruction>\n\n"""
+determined that the **Final Conclusion** is false. 
+***Create a new chain of thought by implementing this strategy: {strategy_description}.*** It is vital that you follow this strategy in your reasoning!!!
+Then construct a new Final Conclusion.</new_instruction>\n\n"""
     
     @staticmethod
     def create_json_format() -> str:
