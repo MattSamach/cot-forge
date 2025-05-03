@@ -325,16 +325,21 @@ class CoTBuilder:
             only_successful=only_successful,
             llm_kwargs=post_processing_llm_kwargs,
             progress_bar=progress_bar,
-            limit=limit
+            limit=limit,
+            multi_thread=multi_thread,
+            max_workers=max_workers,
+            **kwargs
         )
 
-    def _single_threaded_batch_build(self,
-                                     qa_pairs: list[tuple[str, str]],
-                                     progress_bar: bool,
-                                     total_pairs: int,
-                                     llm_kwargs: dict[str, Any] | None = None,
-                                     results: list[SearchResult] | None = None,
-                                     **kwargs) -> list[SearchResult]:
+    def _single_threaded_batch_build(
+        self,
+        qa_pairs: list[tuple[str, str]],
+        progress_bar: bool,
+        total_pairs: int,
+        llm_kwargs: dict[str, Any] | None = None,
+        results: list[SearchResult] | None = None,
+        **kwargs
+    ) -> list[SearchResult]:
         """Execute the search algorithm to build a CoT for a batch of questions in single-threaded mode."""
         results = results or []
         if progress_bar:

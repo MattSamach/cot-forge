@@ -28,8 +28,11 @@ TODO:
 This will allow for more efficient memory management when dealing with extensive datasets.
 """
 
+#TODO: Add auto_resume functionality to the processor
+
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
 
@@ -37,11 +40,13 @@ from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
-from cot_forge.reasoning.strategies import StrategyRegistry, default_strategy_registry
+from cot_forge.reasoning.strategies import (StrategyRegistry,
+                                            default_strategy_registry)
 from cot_forge.reasoning.types import SearchResult
 from cot_forge.utils.search_utils import generate_and_parse_json
 
-from .prompts import build_formal_answer_prompt, build_natural_language_cot_prompt
+from .prompts import (build_formal_answer_prompt,
+                      build_natural_language_cot_prompt)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +98,8 @@ class ReasoningProcessor:
             base_dir=base_dir,
             auto_resume=True
         )
+        # Load the strategy registry for deserializing results
+        self.strategy_registry = self.get_strategy_registry()
         
         # Set output directory - handle absolute vs relative paths
         output_path = Path(output_file)
@@ -121,6 +128,8 @@ class ReasoningProcessor:
         only_successful: bool = True,
         limit: int = None,
         progress_bar: bool = True,
+        multi_thread: bool = False,
+        max_workers: int | None = 4,
         llm_kwargs: dict = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
         max_retries: int = 3,
@@ -133,6 +142,8 @@ class ReasoningProcessor:
             only_successful: If True, only process CoTs that were successful
             limit: Maximum number of results to process
             progress_bar: Whether to show a progress bar
+            multi_thread: If True, use multithreading for processing
+            max_workers: Number of threads to use for multithreading
             llm_kwargs: Additional arguments for the LLM
             on_error: Error handling strategy for the processor
             max_retries: Maximum number of retries for failed requests
@@ -141,7 +152,11 @@ class ReasoningProcessor:
         Returns:
             List of processed results
         """
+        # Set default values for optional arguments
         llm_kwargs = llm_kwargs or {}
+        if multi_thread and max_workers is None:
+            max_workers = 4
+        
         # Load all results
         results_data = self.persistence.load_results()
         
@@ -152,78 +167,207 @@ class ReasoningProcessor:
         if limit:
             results_data = results_data[:limit]
             
-        processed_results = []
+        # Process results
+        if multi_thread:
+            processed_results = self._multi_threaded_process(
+                results_data=results_data,
+                only_successful=only_successful,
+                on_error=on_error,
+                llm_kwargs=llm_kwargs,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                progress_bar=progress_bar,
+                max_workers=max_workers
+            )
+        else:
+            processed_results = self._single_threaded_process(
+                results_data=results_data,
+                only_successful=only_successful,
+                on_error=on_error,
+                llm_kwargs=llm_kwargs,
+                max_retries=max_retries,
+                retry_delay=retry_delay,
+                progress_bar=progress_bar
+            )
+        return processed_results
+
+    def process_result(
+        self,
+        result: dict[str, Any],
+        only_successful: bool = True,
+        on_error: Literal["continue", "raise", "retry"] = "retry",
+        llm_kwargs: dict[str, Any] = None,
+        max_retries: int = 3,
+        retry_delay: float = 1.0
+    ) -> dict[str, Any]:
+        """
+        Process a single saved CoT result to generate natural reasoning and formal response.
+        Args:
+            result: The saved CoT result to process
+            only_successful: If True, only process CoTs that were successful
+            on_error: Error handling strategy for the processor
+            llm_kwargs: Additional arguments for the LLM
+            max_retries: Maximum number of retries for failed requests
+            retry_delay: Delay between retries in seconds
+        Returns:
+            Processed result dictionary containing the id, question, ground truth, and generated responses
+        """
+        search_result = SearchResult.deserialize(result["result"], self.strategy_registry)
+            
+        # Get question and ground truth
+        id = result["id"]
+        question = result["question"]
+        ground_truth = result["ground_truth"]
+        
+        # Get the nodes to process. If only_successful is True, we only process successful nodes.
+        # Otherwise, we process all terminal nodes.
+        nodes_to_process = (
+            search_result.get_successful_terminal_nodes()
+            if only_successful
+            else search_result.terminal_nodes
+        )
+        
+        # There may be multiple nodes to process per question
+        # We will store the results in a list
+        thought_chains = []
+        for node in nodes_to_process:
+            cot = node.get_full_cot()
+            
+            # Generate natural reasoning
+            response_dict, error = self.generate_natural_language_cot(
+                question=question, 
+                cot=cot,
+                on_error=on_error,
+                llm_kwargs=llm_kwargs,
+                max_retries=max_retries,
+                retry_delay=retry_delay
+            )
+            if error:
+                logger.warning(f"Error generating natural reasoning: {error}")
+                continue
+            natural_reasoning = response_dict.get("natural_reasoning")
+            formal_answer = response_dict.get("formal_answer")
+            
+            # Create the full response with reasoning in thinking tags and formal answer 
+            full_response = (
+                "<" + self.thinking_tag + ">" + 
+                natural_reasoning + 
+                "</" + self.thinking_tag + ">" +
+                "\n\n" + formal_answer
+            )
+            
+            # Add full response to the list of thought chains
+            thought_chains.append(full_response)
+
+        # Create processed result
+        processed_result = {
+            "id": id,
+            "question": question,
+            "ground_truth": ground_truth,
+            "chain_of_thought_responses": thought_chains,
+        }
+            
+        # Save to file
+        self._save_processed_result(processed_result)
+        
+        # Return the processed result
+        return processed_result
+    
+    def _single_threaded_process(
+        self,
+        results_data: list[dict[str, Any]],
+        only_successful: bool,
+        on_error: Literal["continue", "raise", "retry"],
+        llm_kwargs: dict[str, Any],
+        max_retries: int,
+        retry_delay: float,
+        progress_bar: bool,
+        processed_results: list[dict[str, Any]] = None,
+    ):
+        """
+        Process a batch of saved CoT results in a single thread.
+        """
+        # Initialize processed results list if not provided
+        processed_results = processed_results or []
+        # Create a progress bar if required
         if progress_bar:
             results_data = tqdm(
                 results_data,
                 desc="Post-Processing CoT results",
                 unit="result"
             )
-        
+        # Process each result
         for result in results_data:
-            # Deserialize the SearchResult
-            strategy_registry = self.get_strategy_registry()
-            search_result = SearchResult.deserialize(result["result"], strategy_registry)
-            
-            # Get question and ground truth
-            id = result["id"]
-            question = result["question"]
-            ground_truth = result["ground_truth"]
-            
-            # Get the nodes to process. If only_successful is True, we only process successful nodes.
-            # Otherwise, we process all terminal nodes.
-            nodes_to_process = (
-                search_result.get_successful_terminal_nodes()
-                if only_successful
-                else search_result.terminal_nodes
+            processed_result = self.process_result(
+                result=result,
+                only_successful=only_successful,
+                on_error=on_error,
+                llm_kwargs=llm_kwargs,
+                max_retries=max_retries,
+                retry_delay=retry_delay
             )
-            
-            # There may be multiple nodes to process per question
-            # We will store the results in a list
-            thought_chains = []
-            for node in nodes_to_process:
-                cot = node.get_full_cot()
-                
-                # Generate natural reasoning
-                response_dict, error = self.process(
-                    question=question, 
-                    cot=cot,
+            processed_results.append(processed_result)
+        
+        return processed_results
+    
+    def _multi_threaded_process(
+        self,
+        results_data: list[dict[str, Any]],
+        only_successful: bool,
+        on_error: Literal["continue", "raise", "retry"],
+        llm_kwargs: dict[str, Any],
+        max_retries: int,
+        retry_delay: float,
+        progress_bar: bool,
+        max_workers: int,
+        processed_results: list[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Process a batch of saved CoT results using multithreading.
+
+        Args:
+            results_data (list[dict[str, Any]]): List of saved CoT results to process
+            only_successful (bool): If True, only process CoTs that were successful
+            on_error (Literal): Error handling strategy for the processor
+            llm_kwargs (dict[str, Any]): Additional arguments for the LLM
+            max_retries (int): Maximum number of retries for failed requests
+            retry_delay (float): Delay between retries in seconds
+            progress_bar (bool): Whether to show a progress bar
+            max_workers (int): Number of threads to use for multithreading
+            processed_results (list[dict[str, Any]]): List to store processed results
+
+        Returns:
+            list[dict[str, Any]]: List of processed results
+        """
+        processed_results = processed_results or []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    self.process_result,
+                    result=result,
+                    only_successful=only_successful,
                     on_error=on_error,
                     llm_kwargs=llm_kwargs,
                     max_retries=max_retries,
                     retry_delay=retry_delay
                 )
-                if error:
-                    logger.warning(f"Error generating natural reasoning: {error}")
-                    continue
-                natural_reasoning = response_dict.get("natural_reasoning")
-                formal_answer = response_dict.get("formal_answer")
-                
-                # Create the full response with reasoning in thinking tags and formal answer 
-                full_response = (
-                    "<" + self.thinking_tag + ">" + 
-                    natural_reasoning + 
-                    "</" + self.thinking_tag + ">" +
-                    "\n\n" + formal_answer
+                for result in results_data
+            ]
+            if progress_bar:
+                futures = tqdm(
+                    futures,
+                    desc="Post-Processing CoT results",
+                    unit="result",
+                    total=len(futures)
                 )
-                
-                # Add full response to the list of thought chains
-                thought_chains.append(full_response)
-
-            # Create processed result
-            processed_result = {
-                "id": id,
-                "question": question,
-                "ground_truth": ground_truth,
-                "chain_of_thought_responses": thought_chains,
-            }
-                
-            # Add to results list
-            processed_results.append(processed_result)
-                
-            # Save to file
-            self._save_processed_result(processed_result)
             
+            for future in futures:
+                try:
+                    processed_result = future.result()
+                    processed_results.append(processed_result)
+                except Exception as e:
+                    logger.error(f"Error processing result: {e}")
+                    
         return processed_results
     
     def _save_processed_result(self, result: dict[str, Any]) -> None:
@@ -300,8 +444,7 @@ class ReasoningProcessor:
             return ""
             
         return natural_reasoning
-            
-        
+
     def generate_formal_answer(
         self,
         question: str,
@@ -325,7 +468,7 @@ class ReasoningProcessor:
         # Generate and return the formal response using the LLM
         return self.llm_provider.generate(prompt)
     
-    def process(
+    def generate_natural_language_cot(
         self,
         question: str,
         cot: dict,
