@@ -14,7 +14,6 @@ persistence = PersistenceManager(
     dataset_name="math_problems",
     search_name="beam_search",
     base_dir="data",
-    auto_resume=True
 )
 ```
 
@@ -135,7 +134,6 @@ persistence = PersistenceManager(
     dataset_name="custom_dataset",
     search_name="custom_search",
     base_dir="/path/to/custom/directory",
-    auto_resume=False  # Disable auto-resuming, will overwrite existing data
 )
 ```
 

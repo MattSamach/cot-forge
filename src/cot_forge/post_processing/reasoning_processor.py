@@ -19,7 +19,6 @@ Example Usage:
         dataset_name="my_dataset",
         search_name="my_search",
         base_dir="my_data_dir",
-        output_path="my_output_path/processed_results.jsonl"
     processed_results = processor.process_batch(limit=100)
     
 TODO:
@@ -28,12 +27,8 @@ TODO:
 This will allow for more efficient memory management when dealing with extensive datasets.
 """
 
-#TODO: Add auto_resume functionality to the processor
-
-import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from typing import Any, Literal
 
 from tqdm import tqdm
@@ -80,15 +75,12 @@ class ReasoningProcessor:
             llm_kwargs: Additional arguments for the LLM provider
             base_dir: Base directory for loading data (should match CoTBuilder's base_dir)
             strategy_reg: Strategy registry for deserializing results
-            output_file: Path to save post-processed results:
-                (default base_dir/dataset_name/search_name/processed_results.jsonl)
             thinking_tag: Tag for the reasoning process, default is "thinking" i.e. <thinking>
         """
         self.llm_kwargs = llm_kwargs or {}
         self.llm_provider = llm_provider
         self.dataset_name = dataset_name
         self.search_name = search_name
-        self.base_dir = Path(base_dir)
         self.thinking_tag = thinking_tag
         
         # Create persistence manager to read results (but not write to them)
@@ -96,19 +88,10 @@ class ReasoningProcessor:
             dataset_name=dataset_name,
             search_name=search_name,
             base_dir=base_dir,
-            auto_resume=True
         )
         # Load the strategy registry for deserializing results
         self.strategy_registry = self.get_strategy_registry()
         
-        # Set output directory - handle absolute vs relative paths
-        output_path = Path(output_file)
-        if not output_path.is_absolute():
-            output_path = self.persistence.search_dir / output_file
-        self.output_path = output_path
-        
-        # Create output directory if it doesn't exist
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
         
     def get_strategy_registry(self) -> StrategyRegistry:
         """
@@ -193,7 +176,8 @@ class ReasoningProcessor:
 
     def process_result(
         self,
-        result: dict[str, Any],
+        search_result: SearchResult,
+        id: str,
         only_successful: bool = True,
         on_error: Literal["continue", "raise", "retry"] = "retry",
         llm_kwargs: dict[str, Any] = None,
@@ -212,12 +196,10 @@ class ReasoningProcessor:
         Returns:
             Processed result dictionary containing the id, question, ground truth, and generated responses
         """
-        search_result = SearchResult.deserialize(result["result"], self.strategy_registry)
             
         # Get question and ground truth
-        id = result["id"]
-        question = result["question"]
-        ground_truth = result["ground_truth"]
+        question = search_result.question
+        ground_truth = search_result.ground_truth_answer
         
         # Get the nodes to process. If only_successful is True, we only process successful nodes.
         # Otherwise, we process all terminal nodes.
@@ -266,10 +248,7 @@ class ReasoningProcessor:
             "ground_truth": ground_truth,
             "chain_of_thought_responses": thought_chains,
         }
-            
-        # Save to file
-        self._save_processed_result(processed_result)
-        
+                    
         # Return the processed result
         return processed_result
     
@@ -369,31 +348,6 @@ class ReasoningProcessor:
                     logger.error(f"Error processing result: {e}")
                     
         return processed_results
-    
-    def _save_processed_result(self, result: dict[str, Any]) -> None:
-        """Save a processed result to the processed results file."""
-        
-        with open(self.output_path, 'a') as f:
-            f.write(json.dumps(result) + '\n')
-    
-    def load_processed_results(self) -> list[dict[str, Any]]:
-        """
-        Load all processed results from disk.
-        
-        Returns:
-            List of processed result dictionaries
-        """
-        
-        results = []
-        if not self.output_path.exists():
-            return results
-        
-        with open(self.output_path) as f:
-            for line in f:
-                if line.strip():
-                    results.append(json.loads(line))
-        
-        return results
         
     def generate_natural_reasoning(
         self,

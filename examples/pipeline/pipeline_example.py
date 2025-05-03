@@ -15,22 +15,24 @@ solution = ds["Ground-True Answer"]
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 # Set up the CoTBuilder
-builder = CoTBuilder.with_persistence(
+builder = CoTBuilder(
     search_llm=GeminiProvider(),
     search=NaiveLinearSearch(),
     verifier=LLMJudgeVerifier(llm_provider=OpenAIProvider()),
-    dataset_name="openthoughts_math",
-    post_processing_llm=AnthropicProvider(),
+    dataset_name="medical-o1-verifiable-problem",
+    post_processing_llm=GeminiProvider(),
     base_dir=SCRIPT_DIR / "data",
 )
-
 # process
-builder.process_batch(
+results = builder.process_batch(
   questions=problem,
   ground_truth_answers=solution,
   max_workers=4,
   multi_thread=True,
   load_processed=True,
-  only_successful=True,
-  limit=20
+  only_successful=False,
+  overwrite=True,
+  limit=5
 )
+
+print(results)
