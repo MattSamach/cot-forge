@@ -1,5 +1,5 @@
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, SimpleBeamSearch
+from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, BeamSearch
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -56,7 +56,7 @@ results = builder.build_batch(
     load_processed=True, 
 )
 
-beam_search = SimpleBeamSearch(max_depth=3, branching_factor=2)
+beam_search = BeamSearch(max_depth=3, branching_factor=2)
 
 scorer = ProbabilityFinalAnswerScorer(
     llm_provider=llm,

@@ -28,7 +28,7 @@ from .reasoning import (
                         ReasoningNode,
                         SearchAlgorithm,
                         SearchResult,
-                        SimpleBeamSearch,
+                        BeamSearch,
 )
 
 # Scorer exports
@@ -71,7 +71,7 @@ __all__ = [
     "SearchAlgorithm",
     "SearchResult", 
     "NaiveLinearSearch",
-    "SimpleBeamSearch",
+    "BeamSearch",
     "ReasoningNode",
     
     # Strategies

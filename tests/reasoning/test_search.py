@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from cot_forge.llm import LLMProvider
-from cot_forge.reasoning import NaiveLinearSearch, SimpleBeamSearch
+from cot_forge.reasoning import NaiveLinearSearch, BeamSearch
 from cot_forge.reasoning.scorers import BaseScorer
 from cot_forge.reasoning.types import ReasoningNode
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
@@ -297,12 +297,12 @@ class TestNaiveLinearSearch(unittest.TestCase):
         assert result.metadata['depth'] == max_depth
         
             
-class TestSimpleBeamSearch(unittest.TestCase):
+class TestBeamSearch(unittest.TestCase):
     """Test that the simple beam search algorithm works as expected."""
     
     def setUp(self):
         """Set up test fixtures."""
-        self.search = MagicMock(spec=SimpleBeamSearch)
+        self.search = MagicMock(spec=BeamSearch)
         self.llm_provider = MagicMock(spec=LLMProvider)
         self.verifier = MagicMock(spec=LLMJudgeVerifier)
         self.scorer = MagicMock(spec=BaseScorer)
@@ -380,8 +380,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
             "Strategy3": 0.7,  # Second highest
         }
         
-        # Create an instance of SimpleBeamSearch
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=3)
+        # Create an instance of BeamSearch
+        beam_search = BeamSearch(beam_width=2, branching_factor=3)
         
         # Create initial node for testing
         initial_node = ReasoningNode(
@@ -509,8 +509,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         
-        # Create SimpleBeamSearch instance
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=2, max_depth=2)
+        # Create BeamSearch instance
+        beam_search = BeamSearch(beam_width=2, branching_factor=2, max_depth=2)
         
         # Set up mock responses
         mock_llm_provider.generate.side_effect = [
@@ -655,8 +655,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         
-        # Create SimpleBeamSearch instance
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=2, max_depth=3)
+        # Create BeamSearch instance
+        beam_search = BeamSearch(beam_width=2, branching_factor=2, max_depth=3)
         
         # Set up a complex mock response sequence
         mock_llm_provider.generate.side_effect = [
@@ -888,8 +888,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         ground_truth_answer = "4"
         max_depth = 4
         
-        # Create SimpleBeamSearch instance with specific max_depth
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=2, max_depth=max_depth)
+        # Create BeamSearch instance with specific max_depth
+        beam_search = BeamSearch(beam_width=2, branching_factor=2, max_depth=max_depth)
         
         # Set up mock responses for initial CoT + all depths
         mock_responses = ["Initial thinking"] + ["Beam response"] * (2 * max_depth)
@@ -1022,7 +1022,7 @@ class TestSimpleBeamSearch(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIsNotNone(result.terminal_nodes)
 
-    @patch('cot_forge.reasoning.search.simple_beam_search.SimpleBeamSearch.initialize_cot')
+    @patch('cot_forge.reasoning.search.beam_search.BeamSearch.initialize_cot')
     def test_initialization_error(self, mock_initialize_cot):
         """Test handling of initialization errors."""
         question = "What is 2 + 2?"
@@ -1036,8 +1036,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         mock_scorer = MagicMock(spec=BaseScorer)
         mock_verifier = MagicMock()
         
-        # Create the SimpleBeamSearch instance
-        beam_search = SimpleBeamSearch()
+        # Create the BeamSearch instance
+        beam_search = BeamSearch()
         
         # Run the search algorithm
         result = beam_search._search(
@@ -1062,8 +1062,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
         question = "What is 2 + 2?"
         ground_truth_answer = "4"
         
-        # Create an instance of SimpleBeamSearch
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=3)
+        # Create an instance of BeamSearch
+        beam_search = BeamSearch(beam_width=2, branching_factor=3)
         
         # Create initial node
         initial_node = ReasoningNode(
@@ -1166,8 +1166,8 @@ class TestSimpleBeamSearch(unittest.TestCase):
             "Strategy3": 0.7,  # Second highest
         }
         
-        # Create an instance of SimpleBeamSearch with mocked methods
-        beam_search = SimpleBeamSearch(beam_width=2, branching_factor=3)
+        # Create an instance of BeamSearch with mocked methods
+        beam_search = BeamSearch(beam_width=2, branching_factor=3)
         
         # Create initial node for testing
         initial_node = ReasoningNode(

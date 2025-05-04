@@ -11,7 +11,7 @@ os.chdir(os.path.dirname(__file__))
 processor = ReasoningProcessor(
     llm_provider=llm,
     dataset_name = "dummy_dataset",
-    search_name="simple_beam_search"
+    search_name="beam_search"
 )
 
 # Process results as batch

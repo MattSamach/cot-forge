@@ -55,11 +55,11 @@ from .search_algorithm import BaseSearch
 
 logger = logging.getLogger(__name__)
 
-class SimpleBeamSearch(BaseSearch):
+class BeamSearch(BaseSearch):
     """
     Simple beam search to produce multiple parallel reasoning chains.
     
-    This class implements a simple beam search algorithm to generate multiple reasoning chains
+    This class implements a beam search algorithm to generate multiple reasoning chains
     in parallel. It uses a scoring mechanism to evaluate the generated strategies and selects the
     most promising paths for further exploration.
     
@@ -72,11 +72,11 @@ class SimpleBeamSearch(BaseSearch):
         strategy_selector (ScoredStrategySelector): Strategy selector for scoring strategies.
         
     Usage:
-        To use this class, create an instance of `SimpleBeamSearch` and call its `_search` method
+        To use this class, create an instance of `BeamSearch` and call its `_search` method
         with the required arguments. For example:
 
         ```python
-        search = SimpleBeamSearch(beam_width=3, max_depth=5)
+        search = BeamSearch(beam_width=3, max_depth=5)
         result = search._search(
             question="What is the capital of France?",
             ground_truth_answer="Paris",
@@ -96,7 +96,7 @@ class SimpleBeamSearch(BaseSearch):
         self.beam_width = beam_width
         self.branching_factor = branching_factor
         self.max_depth = max_depth
-        self.name = "simple_beam_search"
+        self.name = "beam_search"
         self.description = ("A search algorithm that explores multiple parallel "
                             "reasoning chains using beam search, "
                             "maintaining and expanding the most promising paths based on scoring.")
@@ -127,7 +127,7 @@ class SimpleBeamSearch(BaseSearch):
             data (dict): Dictionary representation of the search algorithm.
 
         Returns:
-            SimpleBeamSearch: Instance of the search algorithm.
+            BeamSearch: Instance of the search algorithm.
         """
         return cls(
             beam_width=data.get("beam_width"),

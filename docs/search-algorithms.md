@@ -67,14 +67,14 @@ Parameters:
 - `on_error`: Error handling strategy ("continue", "raise", or "retry")
 - `system_prompt`: Optional custom system prompt for the LLM
 
-### SimpleBeamSearch
+### BeamSearch
 
 Explores multiple reasoning paths simultaneously, keeping the most promising ones:
 
 ```python
-from cot_forge.reasoning import SimpleBeamSearch
+from cot_forge.reasoning import BeamSearch
 
-search = SimpleBeamSearch(
+search = BeamSearch(
     max_depth=3,
     beam_width=3,
     branching_factor=2
@@ -169,11 +169,11 @@ success, error = self.verify_node(
 Search algorithms are typically used with the CoTBuilder:
 
 ```python
-from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch
+from cot_forge.reasoning import CoTBuilder, BeamSearch
 
 builder = CoTBuilder(
     search_llm=llm,
-    search=SimpleBeamSearch(max_depth=3, beam_width=2),
+    search=BeamSearch(max_depth=3, beam_width=2),
     verifier=verifier
 )
 
@@ -190,7 +190,7 @@ You can compare different algorithms on the same question:
 ```python
 # Define different search algorithms
 linear = NaiveLinearSearch(max_depth=3)
-beam = SimpleBeamSearch(max_depth=3, beam_width=2, branching_factor=2)
+beam = BeamSearch(max_depth=3, beam_width=2, branching_factor=2)
 mcts = MonteCarloTreeSearch(max_iterations=10)
 
 # Create verifier and scorer
@@ -220,7 +220,7 @@ Search algorithms can be serialized for reproducibility:
 search_config = search.to_dict()
 
 # Deserialize later
-restored_search = SimpleBeamSearch.from_dict(search_config)
+restored_search = BeamSearch.from_dict(search_config)
 ```
 
 ## Custom Search Algorithms
