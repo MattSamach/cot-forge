@@ -184,9 +184,9 @@ class CoTBuilder:
         ):
             logger.info(
                 f"Skipping already processed question: "
-                f"{self.persistence._generate_question_id(question, ground_truth_answer)}"
+                f"{self.persistence.generate_question_id(question, ground_truth_answer)}"
             )
-                    
+
             return None
         
         llm_kwargs = llm_kwargs or {}

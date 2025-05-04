@@ -33,8 +33,8 @@ class TestReasoningProcessor(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_persistence_class = patcher.start()
 
-    def test_init_no_output_path(self):
-        """Test initializing ReasoningProcessor without a custom output path."""
+    def test_init_basic(self):
+        """Test basic initialization of ReasoningProcessor."""
         processor = ReasoningProcessor(
             llm_provider=self.mock_llm_provider,
             dataset_name=self.dataset_name,
@@ -47,22 +47,8 @@ class TestReasoningProcessor(unittest.TestCase):
         self.mock_persistence_class.assert_called_once_with(
             dataset_name=self.dataset_name,
             search_name=self.search_name,
-            base_dir="test_base",
-            auto_resume=True
+            base_dir="test_base"
         )
-
-    def test_init_with_output_path(self):
-        """Test initializing ReasoningProcessor with a custom output path."""
-        output_file = "custom/output.jsonl"
-        processor = ReasoningProcessor(
-            llm_provider=self.mock_llm_provider,
-            dataset_name=self.dataset_name,
-            search_name=self.search_name,
-            base_dir="test_base",
-            output_file=output_file
-        )
-        # Test that output_path ends with the specified output_file
-        self.assertTrue(str(processor.output_path).endswith(output_file))
 
     def test_get_strategy_registry(self):
         """Test that get_strategy_registry returns a StrategyRegistry."""
@@ -79,7 +65,6 @@ class TestReasoningProcessor(unittest.TestCase):
         """Test that processor writes results line-by-line to support large files."""
         # Once implemented, mock the file writing and check calls to write lines
         pass
-
 
 if __name__ == '__main__':
     unittest.main()
