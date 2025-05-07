@@ -26,6 +26,7 @@ Ground truth answer: {ground_truth_answer}
 """
 
 VERIFICATION_FORMAT_PROMPT = """Strictly follow the JSON structure below.
+Ensure a valid json response. Any newlines or special characters (like quotes) within this string must be properly escaped (e.g., use \\n for newlines, \\" for quotes).
 
 {
 "verification": {

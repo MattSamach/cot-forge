@@ -38,6 +38,7 @@ Then construct a new Final Conclusion.</new_instruction>\n\n"""
     def create_json_format() -> str:
         return """### Output Format
 Strictly follow the JSON structure below. You do not need to repeat your previous reasoning. Begin directly from the last 'Final Conclusion' stage.
+Ensure a valid json response. Any newlines or special characters (like quotes) within this string must be properly escaped (e.g., use \\n for newlines, \\" for quotes).
 
 ```json
 {

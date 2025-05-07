@@ -19,6 +19,7 @@ Your task is to score each response based on how well it answers the question an
     @staticmethod
     def format_prompt() -> str:
         return """Strictly follow the JSON structure below.
+Ensure a valid json response. Any newlines or special characters (like quotes) within this string must be properly escaped (e.g., use \\n for newlines, \\" for quotes).
 The output should be a JSON object with a "scoring" key, which contains another JSON object.
 The inner JSON object should have keys corresponding to the names of the options used to generate the responses.
 The values should be the scores for each response.
