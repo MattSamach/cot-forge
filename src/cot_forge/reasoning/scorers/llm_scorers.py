@@ -58,16 +58,19 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
             llm_kwargs=llm_kwargs
         )
 
-    def score(self,
-              cot_list: list[dict[str, dict[str, Any]]],
-              question: str,
-              ground_truth_answer: str,
-              **kwargs: Any) -> dict[str, float]:
+    def score(
+        self,
+        cot_list: list[dict[str, dict[str, Any]]],
+        question: str,
+        ground_truth_answer: str,
+        id_field = "id",
+        **kwargs: Any
+    ) -> dict[str, float]:
         
         try:
             final_answers = [
                 {
-                    "strategy_name": cot["strategy_name"],
+                    "option": cot[id_field],
                     "final_answer": extract_final_answer_from_cot(cot["cot"])
                 }
                 for cot in cot_list
@@ -78,7 +81,7 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
         
         # Format the final answers into a string
         final_answers_formatted = '\n'.join([
-            f"{item['strategy_name']}: {item['final_answer']},"
+            f"{item['option']}: {item['final_answer']},"
             for item in final_answers
         ])
 

@@ -197,12 +197,12 @@ class ScoredStrategySelector(StrategySelector):
         question: str,
         ground_truth_answer: str,
         scorer: BaseScorer,
+        nodes: list['ReasoningNode'],
         num_strategies: int = 1,
         num_considered: int = None,
-        node: 'ReasoningNode' = None,
         llm_kwargs: dict[str, Any] = None,
         **kwargs
-    ) -> tuple[dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Select strategies by scoring their performance on the given question.
         
@@ -218,58 +218,86 @@ class ScoredStrategySelector(StrategySelector):
             question: The question being addressed in the reasoning process.
             ground_truth_answer: The expected answer for scoring accuracy.
             scorer: The scorer (BaseScorer) to evaluate strategy performance.
+            nodes: The list of reasoning nodes to consider to append to.
             num_strategies: The number of strategies to select.
             num_considered: The maximum number of strategies to evaluate. 
                 If None, all eligible strategies are considered.
-            node: The current reasoning node to which new reasoning will be appended.
             llm_kwargs: Additional arguments for the LLM provider.
             **kwargs: Unused additional arguments.
             
         Returns:
-        - dict: A dictionary containing:
-            - "strategies_dict": Detailed information about each strategy evaluation.
-            - "scores": The scores assigned to each strategy.
-            - "selected_strategies": The list of selected strategies.
-            - "rejected_strategies": The list of strategies that were not selected.
+            - list[dict[str, Any]]: A list of dictionaries.
+                Each index correspondes to the node in the parameter `nodes` list.
+                Each dictionary contains:
+                - "strategy": The strategy object.
+                - "prompt": The generated prompt for the strategy.
+                - "response": The generated response from the LLM.
+                - "cot": The generated chain of thought.
+                - "score": The score assigned by the scorer.
+                - "selection_count": The number of times this strategy was selected.
+                - "option_id": The unique identifier for the strategy option.
 
         Raises:
             ValueError: If no eligible strategies are found or if no strategies 
                 could be successfully scored.
         """
-        strategy_options = self.get_strategy_options(registry, depth, num_considered=num_considered)
+        
         llm_kwargs = llm_kwargs or {}
         
-        # Generate and parse COT for each strategy
-        strategies_dict = defaultdict(dict)
-        for strategy in strategy_options:
-            prompt = strategy.build_prompt(
-                question=question,
-                previous_cot=str(node.get_full_cot() if node else None)
-            )
-            try:
-                response, cot = generate_and_parse_cot(
-                    search_llm,
-                    prompt=prompt,
-                    llm_kwargs=llm_kwargs
-                )
-            except Exception as e:
-                logger.error(f"Error generating COT for strategy {strategy.name}: {e}")
+        # List storing strategy options dicts for each node
+        strategy_options_by_node = []
+        # Dictionary to remmap options to nodes
+        option_node_map = {}
+        i = 0
+        
+        # Loop through nodes
+        for node_idx, node in enumerate(nodes):
+            # Do not need to select strategies if the node is final
+            if node.is_final:
+                strategy_options_by_node.append({})
                 continue
+            strategy_options = self.get_strategy_options(registry, depth, num_considered=num_considered)
+            if not strategy_options:
+                raise ValueError(f"No strategies available for for scoring.")
+        
+            # Generate and parse COT for each strategy
+            strategies_dict = defaultdict(dict)
+            for strategy in strategy_options:
+                prompt = strategy.build_prompt(
+                    question=question,
+                    previous_cot=str(node.get_full_cot())
+                )
+                try:
+                    response, cot = generate_and_parse_cot(
+                        search_llm,
+                        prompt=prompt,
+                        llm_kwargs=llm_kwargs
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating COT for strategy {strategy.name}: {e}")
+                    continue
+                
+                # Store strategy, response, and cot in the dictionary
+                option_id = f"option_{i}"
+                strategies_dict[option_id]["strategy"] = strategy
+                strategies_dict[option_id]["prompt"] = prompt
+                strategies_dict[option_id]["response"] = response
+                strategies_dict[option_id]["cot"] = cot
+                strategies_dict[option_id]["selection_count"] = 0
+                i += 1
+                
+                # Map option_id to node index
+                option_node_map[option_id] = node_idx
             
-            # Store strategy, response, and cot in the dictionary
-            strategies_dict[strategy.name]["prompt"] = prompt
-            strategies_dict[strategy.name]["strategy"] = strategy
-            strategies_dict[strategy.name]["response"] = response
-            strategies_dict[strategy.name]["cot"] = cot
-            
-        if not strategies_dict:
-            raise ValueError("No strategies available for scoring.")
+            # Append to strat options at corresponding node index
+            strategy_options_by_node.append(strategies_dict)
         
         # Score each strategy
         # Create cot_list in the format expected by the scorer
         cot_list = [
-            {"strategy_name": strat_name, "cot": strat_data['cot']}
-            for strat_name, strat_data in strategies_dict.items()
+            {'option_id': option_id, 'cot': option['cot']}
+            for strat_dict in strategy_options_by_node
+            for option_id, option in strat_dict.items()
         ]
         
         # Use scorer to score the strategies
@@ -278,39 +306,37 @@ class ScoredStrategySelector(StrategySelector):
                 cot_list=cot_list,
                 question=question,
                 ground_truth_answer=ground_truth_answer,
+                id_field="option_id",
             )
         except Exception as e:
             logger.error(f"Error in scoring: {e}")
             return None
         
-        # Update strategies_dict with scores
-        for strat_name, score in scores.items():
-            strategies_dict[strat_name]["score"] = score
-            
-        # Select the best strategies based on the scores
-        scores = {strat: strategies_dict[strat]['score'] for strat in strategies_dict}
-        sorted_strategies = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
-        # Select the top strategies
-        # If num_strategies is greater than the number of available strategies, loop back to the start
+        # Use option_node_map to map scores back to nodes
+        for option_id, score in scores.items():
+            node_idx = option_node_map.get(option_id)
+            if node_idx is not None:
+                # Update the score in the corresponding strategy dict
+                strategy_options_by_node[node_idx][option_id]["score"] = score
+                
+        sorted_options = sorted(
+            scores.items(), key=lambda x: x[1], reverse=True
+        )
+                    
+        # Select the top options based on the scores
+        # If num_strategies is greater than the number of available options, loop back to the start
         i = 0
-        selected_strategies = []
-        while len(selected_strategies) < num_strategies:
-            strat = registry.get_strategy(sorted_strategies[i % len(sorted_strategies)][0])
-            selected_strategies.append(strat)
+        selected_options = []
+        while len(selected_options) < num_strategies:
+            selected_options.append(sorted_options[i % len(sorted_options)][0])
             i += 1
-        
-        # Get rejected strategies
-        rejected_strategies = [
-            strategy for strategy in strategy_options if strategy not in selected_strategies
-        ]
-        
-        # Create dict for additional search info including strategies dict, scores, and rejected strategies
-        search_info = {
-            "strategies_dict": strategies_dict,
-            "scores": scores,
-            "selected_strategies": selected_strategies,
-            "rejected_strategies": rejected_strategies,
-        }
-        
-        return search_info
+            
+        # Increment the selection count for each selected option
+        # Options may be selected multiple times if num_strategies > len(sorted_options)
+        # That would mean the same option selected to branch from the same node
+        for option_id in selected_options:
+            node_idx = option_node_map.get(option_id)
+            if node_idx is not None:
+                strategy_options_by_node[node_idx][option_id]["selection_count"] += 1
+
+        return strategy_options_by_node

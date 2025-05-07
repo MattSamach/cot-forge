@@ -8,7 +8,7 @@ Provided answer: {final_answer}
 Ground truth answer: {ground_truth_answer}
 """
 
-STRICT_VERIFICATION_PROMPT = """You are a strict answer verifier.
+STRICT_VERIFICATION_PROMPT = """You are a strict answer judge.
 Verify if the provided answer below is equivalent to the ground truth answer.
 While answers don't need to be word-for-word identical, they must:
 1. Contain the same key facts and information

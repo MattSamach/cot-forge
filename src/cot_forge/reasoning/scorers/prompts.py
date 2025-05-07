@@ -20,13 +20,13 @@ Your task is to score each response based on how well it answers the question an
     def format_prompt() -> str:
         return """Strictly follow the JSON structure below.
 The output should be a JSON object with a "scoring" key, which contains another JSON object.
-The inner JSON object should have keys corresponding to the names of the strategies used to generate the responses.
+The inner JSON object should have keys corresponding to the names of the options used to generate the responses.
 The values should be the scores for each response.
 ```json
 {
 "scoring": {
-    "strategy_name_1": <INSERT_NUMERIC_SCORE_HERE>,
-    "strategy_name_2": <INSERT_NUMERIC_SCORE_HERE>
+    "option_name_1": <INSERT_NUMERIC_SCORE_HERE>,
+    "option_name_2": <INSERT_NUMERIC_SCORE_HERE>
 }
 }
 ```"""

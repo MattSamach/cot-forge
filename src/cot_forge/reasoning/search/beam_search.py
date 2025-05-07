@@ -32,8 +32,6 @@ Logical flow:
     4. Termination: Continue until a termination condition is met (e.g., maximum depth reached).
     5. Result: Return all beams.
 """
-# TODO: Implement true branching by comparing across all beams
-# TODO: Make sure I have robust retry for error handling in intialize beams, strategy selection, etc
 # TODO: Multithread the beam search
 
 import logging
@@ -256,15 +254,19 @@ class BeamSearch(BaseSearch):
         # This ensures that we consider enough strategies to fulfill the beam width
         # If the number of strategies is less than the beam width, we can reuse strategies
         num_considered_strategies = max(self.branching_factor, self.beam_width)
+        
+        # Create a list to hold the beams
+        # This will be a list of ReasoningNode objects
+        beams = []
 
         try:
-            search_data = self.strategy_selector.select(
+            scored_strategies = self.strategy_selector.select(
                 search_llm=search_llm,
                 registry=strategy_registry,
                 depth=depth,
                 num_strategies=self.beam_width,
                 num_considered=num_considered_strategies,
-                node=initial_node,
+                nodes=[initial_node],
                 question=question,
                 ground_truth_answer=ground_truth_answer,
                 scorer=scorer,
@@ -275,40 +277,35 @@ class BeamSearch(BaseSearch):
             logger.error("Error in selecting strategies")
             raise ValueError("Failed to select strategies") from e
         
-        # Unpack the search data
-        strategies_dict = search_data['strategies_dict']
-        selected_strategies = search_data['selected_strategies']
-        rejected_strategies = search_data['rejected_strategies']
-        
-        # Create pruned nodes for rejected strategies
-        for strategy in rejected_strategies:
-            strat_data = strategies_dict[strategy.name]
-            # Create a new node for each rejected strategy, marking it as pruned
-            self.create_node(
-                strategy=strat_data['strategy'],
-                prompt=strat_data['prompt'],
-                response=strat_data['response'],
-                cot=strat_data['cot'],
-                parent=initial_node,
-                pruned=True,
-                metadata={"is_initial": False, "score": strat_data['score']}
-            )
-        
-        # Create beams with initial node as parent
-        beams = []
-        for strategy in selected_strategies:
-            strat_data = strategies_dict[strategy.name]
-            # Create a new node for each selected strategy
-            new_beam = self.create_node(
-                strategy=strat_data['strategy'],
-                prompt=strat_data['prompt'],
-                response=strat_data['response'],
-                cot=strat_data['cot'],
-                parent=initial_node,
-                metadata={"is_initial": False, "score": strat_data['score']}
-            )
-            
-            beams.append(new_beam)
+        # Unpack the search data. Should be a list of length 1 for the initial node.
+        scored_strategies = scored_strategies[0]
+        # scored_strategies is a dictionary of dictionaries. Key is irrelevant.
+        for search_data in scored_strategies.values():
+            selection_count = search_data['selection_count']
+            # If selection count is 0, create a new pruned node out of it
+            if selection_count == 0:
+                self.create_node(
+                    strategy=search_data['strategy'],
+                    prompt=search_data['prompt'],
+                    response=search_data['response'],
+                    cot=search_data['cot'],
+                    parent=initial_node,
+                    pruned=True,
+                    metadata={"is_initial": False, "score": search_data['score']}
+                )
+            # Otherwise, create `count_value` new nodes for the selected strategy
+            # Add to the beams list
+            else:
+                for _ in range(selection_count):
+                    new_beam = self.create_node(
+                        strategy=search_data['strategy'],
+                        prompt=search_data['prompt'],
+                        response=search_data['response'],
+                        cot=search_data['cot'],
+                        parent=initial_node,
+                        metadata={"is_initial": False, "score": search_data['score']}
+                    )
+                    beams.append(new_beam)
             
         # Check if the new node is a terminal node with verifier
         for beam in beams:
@@ -426,72 +423,71 @@ class BeamSearch(BaseSearch):
             )
             
         # Range starts at 2 because we already have the initial node and beams, zero based indexing
-        # We will expand the beams at each depth
         for depth in range(2, max_depth+1):
-            
-            # Expand each beam
-            for i, beam in enumerate(beams):
-                # If the beam is final, skip it
-                if beam.is_final:
-                    continue
-                
-                try:
-                    search_data = self.strategy_selector.select(
-                        search_llm=search_llm,
-                        registry=strategy_registry,
-                        depth=depth,
-                        question=question,
-                        ground_truth_answer=ground_truth_answer,
-                        num_considered=self.branching_factor,
-                        scorer=scorer,
-                        node=beam,
-                        llm_kwargs=llm_kwargs,
-                        logger=logger,
-                    )
-                except Exception as e:
+            # Get number of activte beams to pass as number of strategies to select
+            num_active_beams = len([beam for beam in beams if not beam.is_final])
+            # Track new beams
+            new_beams = []
+            try:
+                scored_strategies = self.strategy_selector.select(
+                    search_llm=search_llm,
+                    registry=strategy_registry,
+                    depth=depth,
+                    question=question,
+                    ground_truth_answer=ground_truth_answer,
+                    num_strategies=num_active_beams,
+                    num_considered=self.branching_factor,
+                    nodes=beams,
+                    scorer=scorer,
+                    llm_kwargs=llm_kwargs,
+                    logger=logger
+                )
+            except Exception as e:
                     logger.error("Error in selecting strategies")
                     raise ValueError("Failed to select strategies") from e
                 
-                # Unpack the search data
-                strategies_dict = search_data['strategies_dict']
-                selected_strategies = search_data['selected_strategies']
-                rejected_strategies = search_data['rejected_strategies']
-                
-                # Create pruned nodes for rejected strategies
-                for strategy in rejected_strategies:
-                    strat_data = strategies_dict[strategy.name]
-                    # Create a new node for each rejected strategy, marking it as pruned
-                    self.create_node(
-                        strategy=strat_data['strategy'],
-                        prompt=strat_data['prompt'],
-                        response=strat_data['response'],
-                        cot=strat_data['cot'],
-                        parent=beam,
-                        pruned=True,
-                        metadata={"is_initial": False, "score": strat_data['score']}
-                    )
-                                
-                # If strategies_dict is None, consider it a failure
-                # and skip this beam at this depth
-                if strategies_dict is None:
+            for idx, strat_dict in enumerate(scored_strategies):
+                # If beam is already final, skip it
+                if beams[idx].is_final:
+                    # Add the beam to the new beams list to continue tracking it
+                    new_beams.append(beams[idx])
                     continue
+                # Unpack the search data
+                for search_data in strat_dict.values():
+                    # If selection count is 0, create a new pruned node out of it
+                    if search_data['selection_count'] == 0:
+                        self.create_node(
+                            strategy=search_data['strategy'],
+                            prompt=search_data['prompt'],
+                            response=search_data['response'],
+                            cot=search_data['cot'],
+                            parent=beams[idx],
+                            pruned=True,
+                            metadata={"is_initial": False, "score": search_data['score']}
+                        )
+                    # Otherwise, create `count_value` new nodes for the selected strategy
+                    # Add to the beams list
+                    else:
+                        for _ in range(search_data['selection_count']):
+                            new_beam = self.create_node(
+                                strategy=search_data['strategy'],
+                                prompt=search_data['prompt'],
+                                response=search_data['response'],
+                                cot=search_data['cot'],
+                                parent=beams[idx],
+                                metadata={"is_initial": False, "score": search_data['score']}
+                            )
+                            new_beams.append(new_beam)
+                            
+            # Update the beams list with the new beams
+            beams = new_beams
                 
-                best_strategy = selected_strategies[0]
-                best_strategy_dict = strategies_dict[best_strategy.name]
-                
-                # Create a new node for the best strategy
-                new_node = self.create_node(
-                    strategy=best_strategy_dict['strategy'],
-                    prompt=best_strategy_dict['prompt'],
-                    response=best_strategy_dict['response'],
-                    cot=best_strategy_dict['cot'],
-                    parent=beam,
-                    metadata={"is_initial": False, "score": best_strategy_dict['score']}
-                )
-               
-                beams[i] = new_node
-                
-                # Verify the new node 
+            # Verify the new beams
+            for new_node in beams:
+                # If the node is already final, skip it
+                if new_node.is_final:
+                    continue
+                # Verify the node
                 self.verify_node(
                     node=new_node,
                     question=question,
@@ -505,7 +501,7 @@ class BeamSearch(BaseSearch):
             if all(beam.is_final for beam in beams):
                 break
         
-        # Set each terminal node as final
+        # Set each terminal node as final once loop is complete
         for beam in beams:
             beam.is_final = True
         

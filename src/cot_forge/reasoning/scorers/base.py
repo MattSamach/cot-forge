@@ -54,7 +54,7 @@ class BaseScorer(ABC):
         
         Args:
             cot_list: List of CoTs to be scored. Each CoT is a dictionary with a "name" and "cot" key.
-                  The "name" key is the name of the strategy. The "cot" key is a dictionary
+                  The "name" key is the name of the option. The "cot" key is a dictionary
                   containing the chain of thought.
             question: The question to be answered.
             ground_truth_answer: The true answer to the question.
