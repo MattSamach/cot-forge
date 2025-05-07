@@ -21,10 +21,6 @@ Example Usage:
         base_dir="my_data_dir",
     processed_results = processor.process_batch(limit=100)
     
-TODO:
-- Multithreading support for LLM calls
-- Implement line-by-line writing to the output file to support processing of large files
-This will allow for more efficient memory management when dealing with extensive datasets.
 """
 
 import logging
@@ -57,9 +53,10 @@ class ReasoningProcessor:
     def __init__(
         self,
         llm_provider: LLMProvider,
-        dataset_name: str,
-        search_name: str,
+        search_name: str = None,
+        dataset_name: str = None,
         llm_kwargs: dict[str, Any] | None = None,
+        strategy_registry: StrategyRegistry = None,
         base_dir: str = "data",
         output_file: str = "processed_results.jsonl",
         thinking_tag: str = "thinking",
@@ -73,6 +70,7 @@ class ReasoningProcessor:
             dataset_name: Name of the dataset to process (must match CoTBuilder's dataset_name)
             search_name: Name of the search to process (must match the search algorithm name)
             llm_kwargs: Additional arguments for the LLM provider
+            strategy_registry: Strategy registry for deserializing results
             base_dir: Base directory for loading data (should match CoTBuilder's base_dir)
             strategy_reg: Strategy registry for deserializing results
             thinking_tag: Tag for the reasoning process, default is "thinking" i.e. <thinking>
@@ -84,13 +82,17 @@ class ReasoningProcessor:
         self.thinking_tag = thinking_tag
         
         # Create persistence manager to read results (but not write to them)
-        self.persistence = PersistenceManager(
-            dataset_name=dataset_name,
-            search_name=search_name,
-            base_dir=base_dir,
-        )
+        if dataset_name is not None and search_name is not None:
+            self.persistence = PersistenceManager(
+                dataset_name=dataset_name,
+                search_name=search_name,
+                base_dir=base_dir,
+            )
         # Load the strategy registry for deserializing results
-        self.strategy_registry = self.get_strategy_registry()
+        if not strategy_registry:
+            self.strategy_registry = self.get_strategy_registry()
+        else:
+            self.strategy_registry = strategy_registry
         
         
     def get_strategy_registry(self) -> StrategyRegistry:
@@ -105,79 +107,11 @@ class ReasoningProcessor:
         except KeyError:
             logger.warning("No strategy registry found in the config. Using default.")
             return default_strategy_registry
-        
-    def process_batch(
-        self,
-        only_successful: bool = True,
-        limit: int = None,
-        progress_bar: bool = True,
-        multi_thread: bool = False,
-        max_workers: int | None = 4,
-        llm_kwargs: dict = None,
-        on_error: Literal["continue", "raise", "retry"] = "retry",
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ) -> list[dict[str, Any]]:
-        """
-        Process a batch of saved CoT results.
-        
-        Args:
-            only_successful: If True, only process CoTs that were successful
-            limit: Maximum number of results to process
-            progress_bar: Whether to show a progress bar
-            multi_thread: If True, use multithreading for processing
-            max_workers: Number of threads to use for multithreading
-            llm_kwargs: Additional arguments for the LLM
-            on_error: Error handling strategy for the processor
-            max_retries: Maximum number of retries for failed requests
-            retry_delay: Delay between retries in seconds
-            
-        Returns:
-            List of processed results
-        """
-        # Set default values for optional arguments
-        llm_kwargs = llm_kwargs or {}
-        if multi_thread and max_workers is None:
-            max_workers = 4
-        
-        # Load all results
-        results_data = self.persistence.load_results()
-        
-        # Filter for successful results if required
-        if only_successful:
-            results_data = [r for r in results_data if r["success"]]
-            
-        if limit:
-            results_data = results_data[:limit]
-            
-        # Process results
-        if multi_thread:
-            processed_results = self._multi_threaded_process(
-                results_data=results_data,
-                only_successful=only_successful,
-                on_error=on_error,
-                llm_kwargs=llm_kwargs,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                progress_bar=progress_bar,
-                max_workers=max_workers
-            )
-        else:
-            processed_results = self._single_threaded_process(
-                results_data=results_data,
-                only_successful=only_successful,
-                on_error=on_error,
-                llm_kwargs=llm_kwargs,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                progress_bar=progress_bar
-            )
-        return processed_results
 
     def process_result(
         self,
         search_result: SearchResult,
-        id: str,
+        id: str = None,
         only_successful: bool = True,
         on_error: Literal["continue", "raise", "retry"] = "retry",
         llm_kwargs: dict[str, Any] = None,
@@ -187,7 +121,8 @@ class ReasoningProcessor:
         """
         Process a single saved CoT result to generate natural reasoning and formal response.
         Args:
-            result: The saved CoT result to process
+            search_result: The saved CoT result to process
+            id: The id of the search result
             only_successful: If True, only process CoTs that were successful
             on_error: Error handling strategy for the processor
             llm_kwargs: Additional arguments for the LLM
@@ -243,111 +178,16 @@ class ReasoningProcessor:
 
         # Create processed result
         processed_result = {
-            "id": id,
             "question": question,
             "ground_truth": ground_truth,
             "chain_of_thought_responses": thought_chains,
         }
+        if id:
+            processed_result["id"] = id
                     
         # Return the processed result
         return processed_result
     
-    def _single_threaded_process(
-        self,
-        results_data: list[dict[str, Any]],
-        only_successful: bool,
-        on_error: Literal["continue", "raise", "retry"],
-        llm_kwargs: dict[str, Any],
-        max_retries: int,
-        retry_delay: float,
-        progress_bar: bool,
-        processed_results: list[dict[str, Any]] = None,
-    ):
-        """
-        Process a batch of saved CoT results in a single thread.
-        """
-        # Initialize processed results list if not provided
-        processed_results = processed_results or []
-        # Create a progress bar if required
-        if progress_bar:
-            results_data = tqdm(
-                results_data,
-                desc="Post-Processing CoT results",
-                unit="result"
-            )
-        # Process each result
-        for result in results_data:
-            processed_result = self.process_result(
-                result=result,
-                only_successful=only_successful,
-                on_error=on_error,
-                llm_kwargs=llm_kwargs,
-                max_retries=max_retries,
-                retry_delay=retry_delay
-            )
-            processed_results.append(processed_result)
-        
-        return processed_results
-    
-    def _multi_threaded_process(
-        self,
-        results_data: list[dict[str, Any]],
-        only_successful: bool,
-        on_error: Literal["continue", "raise", "retry"],
-        llm_kwargs: dict[str, Any],
-        max_retries: int,
-        retry_delay: float,
-        progress_bar: bool,
-        max_workers: int,
-        processed_results: list[dict[str, Any]] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Process a batch of saved CoT results using multithreading.
-
-        Args:
-            results_data (list[dict[str, Any]]): List of saved CoT results to process
-            only_successful (bool): If True, only process CoTs that were successful
-            on_error (Literal): Error handling strategy for the processor
-            llm_kwargs (dict[str, Any]): Additional arguments for the LLM
-            max_retries (int): Maximum number of retries for failed requests
-            retry_delay (float): Delay between retries in seconds
-            progress_bar (bool): Whether to show a progress bar
-            max_workers (int): Number of threads to use for multithreading
-            processed_results (list[dict[str, Any]]): List to store processed results
-
-        Returns:
-            list[dict[str, Any]]: List of processed results
-        """
-        processed_results = processed_results or []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(
-                    self.process_result,
-                    result=result,
-                    only_successful=only_successful,
-                    on_error=on_error,
-                    llm_kwargs=llm_kwargs,
-                    max_retries=max_retries,
-                    retry_delay=retry_delay
-                )
-                for result in results_data
-            ]
-            if progress_bar:
-                futures = tqdm(
-                    futures,
-                    desc="Post-Processing CoT results",
-                    unit="result",
-                    total=len(futures)
-                )
-            
-            for future in futures:
-                try:
-                    processed_result = future.result()
-                    processed_results.append(processed_result)
-                except Exception as e:
-                    logger.error(f"Error processing result: {e}")
-                    
-        return processed_results
         
     def generate_natural_reasoning(
         self,

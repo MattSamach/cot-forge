@@ -3,6 +3,10 @@ This module provides persistence functionality for CoTBuilder.
 
 It handles checkpointing, resumable operations, and result storage for CoT generations
 to ensure that long-running jobs can be interrupted and resumed without data loss.
+
+TODO:
+- Implement line-by-line writing to the output file to support processing of large files 
+    for more efficient memory management when dealing with extensive datasets.
 """
 
 import json

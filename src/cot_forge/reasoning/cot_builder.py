@@ -106,7 +106,7 @@ class CoTBuilder:
         search: SearchAlgorithm,
         verifier: BaseVerifier,
         post_processing_llm: LLMProvider,
-        dataset_name: str,
+        dataset_name: str = None,
         base_dir: str = "data",
         scorer: BaseScorer = None,
         strategy_registry: StrategyRegistry = default_strategy_registry,
@@ -123,13 +123,16 @@ class CoTBuilder:
         self.scorer = scorer
         
         # Initialize persistence
-        self.persistence = PersistenceManager(
-            dataset_name=dataset_name,
-            search_name=search.name,
-            base_dir=base_dir,
-        )
-        # Save the configuration
-        self.persistence.save_config(self)
+        if dataset_name is not None:
+            self.persistence = PersistenceManager(
+                dataset_name=dataset_name,
+                search_name=search.name,
+                base_dir=base_dir,
+            )
+            # Save the configuration
+            self.persistence.save_config(self)
+        else:
+            self.persistence = None
 
         # Initialize post-processor
         self.post_processor = ReasoningProcessor(
@@ -139,7 +142,8 @@ class CoTBuilder:
             llm_kwargs=post_processing_llm_kwargs or {},
             base_dir=base_dir,
             output_file="processed_reasoning.jsonl",
-            thinking_tag="thinking"
+            thinking_tag="thinking",
+            strategy_registry=self.strategy_registry
         )
         
     def build_cot(
@@ -242,10 +246,12 @@ class CoTBuilder:
             **kwargs
         )
         
-        id = self.persistence.generate_question_id(
-            question=question,
-            ground_truth=ground_truth_answer
-        )
+        id = None
+        if self.persistence is not None:
+            id = self.persistence.generate_question_id(
+                question=question,
+                ground_truth=ground_truth_answer
+            )
         
         # Process the results using the post-processor
         reasoning = self.post_processor.process_result(
@@ -256,13 +262,14 @@ class CoTBuilder:
             **kwargs
         )
         
-        # Save the search result and reasoning
-        self.persistence.save_result(
-            result=search_result,
-            reasoning=reasoning,
-            question=question,
-            ground_truth=ground_truth_answer,
-        )
+        # Save the search result and reasoning if persistence is enabled
+        if self.persistence is not None:
+            self.persistence.save_result(
+                result=search_result,
+                reasoning=reasoning,
+                question=question,
+                ground_truth=ground_truth_answer,
+            )
         
         return search_result, reasoning
         
@@ -325,12 +332,68 @@ class CoTBuilder:
         if multi_thread and max_workers is None:
             raise ValueError("max_workers must be specified when multi_thread is True.")
         
+        # Setup persistence manager and load processed results if needed
+        if self.persistence is not None:
+            results, qa_pairs = self.prepare_batch(
+                overwrite=overwrite,
+                load_processed=load_processed,
+                questions=questions,
+                ground_truth_answers=ground_truth_answers,
+            )
+        else:
+            results = []
+            qa_pairs = list(zip(questions, ground_truth_answers))
+        
+        # Limit the number of questions to process if specified
+        if limit is not None:
+            qa_pairs = qa_pairs[:limit]
+        
+        if multi_thread:
+            new_results = self._multi_thread_batch_process(
+                qa_pairs=qa_pairs,
+                progress_bar=progress_bar,
+                max_workers=max_workers,
+                llm_kwargs=llm_kwargs,
+                only_successful=only_successful,
+                **kwargs
+            )
+            return results + new_results
+        else:
+            new_results = self._single_threaded_batch_process(
+                qa_pairs=qa_pairs,
+                progress_bar=progress_bar,
+                llm_kwargs=llm_kwargs,
+                only_successful=only_successful,
+                **kwargs
+            )
+            return results + new_results
+        
+    def prepare_batch(
+        self,
+        overwrite: bool,
+        load_processed: bool,
+        questions: list[str],
+        ground_truth_answers: list[str],
+    ):
+        """
+        Prepare batch for processing in cases where persistence is enabled.
+        This includes loading existing results and setting up the persistence manager.
+        Args:
+            overwrite (bool): If True, delete all existing files
+            load_processed (bool): If True, load already processed results from disk
+            questions (list[str]): List of questions to process
+            ground_truth_answers (list[str]): Corresponding correct answers
+        Returns:
+            tuple: A tuple containing:
+                - results: List of tuples containing search results and reasoning
+                - qa_pairs: List of tuples containing question and ground truth answer pairs to process
+        """
         # If overwrite is set to True, delete all existing files
         if overwrite:
             self.persistence.reset_all_files()
             self.persistence.save_config(self)
 
-        # Set up persistence for batch processing
+        # Set up persistence for batch processing if enabled
         self.persistence.setup_batch_run()
 
         results = []
@@ -356,29 +419,7 @@ class CoTBuilder:
             if not self.persistence.should_skip(q, a)
         ]
         
-        # Limit the number of questions to process if specified
-        if limit is not None:
-            qa_pairs = qa_pairs[:limit]
-        
-        if multi_thread:
-            new_results = self._multi_thread_batch_process(
-                qa_pairs=qa_pairs,
-                progress_bar=progress_bar,
-                max_workers=max_workers,
-                llm_kwargs=llm_kwargs,
-                only_successful=only_successful,
-                **kwargs
-            )
-            return results + new_results
-        else:
-            new_results = self._single_threaded_batch_process(
-                qa_pairs=qa_pairs,
-                progress_bar=progress_bar,
-                llm_kwargs=llm_kwargs,
-                only_successful=only_successful,
-                **kwargs
-            )
-            return results + new_results
+        return results, qa_pairs
 
     def _single_threaded_batch_process(
         self,
