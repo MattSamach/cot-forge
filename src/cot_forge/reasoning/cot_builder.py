@@ -99,6 +99,7 @@ class CoTBuilder:
         result = builder.build_cot("Why is the sky blue?", "Rayleigh scattering")
         ```
     """
+    # TODO: Change from JSON to XML parsing in all prompts and parsers
     
     def __init__(
         self,

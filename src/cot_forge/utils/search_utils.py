@@ -14,7 +14,7 @@ def execute_with_fallback(
         args: tuple = (),
         kwargs: dict = None,
         on_error: Literal["continue", "raise", "retry"] = "continue",
-        max_retries: int = 3,
+        max_retries: int = 5,
         retry_delay: float = 1.0,
         fallback_value: Any = None,
         logger: logging.Logger = logger
@@ -99,7 +99,7 @@ def generate_and_parse_json(
         prompt: str,
         llm_kwargs: dict[str, Any] = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
-        max_retries: int = 3,
+        max_retries: int = 5,
         retry_delay: float = 1.0,
         logger: logging.Logger = logger,
         retrieval_object: str = None
@@ -178,7 +178,7 @@ def generate_and_parse_cot(
         prompt: str,
         llm_kwargs: dict[str, Any] = None,
         on_error: Literal["continue", "raise", "retry"] = "retry",
-        max_retries: int = 3,
+        max_retries: int = 5,
         retry_delay: float = 1.0,
         logger: logging.Logger = logger,
     ) -> tuple[str, list[dict[str, str]]]:

@@ -8,21 +8,45 @@ logger = logging.getLogger(__name__)
 def extract_curly_bracket_content(text: str) -> str:
     """Extracts the curly bracketed json content within a string."""
     # Strip any markdown code block markers
-    text = re.sub(r'```json\n|\n```', '', text)
+    processed_text = re.sub(r'```json\n|\n```', '', text)
+    processed_text = processed_text.strip()
     
-    # Check if JSON can be extracted
     try:
-        # Try to parse as is first
-        json.loads(text, strict=False)
-        return text
-    except json.JSONDecodeError:
-        # If that fails, try to extract just the JSON part
-        pattern = r"\{.*\}"
-        match = re.search(pattern, text, re.DOTALL)
-        if not match:
-            return None
-        json_str = match.group(0)
-        return json_str
+        # Attempt 1: Try to parse as is first
+        json.loads(processed_text, strict=False)
+        return processed_text
+    except json.JSONDecodeError as e_initial:
+        # Initial parse failed. Try to repair common LLM mistakes like unescaped newlines.
+        # This is a heuristic. Order of replacement can be important for complex cases.
+        repaired_text = processed_text.replace('\\', '\\\\') # Must be first: escape literal backslashes
+        repaired_text = repaired_text.replace('\r\n', '\\n') # Windows newlines
+        repaired_text = repaired_text.replace('\n', '\\n')   # Unix newlines
+        repaired_text = repaired_text.replace('\r', '\\r')   # Old Mac newlines / carriage returns
+        repaired_text = repaired_text.replace('\t', '\\t')   # Tabs
+        # Add other repairs if needed, e.g., for unescaped quotes if that becomes an issue.
+
+        try:
+            # Attempt 2: Try to parse the repaired string
+            json.loads(repaired_text, strict=False)
+            logger.info("Successfully parsed JSON after repairing unescaped control characters.")
+            return repaired_text
+        except json.JSONDecodeError as e_repaired:
+            # If repair also fails, fall back to original behavior (print, log, regex extract)
+            logger.warning(
+                f"JSON parsing failed for input starting with: '{processed_text[:200]}...'. "
+                f"Initial error: {e_initial}. Error after repair: {e_repaired}."
+            )
+            
+            # Original fallback logic:
+            pattern = r"\{.*\}" # The original regex
+            match = re.search(pattern, processed_text, re.DOTALL)
+            if not match:
+                # If regex also fails to find a pattern, returning None might be safer
+                # than returning a string that's unlikely to be JSON.
+                return None 
+            json_str = match.group(0)
+            # This json_str might still be unparsable by the caller.
+            return json_str
 
 def parse_json_response(response: str) -> Any:
     """Extracts json formatting from a reasoning response."""
