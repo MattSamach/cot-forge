@@ -246,33 +246,36 @@ class CoTBuilder:
             llm_kwargs=llm_kwargs,
             **kwargs
         )
-        
-        id = None
-        if self.persistence is not None:
-            id = self.persistence.generate_question_id(
-                question=question,
-                ground_truth=ground_truth_answer
+        try:
+            id = None
+            if self.persistence is not None:
+                id = self.persistence.generate_question_id(
+                    question=question,
+                    ground_truth=ground_truth_answer
+                )
+            
+            # Process the results using the post-processor
+            reasoning = self.post_processor.process_result(
+                search_result=search_result,
+                id=id,
+                only_successful=only_successful,
+                llm_kwargs=post_processing_llm_kwargs,
+                **kwargs
             )
-        
-        # Process the results using the post-processor
-        reasoning = self.post_processor.process_result(
-            search_result=search_result,
-            id=id,
-            only_successful=only_successful,
-            llm_kwargs=post_processing_llm_kwargs,
-            **kwargs
-        )
-        
-        # Save the search result and reasoning if persistence is enabled
-        if self.persistence is not None:
-            self.persistence.save_result(
-                result=search_result,
-                reasoning=reasoning,
-                question=question,
-                ground_truth=ground_truth_answer,
-            )
-        
-        return search_result, reasoning
+            
+            # Save the search result and reasoning if persistence is enabled
+            if self.persistence is not None:
+                self.persistence.save_result(
+                    result=search_result,
+                    reasoning=reasoning,
+                    question=question,
+                    ground_truth=ground_truth_answer,
+                )
+            
+            return search_result, reasoning
+        except Exception as e:
+            logger.error(f"Error processing question '{question}': {e}")
+            return None, None
         
     def process_batch(
         self,
@@ -445,6 +448,8 @@ class CoTBuilder:
                 llm_kwargs=llm_kwargs,
                 **kwargs
             )
+            if result is none or reasoning is None:
+                continue
             results.append((result, reasoning))
             
         return results
@@ -482,6 +487,8 @@ class CoTBuilder:
             
             for future in future_iterator:
                 search_result, reasoning = future.result()
+                if search_result is None or reasoning is None:
+                    continue
                 results.append((search_result, reasoning))
                 
         return results
