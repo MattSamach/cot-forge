@@ -150,7 +150,9 @@ class TestCoTBuilder(unittest.TestCase):
   def test_integration_with_real_persistence(self):
     """Test an end-to-end integration with a real persistence manager."""
     # Patch PersistenceManager's save_result to avoid dict access errors
-    with patch('cot_forge.persistence.persistence_manager.PersistenceManager.save_result') as mock_save_result:
+    with patch(
+        'cot_forge.persistence.persistence_manager.PersistenceManager.save_result'
+    ) as mock_save_result:
       # Use a temporary directory
       temp_dir = tempfile.TemporaryDirectory()
 
@@ -239,7 +241,7 @@ class TestCoTBuilder(unittest.TestCase):
     # Patch the PersistenceManager class constructor to return our mock
     with patch('cot_forge.reasoning.cot_builder.PersistenceManager', return_value=mock_persistence):
       # Create a new builder that will trigger save_config
-      builder = CoTBuilder(
+      CoTBuilder(
           search_llm=self.mock_search_llm,
           post_processing_llm=self.mock_post_processing_llm,
           search=self.mock_search,
@@ -263,7 +265,7 @@ class TestCoTBuilder(unittest.TestCase):
 
     # The method we're actually testing - doesn't call save_result directly anymore
     # We need to check process method instead
-    result = self.cot_builder.build_cot(question, ground_truth)
+    self.cot_builder.build_cot(question, ground_truth)
 
     # Assert search was called
     self.mock_search.assert_called_once()

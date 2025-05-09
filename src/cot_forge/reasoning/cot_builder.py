@@ -229,7 +229,7 @@ class CoTBuilder:
         ground_truth_answer (str): The known correct answer
         only_successful (bool, optional): If True, only process successful results
         llm_kwargs (dict[str, Any] | None, optional): Additional LLM parameters
-        post_processing_llm_kwargs (dict[str, Any] | None, optional): Additional LLM parameters for post-processing
+        post_processing_llm_kwargs (dict[str, Any] | None): Additional LLM kwargs for post-processing
         **kwargs: Additional parameters for search algorithm
     Returns:    
         tuple[SearchResult, dict]: A tuple containing:

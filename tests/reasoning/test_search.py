@@ -780,7 +780,9 @@ class TestBeamSearch(unittest.TestCase):
     beam_search.create_node = MagicMock(side_effect=create_node_side_effect)
 
     # --- Mock ScoredStrategySelector.select ---
-    def select_side_effect(search_llm, registry, depth, nodes, question, ground_truth_answer, scorer, **kwargs):
+    def select_side_effect(
+        search_llm, registry, depth, nodes, question, ground_truth_answer, scorer, **kwargs
+    ):
       if depth == 2:
         # `nodes` should be [beam1_depth1, beam2_depth1]
         self.assertEqual(len(nodes), 2)
@@ -797,7 +799,7 @@ class TestBeamSearch(unittest.TestCase):
             },
             "option_1_s2_b1d1": {
                 "strategy": strategy2, "prompt": "P_S2_b1d1",
-                "response": "LLM response for Strategy2 from beam1_depth1 (alternative, not chosen for expansion)",
+                "response": "LLM response for Strategy2 from beam1_depth1 (alternative, not expanded)",
                 "cot": [{"action": "Thinking", "content": "Maybe 3 for b1d1?"}],
                 "score": 0.3, "selection_count": 0
             }
@@ -807,7 +809,7 @@ class TestBeamSearch(unittest.TestCase):
         strategies_for_beam2_depth1 = {
             "option_2_s1_b2d1": {
                 "strategy": strategy1, "prompt": "P_S1_b2d1",
-                "response": "LLM response for Strategy1 from beam2_depth1 (alternative, not chosen for expansion)",
+                "response": "LLM response for Strategy1 from beam2_depth1 (alternative, not expanded)",
                 "cot": [{"action": "Thinking", "content": "Perhaps 6 for b2d1?"}],
                 "score": 0.4, "selection_count": 0
             },
@@ -985,7 +987,16 @@ class TestBeamSearch(unittest.TestCase):
     # --- Mock ScoredStrategySelector.select ---
     mock_selector_instance = mock_strategy_selector_class.return_value
 
-    def select_side_effect(search_llm, registry, depth, nodes, question, ground_truth_answer, scorer, **kwargs):
+    def select_side_effect(
+        search_llm,
+        registry,
+        depth,
+        nodes,
+        question,
+        ground_truth_answer,
+        scorer,
+        **kwargs
+    ):
       """Mock the strategy selector to return options at each depth level."""
       # For depths 2 through max_depth, we'll create options
       if 2 <= depth <= max_depth:
