@@ -1,5 +1,5 @@
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, BeamSearch
+from cot_forge.reasoning import BeamSearch, CoTBuilder
 
 # from cot_forge.reasoning import BeamSearch
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
@@ -41,13 +41,16 @@ builder = CoTBuilder(
     scorer=ProbabilityFinalAnswerScorer(llm)
 )
 
+
 def main():
-    search_result = builder.build_cot(
-        question=question,
-        ground_truth_answer=ground_truth,
-    )
-    return search_result
+  search_result, reasoning = builder.process(
+      question=question,
+      ground_truth_answer=ground_truth,
+      only_successful=False
+  )
+  return search_result, reasoning
+
 
 if __name__ == "__main__":
-    search_result = main()
-    print(search_result)
+  search_result, reasoning = main()
+  print(reasoning)

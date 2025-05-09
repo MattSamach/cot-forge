@@ -47,145 +47,151 @@ from cot_forge.utils.parsing import extract_final_answer_from_cot, parse_json_re
 
 logger = logging.getLogger(__name__)
 
+
 class LLMJudgeVerifier(BaseVerifier):
-    """
-    A verifier that uses an LLM to judge answer correctness and provide feedback.
-    
-    This verifier delegates the verification task to an LLM, which compares a final
-    answer against a ground truth answer and provides both a binary correctness
-    assessment and a detailed explanation.
+  """
+  A verifier that uses an LLM to judge answer correctness and provide feedback.
 
-    Attributes:
-        prompt_template (str): Template string for formatting verification prompts
+  This verifier delegates the verification task to an LLM, which compares a final
+  answer against a ground truth answer and provides both a binary correctness
+  assessment and a detailed explanation.
+
+  Attributes:
+      prompt_template (str): Template string for formatting verification prompts
+      llm_provider (LLMProvider): Provider for LLM access
+      llm_kwargs (dict): Additional parameters for LLM calls
+  """
+
+  def __init__(
+      self,
+      llm_provider: LLMProvider,
+      llm_kwargs: dict[str, Any] | None = None,
+      strict: bool = False,
+  ):
+    """
+    Initialize the LLM judge verifier.
+
+    Args:
         llm_provider (LLMProvider): Provider for LLM access
-        llm_kwargs (dict): Additional parameters for LLM calls
+        llm_kwargs (dict, optional): Additional parameters for LLM calls
+        strict (bool, optional): If True, verifier will be strict in comparing
+            ground truth to provided answer. Defaults to False.
     """
-    
-    def __init__(
-        self,
-        llm_provider: LLMProvider,
-        llm_kwargs: dict[str, Any] | None = None,
-        strict: bool = False,
-    ):
-        """
-        Initialize the LLM judge verifier.
+    name = "llm_judge_verifier"
+    description = "A basic LLM judge verifier that compares a final answer with a ground truth answer."
+    super().__init__(name=name, description=description,
+                     llm_provider=llm_provider, llm_kwargs=llm_kwargs)
+    self.prompt_template = STRICT_VERIFICATION_PROMPT if strict else DEFAULT_VERIFICATION_PROMPT
 
-        Args:
-            llm_provider (LLMProvider): Provider for LLM access
-            llm_kwargs (dict, optional): Additional parameters for LLM calls
-            strict (bool, optional): If True, verifier will be strict in comparing
-                ground truth to provided answer. Defaults to False.
-        """
-        name = "llm_judge_verifier"
-        description = "A basic LLM judge verifier that compares a final answer with a ground truth answer."
-        super().__init__(name=name, description=description, llm_provider=llm_provider, llm_kwargs=llm_kwargs)
-        self.prompt_template = STRICT_VERIFICATION_PROMPT if strict else DEFAULT_VERIFICATION_PROMPT
-        
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the verifier to a dictionary representation."""
-        base_dict = super().to_dict()
-        base_dict["prompt_template"] = self.prompt_template
-        return base_dict
-    
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
-        """Create a verifier instance from a dictionary representation."""
-        llm_provider = LLMProvider.from_dict(data["llm_provider"]) if data.get("llm_provider") else None
-        return cls(
-            llm_provider=llm_provider,
-            llm_kwargs=data.get("llm_kwargs"),
-            prompt_template=data.get("prompt_template", DEFAULT_VERIFICATION_PROMPT)
-        )
-        
-    def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
-        """
-        Build the verification prompt for the LLM.
+  def to_dict(self) -> dict[str, Any]:
+    """Convert the verifier to a dictionary representation."""
+    base_dict = super().to_dict()
+    base_dict["prompt_template"] = self.prompt_template
+    return base_dict
 
-        Args:
-            final_answer (str): The answer to verify
-            ground_truth_answer (str): The correct answer to compare against
+  @classmethod
+  def from_dict(cls, data: dict[str, Any]) -> 'BaseVerifier':
+    """Create a verifier instance from a dictionary representation."""
+    llm_provider = LLMProvider.from_dict(
+        data["llm_provider"]) if data.get("llm_provider") else None
+    return cls(
+        llm_provider=llm_provider,
+        llm_kwargs=data.get("llm_kwargs"),
+        prompt_template=data.get(
+            "prompt_template", DEFAULT_VERIFICATION_PROMPT)
+    )
 
-        Returns:
-            str: Formatted prompt string for the LLM
-        """
-        prompt = self.prompt_template.format(
-                final_answer=final_answer,
-                ground_truth_answer=ground_truth_answer
-            )
-        prompt += "\n\n" + VERIFICATION_FORMAT_PROMPT
-        return prompt
-    
-    def parse_response(self, response: str) -> tuple[str, str]:
-        """
-        Parse the LLM's verification response.
+  def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
+    """
+    Build the verification prompt for the LLM.
 
-        Args:
-            response (str): Raw response from the LLM
+    Args:
+        final_answer (str): The answer to verify
+        ground_truth_answer (str): The correct answer to compare against
 
-        Returns:
-            tuple[str, str]: A tuple containing:
-                - verification result ("yes"/"no")
-                - explanation of the verification decision
+    Returns:
+        str: Formatted prompt string for the LLM
+    """
+    prompt = self.prompt_template.format(
+        final_answer=final_answer,
+        ground_truth_answer=ground_truth_answer
+    )
+    prompt += "\n\n" + VERIFICATION_FORMAT_PROMPT
+    return prompt
 
-        Raises:
-            json.JSONDecodeError: If response cannot be parsed as JSON
-        """
-        try:            
-            response_json = parse_json_response(response)
-            verification_result = response_json.get("verification", {}).get("result").strip().lower()
-            explanation = response_json.get("verification", {}).get("explanation")
-            return verification_result, explanation
-        except Exception as e:
-            logger.error(f"Failed to parse LLM response: {e}")
-            return False, f"Error: {str(e)}"
+  def parse_response(self, response: str) -> tuple[str, str]:
+    """
+    Parse the LLM's verification response.
 
-    def verify(self,
-               node: ReasoningNode,
-               question: str,
-               ground_truth_answer: str) -> tuple[bool, str]:
-        """
-        Verify the correctness of a reasoning node's answer using an LLM.
+    Args:
+        response (str): Raw response from the LLM
 
-        Args:
-            node (ReasoningNode): The reasoning node to verify
-            question (str): The original question being answered
-            ground_truth_answer (str): The correct answer to compare against
+    Returns:
+        tuple[str, str]: A tuple containing:
+            - verification result ("yes"/"no")
+            - explanation of the verification decision
 
-        Returns:
-            tuple[bool, str]: A tuple containing:
-                - boolean indicating if the answer is correct
-                - explanation of the verification result
+    Raises:
+        json.JSONDecodeError: If response cannot be parsed as JSON
+    """
+    try:
+      response_json = parse_json_response(response)
+      verification_result = response_json.get(
+          "verification", {}).get("result").strip().lower()
+      explanation = response_json.get("verification", {}).get("explanation")
+      return verification_result, explanation
+    except Exception as e:
+      logger.error(f"Failed to parse LLM response: {e}")
+      return False, f"Error: {str(e)}"
 
-        Raises:
-            ValueError: If LLM returns an empty response
-        """
-        if not node.cot:
-            logger.error("Node.cot is None")
-            return False, "Error: Node.cot is None"
-        
-        final_answer = extract_final_answer_from_cot(node.cot)
-        if final_answer is None:
-            logger.warning("No Final Conclusion found in response")
-            node.metadata = {
-                **(node.metadata or {}),
-                "warning": "missing_final_conclusion"
-            }
-            return False, "Error: No Final Conclusion found in response"
-        
-        try:
-            prompt = self.build_prompt(final_answer=final_answer, ground_truth_answer=ground_truth_answer)
-            response = self.llm_provider.generate(
-                prompt=prompt,
-                llm_kwargs=self.llm_kwargs
-            )
-            
-            if not response:
-                raise ValueError("Empty response from LLM")
-            
-            verification_result, explanation = self.parse_response(response)
-            
-            return verification_result == "yes", explanation 
+  def verify(self,
+             node: ReasoningNode,
+             question: str,
+             ground_truth_answer: str) -> tuple[bool, str]:
+    """
+    Verify the correctness of a reasoning node's answer using an LLM.
 
-        except Exception as e:
-            logger.error(f"Error during verification: {e}")
-            return False, f"Error: {str(e)}"
+    Args:
+        node (ReasoningNode): The reasoning node to verify
+        question (str): The original question being answered
+        ground_truth_answer (str): The correct answer to compare against
+
+    Returns:
+        tuple[bool, str]: A tuple containing:
+            - boolean indicating if the answer is correct
+            - explanation of the verification result
+
+    Raises:
+        ValueError: If LLM returns an empty response
+    """
+    if not node.cot:
+      logger.error("Node.cot is None")
+      return False, "Error: Node.cot is None"
+
+    final_answer = extract_final_answer_from_cot(node.cot)
+    if final_answer is None:
+      logger.warning("No Final Conclusion found in response")
+      node.metadata = {
+          **(node.metadata or {}),
+          "warning": "missing_final_conclusion"
+      }
+      return False, "Error: No Final Conclusion found in response"
+
+    try:
+      prompt = self.build_prompt(
+          final_answer=final_answer, ground_truth_answer=ground_truth_answer)
+      response = self.llm_provider.generate(
+          prompt=prompt,
+          llm_kwargs=self.llm_kwargs
+      )
+
+      if not response:
+        raise ValueError("Empty response from LLM")
+
+      verification_result, explanation = self.parse_response(response)
+
+      return verification_result == "yes", explanation
+
+    except Exception as e:
+      logger.error(f"Error during verification: {e}")
+      return False, f"Error: {str(e)}"

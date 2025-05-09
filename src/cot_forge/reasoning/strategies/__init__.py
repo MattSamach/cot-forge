@@ -8,27 +8,27 @@ utilities for selecting strategies, such as `RandomStrategySelector` and `Scored
 """
 
 from .prompts import (
-                      StrategyPromptTemplate,
-                      backtrack_strategy_prompt,
-                      correction_strategy_prompt,
-                      explore_new_paths_strategy_prompt,
-                      initialize_cot_prompt,
-                      validation_strategy_prompt,
+    StrategyPromptTemplate,
+    backtrack_strategy_prompt,
+    correction_strategy_prompt,
+    explore_new_paths_strategy_prompt,
+    initialize_cot_prompt,
+    validation_strategy_prompt,
 )
 from .strategies import (
-                      AnalogicalReasoning,
-                      Backtrack,
-                      Correction,
-                      Counterfactual,
-                      Decomposition,
-                      ExploreNewPaths,
-                      FirstPrinciples,
-                      InitializeCoT,
-                      PerspectiveShift,
-                      Strategy,
-                      StrategyRegistry,
-                      Validation,
-                      default_strategy_registry,
+    AnalogicalReasoning,
+    Backtrack,
+    Correction,
+    Counterfactual,
+    Decomposition,
+    ExploreNewPaths,
+    FirstPrinciples,
+    InitializeCoT,
+    PerspectiveShift,
+    Strategy,
+    StrategyRegistry,
+    Validation,
+    default_strategy_registry,
 )
 from .strategy_selector import RandomStrategySelector, ScoredStrategySelector, StrategySelector
 

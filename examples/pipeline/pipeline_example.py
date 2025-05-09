@@ -2,12 +2,13 @@ from pathlib import Path
 
 from datasets import load_dataset
 
-from cot_forge.llm import AnthropicProvider, GeminiProvider, OpenAIProvider
+from cot_forge.llm import GeminiProvider, OpenAIProvider
 from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
 # Dataset
-ds = load_dataset("FreedomIntelligence/medical-o1-verifiable-problem", split="train[:200]")
+ds = load_dataset(
+    "FreedomIntelligence/medical-o1-verifiable-problem", split="train[:200]")
 problem = ds["Open-ended Verifiable Question"]
 solution = ds["Ground-True Answer"]
 
@@ -25,14 +26,14 @@ builder = CoTBuilder(
 )
 # process
 results = builder.process_batch(
-  questions=problem,
-  ground_truth_answers=solution,
-  max_workers=4,
-  multi_thread=True,
-  load_processed=True,
-  only_successful=False,
-  overwrite=True,
-  limit=5
+    questions=problem,
+    ground_truth_answers=solution,
+    max_workers=4,
+    multi_thread=True,
+    load_processed=True,
+    only_successful=False,
+    overwrite=True,
+    limit=5
 )
 
 print(results)
