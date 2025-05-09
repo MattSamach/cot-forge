@@ -222,7 +222,7 @@ class BaseSearch(ABC, SearchAlgorithm):
 
     if error_msg and (on_error == "raise" or on_error == "retry"):
       # Log the error and raise an exception
-      logger.error(f"Verification call failed: {error_msg}")
+      # logger.error(f"Verification call failed: {error_msg}")
       raise RuntimeError(f"Verification call failed: {error_msg}")
 
     elif error_msg and on_error == "continue":

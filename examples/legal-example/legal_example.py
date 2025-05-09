@@ -1,7 +1,5 @@
 from cot_forge.llm import GeminiProvider
 from cot_forge.reasoning import BeamSearch, CoTBuilder
-
-# from cot_forge.reasoning import BeamSearch
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 

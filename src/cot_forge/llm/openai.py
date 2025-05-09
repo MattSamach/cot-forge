@@ -157,5 +157,5 @@ class OpenAIProvider(LLMProvider):
     try:
       return len(self.enc.encode(prompt))
     except Exception as e:
-      logger.warning(f"Error estimating input tokens: {e}")
+      # logger.warning(f"Error estimating input tokens: {e}")
       return len(prompt) // 4

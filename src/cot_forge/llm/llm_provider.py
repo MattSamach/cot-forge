@@ -168,8 +168,9 @@ class LLMProvider(ABC):
         self.input_tokens += input_tokens
       if output_tokens is not None:
         self.output_tokens += output_tokens
-      logger.debug(
-          f"Token usage updated: {self.input_tokens} input, {self.output_tokens} output")
+      # logger.debug(
+      #     f"Token usage updated: {self.input_tokens} input, {self.output_tokens} output"
+      # )
 
   def __str__(self):
     """String representation of the LLM provider."""

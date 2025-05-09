@@ -77,7 +77,7 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
           for cot in cot_list
       ]
     except Exception as e:
-      logger.error(f"Failed to extract final answers from CoTs: {e}")
+      # logger.error(f"Failed to extract final answers from CoTs: {e}")
       return {}
 
     # Format the final answers into a string
@@ -102,7 +102,7 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
         retry_delay=1.0
     )
 
-    if not scores or not response:
-      logger.error("Failed to generate scores")
+    # if not scores or not response:
+    # logger.error("Failed to generate scores")
 
     return {k: float(v) for k, v in scores.items()}

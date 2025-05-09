@@ -25,6 +25,9 @@ packages = [{include = "cot_forge", from = "src"}]
 pytest = "^8.3.5"
 ruff = ">=0.9.9"
 datasets = "^3.5.0"
+ipykernel = "^6.29.5"
+jupyter = "^1.1.1"
+notebook = "^7.4.2"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

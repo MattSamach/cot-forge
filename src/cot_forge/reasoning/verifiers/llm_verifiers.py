@@ -141,7 +141,7 @@ class LLMJudgeVerifier(BaseVerifier):
       explanation = response_json.get("verification", {}).get("explanation")
       return verification_result, explanation
     except Exception as e:
-      logger.error(f"Failed to parse LLM response: {e}")
+      #   logger.error(f"Failed to parse LLM response: {e}")
       return False, f"Error: {str(e)}"
 
   def verify(self,
@@ -165,12 +165,12 @@ class LLMJudgeVerifier(BaseVerifier):
         ValueError: If LLM returns an empty response
     """
     if not node.cot:
-      logger.error("Node.cot is None")
+      #   logger.error("Node.cot is None")
       return False, "Error: Node.cot is None"
 
     final_answer = extract_final_answer_from_cot(node.cot)
     if final_answer is None:
-      logger.warning("No Final Conclusion found in response")
+      #   logger.warning("No Final Conclusion found in response")
       node.metadata = {
           **(node.metadata or {}),
           "warning": "missing_final_conclusion"
@@ -193,5 +193,5 @@ class LLMJudgeVerifier(BaseVerifier):
       return verification_result == "yes", explanation
 
     except Exception as e:
-      logger.error(f"Error during verification: {e}")
+      #   logger.error(f"Error during verification: {e}")
       return False, f"Error: {str(e)}"

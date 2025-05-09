@@ -274,7 +274,7 @@ class BeamSearch(BaseSearch):
           logger=logger
       )
     except Exception as e:
-      logger.error("Error in selecting strategies")
+      # logger.error("Error in selecting strategies")
       raise ValueError("Failed to select strategies") from e
 
     # Unpack the search data. Should be a list of length 1 for the initial node.
@@ -369,7 +369,7 @@ class BeamSearch(BaseSearch):
           llm_kwargs=llm_kwargs
       )
     except Exception as e:
-      logger.error(f"Error in initializing CoT: {e}")
+      # logger.error(f"Error in initializing CoT: {e}")
       return SearchResult(terminal_nodes=None,
                           question=question,
                           ground_truth_answer=ground_truth_answer,
@@ -400,7 +400,7 @@ class BeamSearch(BaseSearch):
           llm_kwargs=llm_kwargs,
       )
     except Exception as e:
-      logger.error(f"Error in initializing beams: {e}")
+      # logger.error(f"Error in initializing beams: {e}")
       return SearchResult(
           terminal_nodes=None,
           question=question,
@@ -444,7 +444,7 @@ class BeamSearch(BaseSearch):
             logger=logger
         )
       except Exception as e:
-        logger.error("Error in selecting strategies")
+        # logger.error("Error in selecting strategies")
         raise ValueError("Failed to select strategies") from e
 
       for idx, strat_dict in enumerate(scored_strategies):

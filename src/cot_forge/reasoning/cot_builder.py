@@ -186,12 +186,12 @@ class CoTBuilder:
     """
     # Check if the question has already been processed
     if (self.persistence and
-            self.persistence.should_skip(question, ground_truth_answer)
+                self.persistence.should_skip(question, ground_truth_answer)
             ):
-      logger.info(
-          f"Skipping already processed question: "
-          f"{self.persistence.generate_question_id(question, ground_truth_answer)}"
-      )
+      # logger.info(
+      #     f"Skipping already processed question: "
+      #     f"{self.persistence.generate_question_id(question, ground_truth_answer)}"
+      # )
 
       return None
 
@@ -275,7 +275,7 @@ class CoTBuilder:
 
       return search_result, reasoning
     except Exception as e:
-      logger.error(f"Error processing question '{question}': {e}")
+      # logger.error(f"Error processing question '{question}': {e}")
       return None, None
 
   def process_batch(
@@ -414,8 +414,9 @@ class CoTBuilder:
         search_results = [
             SearchResult.deserialize(item["result"], self.strategy_registry) for item in result_dicts
         ]
-        logger.info(
-            f"Loaded {len(search_results)} processed results from disk.")
+        # logger.info(
+        #     f"Loaded {len(search_results)} processed results from disk."
+        # )
       else:
         search_results = []
         logger.info("No processed results found on disk.")

@@ -178,8 +178,9 @@ class RandomStrategySelector(StrategySelector):
 
     strategy_options = self.get_strategy_options(registry, depth)
     selected_strategies = random.sample(strategy_options, num_strategies)
-    logger.debug(
-        f"Selected strategies: {[strategy.name for strategy in strategy_options]}")
+    # logger.debug(
+    #     f"Selected strategies: {[strategy.name for strategy in strategy_options]}"
+    # )
     return {"selected_strategies": selected_strategies}
 
 
@@ -279,8 +280,9 @@ class ScoredStrategySelector(StrategySelector):
               llm_kwargs=llm_kwargs
           )
         except Exception as e:
-          logger.error(
-              f"Error generating COT for strategy {strategy.name}: {e}")
+          # logger.error(
+          #     f"Error generating COT for strategy {strategy.name}: {e}"
+          # )
           continue
 
         # Store strategy, response, and cot in the dictionary
@@ -315,7 +317,7 @@ class ScoredStrategySelector(StrategySelector):
           id_field="option_id",
       )
     except Exception as e:
-      logger.error(f"Error in scoring: {e}")
+      # logger.error(f"Error in scoring: {e}")
       return None
 
     # Use option_node_map to map scores back to nodes

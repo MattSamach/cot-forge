@@ -154,7 +154,7 @@ class NaiveLinearSearch(BaseSearch):
             logger=logger
         )
       except Exception as e:
-        logger.error(f"Error during LLM generation: {e}")
+        # logger.error(f"Error during LLM generation: {e}")
         return SearchResult(
             question=question,
             ground_truth_answer=ground_truth_answer,
@@ -184,8 +184,9 @@ class NaiveLinearSearch(BaseSearch):
           max_retries=3,
           logger=logger
       )
-      logger.info(
-          f"Verification result: {verification_result}, Explanation: {explanation}")
+    #   logger.info(
+    #       f"Verification result: {verification_result}, Explanation: {explanation}"
+    #   )
 
       # If verification is successful, return the result
       if verification_result:

@@ -150,5 +150,5 @@ class AnthropicProvider(LLMProvider):
       )
       return response.input_tokens
     except Exception as e:
-      logger.warning(f"Error estimating input tokens: {e}")
+      # logger.warning(f"Error estimating input tokens: {e}")
       return len(prompt) // 4

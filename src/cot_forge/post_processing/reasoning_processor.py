@@ -99,8 +99,9 @@ class ReasoningProcessor:
     try:
       return StrategyRegistry.deserialize(self.persistence.load_config()["strategy_registry"])
     except KeyError:
-      logger.warning(
-          "No strategy registry found in the config. Using default.")
+      # logger.warning(
+      #     "No strategy registry found in the config. Using default."
+      #   )
       return default_strategy_registry
 
   def process_result(
@@ -155,7 +156,7 @@ class ReasoningProcessor:
           retry_delay=retry_delay
       )
       if error:
-        logger.warning(f"Error generating natural reasoning: {error}")
+        # logger.warning(f"Error generating natural reasoning: {error}")
         continue
       natural_reasoning = response_dict.get("natural_reasoning")
       formal_answer = response_dict.get("formal_answer")
@@ -226,9 +227,9 @@ class ReasoningProcessor:
     )
 
     if not response or not natural_reasoning:
-      logger.error(
-          f"Failed to generate natural reasoning from the CoT: {response}."
-      )
+      # logger.error(
+      #     f"Failed to generate natural reasoning from the CoT: {response}."
+      # )
       return ""
 
     return natural_reasoning

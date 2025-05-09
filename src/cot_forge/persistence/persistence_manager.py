@@ -124,7 +124,7 @@ class PersistenceManager:
     with open(self.config_path, 'w') as f:
       json.dump(config, f, indent=2)
 
-    logger.info(f"Saved CoTBuilder configuration to {self.config_path}")
+    # logger.info(f"Saved CoTBuilder configuration to {self.config_path}")
 
   def load_config(self) -> dict[str, Any]:
     """
@@ -134,13 +134,13 @@ class PersistenceManager:
         dict: The loaded configuration
     """
     if not self.config_path.exists():
-      logger.warning(f"Config file {self.config_path} does not exist.")
+      # logger.warning(f"Config file {self.config_path} does not exist.")
       return {}
 
     with open(self.config_path) as f:
       config = json.load(f)
 
-    logger.info(f"Loaded CoTBuilder configuration from {self.config_path}")
+    # logger.info(f"Loaded CoTBuilder configuration from {self.config_path}")
     return config
 
   def _save_metadata(self) -> None:
@@ -180,10 +180,10 @@ class PersistenceManager:
       self.successful_items = metadata.get("successful_items", 0)
       self.processed_ids = set(metadata.get("processed_ids", []))
 
-      logger.info(f"Loaded metadata: {self.completed_items} completed")
+      # logger.info(f"Loaded metadata: {self.completed_items} completed")
       return True
     except Exception as e:
-      logger.error(f"Error loading metadata: {e}")
+      # logger.error(f"Error loading metadata: {e}")
       return False
 
   def should_skip(self, question: str, ground_truth: str) -> bool:
@@ -247,7 +247,7 @@ class PersistenceManager:
       # Save metadata after each result
       self._save_metadata()
 
-    logger.info(f"Saved result for {question_id}: {result.success}")
+    # logger.info(f"Saved result for {question_id}: {result.success}")
 
   def load_search_results(self) -> list[dict[str, Any]]:
     """
@@ -302,7 +302,7 @@ class PersistenceManager:
         for file in self.search_dir.iterdir():
           file.unlink()
         self.search_dir.rmdir()
-        logger.info(f"Deleted all files in {self.search_dir}")
+        # logger.info(f"Deleted all files in {self.search_dir}")
       else:
         logger.warning(f"Directory {self.search_dir} does not exist.")
 
@@ -313,7 +313,7 @@ class PersistenceManager:
 
       # Reinitialize storage
       self._initialize_storage()
-      logger.info(f"Reinitialized storage in {self.search_dir}")
+      # logger.info(f"Reinitialized storage in {self.search_dir}")
 
   def delete_search_results(self, question: str, ground_truth: str) -> None:
     """

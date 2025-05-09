@@ -70,31 +70,33 @@ def execute_with_fallback(
       last_error = e
 
       if on_error == "retry" and attempts <= max_retries:
-        logger.warning(f"{error_msg}. Retrying ({attempts}/{max_retries})...")
+        # logger.warning(f"{error_msg}. Retrying ({attempts}/{max_retries})...")
         time.sleep(retry_delay)
         continue
 
       break
 
   # If we exhausted retries but still have errors
-  if last_error and on_error == "retry" and attempts > 1:
-    logger.error(
-        f"All {max_retries} retry attempts failed for {operation_name}")
+  # if last_error and on_error == "retry" and attempts > 1:
+    # logger.error(
+    #     f"All {max_retries} retry attempts failed for {operation_name}"
+    # )
 
-  # Handle final error state based on error action
+    # Handle final error state based on error action
   if last_error:
     error_msg = f"{operation_name} failed: {str(last_error)}"
 
     if on_error == "raise":
-      logger.error(error_msg)
+      # logger.error(error_msg)
       raise RuntimeError(error_msg)
     elif on_error == "continue":
-      logger.warning(f"{error_msg}. Continuing with fallback value.")
+      # logger.warning(f"{error_msg}. Continuing with fallback value.")
       return fallback_value, error_msg
 
   # This should never be reached in practice
-  logger.error(
-      f"Unexpected code path in execute_with_fallback for {operation_name}")
+  # logger.error(
+  #     f"Unexpected code path in execute_with_fallback for {operation_name}"
+  # )
   return None, f"Unexpected error in {operation_name}"
 
 
@@ -161,18 +163,18 @@ def generate_and_parse_json(
   )
   if error_msg and (on_error == "raise" or on_error == "retry"):
     # Log the error and raise an exception
-    logger.error(f"LLM generation and json parsing failed: {error_msg}")
+    # logger.error(f"LLM generation and json parsing failed: {error_msg}")
     raise RuntimeError(f"LLM generation and json parsing failed: {error_msg}")
   elif error_msg and on_error == "continue":
     # Log the error but continue
-    logger.error(f"LLM generation and json parsing failed: {error_msg}")
+    # logger.error(f"LLM generation and json parsing failed: {error_msg}")
     return error_msg, None
 
   # If the operation was successful, unpack the result
   response, object = result
   if response is None or object is None:
     # Handle the case where the operation failed
-    logger.error("LLM generation and json parsing returned None")
+    # logger.error("LLM generation and json parsing returned None")
     return None, None
   # Return the generated response and parsed CoT
   return response, object

@@ -36,10 +36,10 @@ def extract_curly_bracket_content(text: str) -> str:
       return repaired_text
     except json.JSONDecodeError as e_repaired:
       # If repair also fails, fall back to original behavior (print, log, regex extract)
-      logger.warning(
-          f"JSON parsing failed for input starting with: '{processed_text[:200]}...'. "
-          f"Initial error: {e_initial}. Error after repair: {e_repaired}."
-      )
+      # logger.warning(
+      #     f"JSON parsing failed for input starting with: '{processed_text[:200]}...'. "
+      #     f"Initial error: {e_initial}. Error after repair: {e_repaired}."
+      # )
 
       # Original fallback logic:
       pattern = r"\{.*\}"  # The original regex
@@ -59,7 +59,7 @@ def parse_json_response(response: str) -> Any:
     data = json.loads(extract_curly_bracket_content(response), strict=False)
     return data
   except (json.JSONDecodeError, TypeError) as err:
-    logger.error(f"Error decoding JSON: {err}")
+    # logger.error(f"Error decoding JSON: {err}")
     raise ValueError(
         "Invalid response format. Expected a JSON string.") from err
 
@@ -73,7 +73,7 @@ def extract_cot(response: str) -> dict:
     data = parse_json_response(response)
     return data.get("CoT", "")
   except AttributeError as err:
-    logger.error(f"Attribute error: {err}")
+    # logger.error(f"Attribute error: {err}")
     raise ValueError(
         "Invalid response format. Expected a dictionary with 'CoT' key.") from err
 
@@ -88,7 +88,7 @@ def extract_final_answer_from_str(response: str) -> str | None:
         return action.get("content", "")
 
   except json.JSONDecodeError as err:
-    logger.error(f"Error decoding JSON: {err}")
+    # logger.error(f"Error decoding JSON: {err}")
     return None
 
   return None
@@ -106,7 +106,7 @@ def extract_final_answer_from_cot(data: list[dict]) -> str | None:
         return item.get("content", "")
 
   except (KeyError, AttributeError) as err:
-    logger.error(f"Error extracting final answer: {err}")
+    # logger.error(f"Error extracting final answer: {err}")
     return None
 
   return None
