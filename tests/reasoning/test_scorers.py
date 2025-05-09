@@ -46,7 +46,8 @@ class TestProbabilityFinalAnswerScorer:
         result = self.scorer.score(
             cot_list=self.cot_list,
             question="What is the answer?",
-            ground_truth_answer="42"
+            ground_truth_answer="42",
+            id_field="strategy_name"
         )
         
         # Assert
@@ -63,7 +64,8 @@ class TestProbabilityFinalAnswerScorer:
         result = self.scorer.score(
             cot_list=self.cot_list,
             question="What is the answer?",
-            ground_truth_answer="42"
+            ground_truth_answer="42",
+            id_field="strategy_name"
         )
         
         # Assert
@@ -82,7 +84,8 @@ class TestProbabilityFinalAnswerScorer:
             self.scorer.score(
                 cot_list=self.cot_list,
                 question="What is the answer?",
-                ground_truth_answer="42"
+                ground_truth_answer="42",
+                id_field="strategy_name"
             )
         
         # Assert
@@ -102,7 +105,8 @@ class TestProbabilityFinalAnswerScorer:
         result = self.scorer.score(
             cot_list=self.cot_list,
             question="What is the answer?",
-            ground_truth_answer="42"
+            ground_truth_answer="42",
+            id_field="strategy_name"
         )
         
         # Assert

@@ -448,7 +448,7 @@ class CoTBuilder:
                 llm_kwargs=llm_kwargs,
                 **kwargs
             )
-            if result is none or reasoning is None:
+            if result is None or reasoning is None:
                 continue
             results.append((result, reasoning))
             
