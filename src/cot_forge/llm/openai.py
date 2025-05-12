@@ -156,6 +156,6 @@ class OpenAIProvider(LLMProvider):
     # Use 'tiktoken' to count tokens accurately
     try:
       return len(self.enc.encode(prompt))
-    except Exception as e:
+    except Exception:
       # logger.warning(f"Error estimating input tokens: {e}")
       return len(prompt) // 4

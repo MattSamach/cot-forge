@@ -153,7 +153,7 @@ class NaiveLinearSearch(BaseSearch):
             llm_kwargs=llm_kwargs,
             logger=logger
         )
-      except Exception as e:
+      except Exception:
         # logger.error(f"Error during LLM generation: {e}")
         return SearchResult(
             question=question,

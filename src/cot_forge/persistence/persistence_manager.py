@@ -182,7 +182,7 @@ class PersistenceManager:
 
       # logger.info(f"Loaded metadata: {self.completed_items} completed")
       return True
-    except Exception as e:
+    except Exception:
       # logger.error(f"Error loading metadata: {e}")
       return False
 

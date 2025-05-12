@@ -365,7 +365,7 @@ class BeamSearch(BaseSearch):
           search_llm=search_llm,
           llm_kwargs=llm_kwargs
       )
-    except Exception as e:
+    except Exception:
       # logger.error(f"Error in initializing CoT: {e}")
       return SearchResult(terminal_nodes=None,
                           question=question,
@@ -396,7 +396,7 @@ class BeamSearch(BaseSearch):
           verifier=verifier,
           llm_kwargs=llm_kwargs,
       )
-    except Exception as e:
+    except Exception:
       # logger.error(f"Error in initializing beams: {e}")
       return SearchResult(
           terminal_nodes=None,

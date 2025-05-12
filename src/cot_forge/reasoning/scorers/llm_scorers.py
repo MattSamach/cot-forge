@@ -76,7 +76,7 @@ class ProbabilityFinalAnswerScorer(BaseScorer):
           }
           for cot in cot_list
       ]
-    except Exception as e:
+    except Exception:
       # logger.error(f"Failed to extract final answers from CoTs: {e}")
       return {}
 

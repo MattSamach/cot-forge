@@ -274,7 +274,7 @@ class CoTBuilder:
         )
 
       return search_result, reasoning
-    except Exception as e:
+    except Exception:
       # logger.error(f"Error processing question '{question}': {e}")
       return None, None
 

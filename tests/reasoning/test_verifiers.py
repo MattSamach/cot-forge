@@ -68,6 +68,7 @@ class TestLLMJudgeVerifier:
   def test_build_prompt(self):
     """Test building the verification prompt."""
     prompt = self.verifier.build_prompt(
+        question="What is 2+2?",
         final_answer="The answer is 4.",
         ground_truth_answer="4"
     )

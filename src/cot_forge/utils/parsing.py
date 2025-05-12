@@ -16,7 +16,7 @@ def extract_curly_bracket_content(text: str) -> str:
     # Attempt 1: Try to parse as is first
     json.loads(processed_text, strict=False)
     return processed_text
-  except json.JSONDecodeError as e_initial:
+  except json.JSONDecodeError:
     # Initial parse failed. Try to repair common LLM mistakes like unescaped newlines.
     # This is a heuristic. Order of replacement can be important for complex cases.
     # Must be first: escape literal backslashes
@@ -34,7 +34,7 @@ def extract_curly_bracket_content(text: str) -> str:
       logger.info(
           "Successfully parsed JSON after repairing unescaped control characters.")
       return repaired_text
-    except json.JSONDecodeError as e_repaired:
+    except json.JSONDecodeError:
       # If repair also fails, fall back to original behavior (print, log, regex extract)
       # logger.warning(
       #     f"JSON parsing failed for input starting with: '{processed_text[:200]}...'. "
@@ -87,7 +87,7 @@ def extract_final_answer_from_str(response: str) -> str | None:
       if action.get("action") == "Final Conclusion":
         return action.get("content", "")
 
-  except json.JSONDecodeError as err:
+  except json.JSONDecodeError:
     # logger.error(f"Error decoding JSON: {err}")
     return None
 
@@ -105,7 +105,7 @@ def extract_final_answer_from_cot(data: list[dict]) -> str | None:
       if item.get("action") == "Final Conclusion":
         return item.get("content", "")
 
-  except (KeyError, AttributeError) as err:
+  except (KeyError, AttributeError):
     # logger.error(f"Error extracting final answer: {err}")
     return None
 

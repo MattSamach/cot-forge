@@ -279,7 +279,7 @@ class ScoredStrategySelector(StrategySelector):
               prompt=prompt,
               llm_kwargs=llm_kwargs
           )
-        except Exception as e:
+        except Exception:
           # logger.error(
           #     f"Error generating COT for strategy {strategy.name}: {e}"
           # )
@@ -316,7 +316,7 @@ class ScoredStrategySelector(StrategySelector):
           ground_truth_answer=ground_truth_answer,
           id_field="option_id",
       )
-    except Exception as e:
+    except Exception:
       # logger.error(f"Error in scoring: {e}")
       return None
 

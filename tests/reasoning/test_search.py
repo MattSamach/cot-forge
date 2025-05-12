@@ -855,8 +855,7 @@ class TestBeamSearch(unittest.TestCase):
         search_llm=mock_llm_provider,
         scorer=mock_scorer,
         verifier=mock_verifier_instance,
-        strategy_registry=mock_registry,
-        max_depth=2
+        strategy_registry=mock_registry
     )
 
     # --- Assertions ---
@@ -1110,8 +1109,7 @@ class TestBeamSearch(unittest.TestCase):
         search_llm=mock_llm_provider,
         scorer=mock_scorer,
         verifier=mock_verifier_instance,
-        strategy_registry=mock_registry,
-        max_depth=max_depth
+        strategy_registry=mock_registry
     )
 
     # --- Assertions ---

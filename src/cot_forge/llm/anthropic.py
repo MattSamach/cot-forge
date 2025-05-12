@@ -149,6 +149,6 @@ class AnthropicProvider(LLMProvider):
           messages=[{"role": "user", "content": prompt}]
       )
       return response.input_tokens
-    except Exception as e:
+    except Exception:
       # logger.warning(f"Error estimating input tokens: {e}")
       return len(prompt) // 4
