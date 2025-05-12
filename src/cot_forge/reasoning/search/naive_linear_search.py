@@ -29,182 +29,185 @@ from .search_algorithm import BaseSearch
 
 logger = logging.getLogger(__name__)
 
+
 class NaiveLinearSearch(BaseSearch):
+  """
+  Naive linear search for reasoning chain.
+
+  This class implements a naive sequential search algorithm to generate a chain of thought (CoT).
+  It selects strategies randomly from the registry and continues until the verifier returns True
+  or the maximum depth is reached.
+
+  Attributes:
+      max_depth (int): Maximum depth for the search.
+      name (str): Name of the search algorithm.
+      description (str): Description of the search algorithm.
+      strategy_selector (StrategySelector): Strategy selector for choosing strategies.
+  """
+
+  def __init__(self,
+               max_depth: int = 3):
+    self.max_depth = max_depth
+    self.name = "naive_linear_search"
+    self.description = ("A sequential search algorithm that randomly selects "
+                        "and applies reasoning strategies to build a chain of thought. "
+                        "Continues until verification succeeds or max depth is reached.")
+    self.strategy_selector = RandomStrategySelector()
+
+  def to_dict(self):
     """
-    Naive linear search for reasoning chain.
-    
-    This class implements a naive sequential search algorithm to generate a chain of thought (CoT).
-    It selects strategies randomly from the registry and continues until the verifier returns True
-    or the maximum depth is reached.
-    
-    Attributes:
-        max_depth (int): Maximum depth for the search.
-        name (str): Name of the search algorithm.
-        description (str): Description of the search algorithm.
-        strategy_selector (StrategySelector): Strategy selector for choosing strategies.
+    Convert the search algorithm to a dictionary representation.
+
+    Returns:
+        dict: Dictionary representation of the search algorithm.
     """
-    
-    def __init__(self,
-                 max_depth: int = 3):
-        self.max_depth = max_depth
-        self.name = "naive_linear_search"
-        self.description = ("A sequential search algorithm that randomly selects " 
-                            "and applies reasoning strategies to build a chain of thought. "
-                            "Continues until verification succeeds or max depth is reached.")
-        self.strategy_selector = RandomStrategySelector()
-        
-    def to_dict(self):
-        """
-        Convert the search algorithm to a dictionary representation.
+    return {
+        "class_name": self.__class__.__name__,
+        "name": self.name,
+        "description": self.description,
+        "max_depth": self.max_depth,
+    }
 
-        Returns:
-            dict: Dictionary representation of the search algorithm.
-        """
-        return {
-            "class_name": self.__class__.__name__,
-            "name": self.name,
-            "description": self.description,
-            "max_depth": self.max_depth,
-        }
-        
-    @classmethod
-    def from_dict(cls, data: dict):
-        """
-        Create a search algorithm instance from a dictionary representation.
+  @classmethod
+  def from_dict(cls, data: dict):
+    """
+    Create a search algorithm instance from a dictionary representation.
 
-        Args:
-            data (dict): Dictionary representation of the search algorithm.
+    Args:
+        data (dict): Dictionary representation of the search algorithm.
 
-        Returns:
-            NaiveLinearSearch: Instance of the search algorithm.
-        """
-        return cls(
-            max_depth=data.get("max_depth", 3),
+    Returns:
+        NaiveLinearSearch: Instance of the search algorithm.
+    """
+    return cls(
+        max_depth=data.get("max_depth", 3),
+    )
+
+  def _search(
+      self,
+      question: str,
+      ground_truth_answer: str,
+      verifier: BaseVerifier,
+      search_llm: LLMProvider,
+      strategy_registry: StrategyRegistry = default_strategy_registry,
+      llm_kwargs: dict[str, Any] = None,
+      **kwargs
+  ) -> SearchResult:
+    """
+    Perform a naive sequential search to generate a chain of thought (CoT).
+
+    This method iteratively applies reasoning strategies to expand the CoT. At each step, it verifies
+    the generated CoT against the ground truth answer using the provided verifier. The process continues
+    until the verifier returns True or the maximum search depth is reached.
+
+    Args:
+        question (str): The question to answer.
+        ground_truth_answer (str): The true answer to the question.
+        verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
+        search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
+        strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
+        llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
+        **kwargs: Additional keyword arguments for the search algorithm.
+
+    Returns:
+        SearchResult: Object with final reasoning node, success status, final answer, and metadata.
+
+    Raises:
+        Exception: If an error occurs during LLM generation or verification.
+
+    Example:
+        ```python
+        search = NaiveLinearSearch(max_depth=5)
+        result = search._search(
+            question="What is the capital of France?",
+            ground_truth_answer="Paris",
+            verifier=my_verifier,
+            search_llm=my_llm_provider
+        )
+        print(result.success)  # True or False
+        ```
+    """
+
+    llm_kwargs = llm_kwargs or {}
+
+    # Initialize the reasoning node
+    current_node = None
+
+    for depth in range(self.max_depth+1):
+      # Select next strategy
+      strategies = self.strategy_selector.select(
+          registry=strategy_registry, depth=depth
+      )['selected_strategies']
+
+      strategy = strategies[0] if isinstance(strategies, list) else strategies
+
+      # Build prompt based on selected strategy
+      full_cot = current_node.get_full_cot() if current_node else None
+      prompt = strategy.build_prompt(question, str(full_cot))
+
+      # Generate response and cot.
+      try:
+        response, cot = generate_and_parse_cot(
+            llm_provider=search_llm,
+            prompt=prompt,
+            llm_kwargs=llm_kwargs,
+            logger=logger
+        )
+      except Exception:
+        # logger.error(f"Error during LLM generation: {e}")
+        return SearchResult(
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            terminal_nodes=[current_node] if current_node else [],
+            success=False,
+            metadata={"depth": depth,
+                      "reason": "generation_error"}
         )
 
-    def _search(
-        self,
-        question: str,
-        ground_truth_answer: str,
-        verifier: BaseVerifier,
-        search_llm: LLMProvider,
-        strategy_registry: StrategyRegistry = default_strategy_registry,
-        llm_kwargs: dict[str, Any] = None,
-        **kwargs
-    ) -> SearchResult:
-        """
-        Perform a naive sequential search to generate a chain of thought (CoT).
+      # Create new reasoning node and incorporate into graph
+      previous_node = current_node if current_node else None
+      current_node = self.create_node(
+          strategy=strategy,
+          prompt=prompt,
+          response=response,
+          cot=cot,
+          parent=previous_node
+      )
 
-        This method iteratively applies reasoning strategies to expand the CoT. At each step, it verifies
-        the generated CoT against the ground truth answer using the provided verifier. The process continues
-        until the verifier returns True or the maximum search depth is reached.
+      # Check for success condition by verifier
+      verification_result, explanation = self.verify_node(
+          node=current_node,
+          question=question,
+          ground_truth_answer=ground_truth_answer,
+          verifier=verifier,
+          on_error="retry",
+          max_retries=3,
+          logger=logger
+      )
+    #   logger.info(
+    #       f"Verification result: {verification_result}, Explanation: {explanation}"
+    #   )
 
-        Args:
-            question (str): The question to answer.
-            ground_truth_answer (str): The true answer to the question.
-            verifier (BaseVerifier): The verifier used to check the correctness of the CoT.
-            search_llm (LLMProvider): The LLM provider used to generate reasoning steps.
-            strategy_registry (StrategyRegistry): The strategy registry to use for selecting strategies.
-            llm_kwargs (dict[str, Any], optional): Additional keyword arguments for the LLM provider.
-            **kwargs: Additional keyword arguments for the search algorithm.
-
-        Returns:
-            SearchResult: Object with final reasoning node, success status, final answer, and metadata.
-
-        Raises:
-            Exception: If an error occurs during LLM generation or verification.
-
-        Example:
-            ```python
-            search = NaiveLinearSearch(max_depth=5)
-            result = search._search(
-                question="What is the capital of France?",
-                ground_truth_answer="Paris",
-                verifier=my_verifier,
-                search_llm=my_llm_provider
-            )
-            print(result.success)  # True or False
-            ```
-        """
-                
-        llm_kwargs = llm_kwargs or {}
-        
-        # Initialize the reasoning node
-        current_node = None
-        
-        for depth in range(self.max_depth+1):
-            # Select next strategy
-            strategies = self.strategy_selector.select(
-                registry = strategy_registry, depth = depth
-            )['selected_strategies']
-            
-            strategy = strategies[0] if isinstance(strategies, list) else strategies
-            
-            # Build prompt based on selected strategy
-            full_cot = current_node.get_full_cot() if current_node else None
-            prompt = strategy.build_prompt(question, str(full_cot))
-            
-            # Generate response and cot.
-            try:
-                response, cot = generate_and_parse_cot(
-                    llm_provider=search_llm,
-                    prompt=prompt,
-                    llm_kwargs=llm_kwargs,
-                    logger=logger
-                )
-            except Exception as e:
-                logger.error(f"Error during LLM generation: {e}")
-                return SearchResult(
-                    question=question,
-                    ground_truth_answer=ground_truth_answer,
-                    terminal_nodes=[current_node] if current_node else [],
-                    success=False,
-                    metadata={"depth": depth,
-                              "reason": "generation_error"}
-                )
-            
-            # Create new reasoning node and incorporate into graph
-            previous_node = current_node if current_node else None    
-            current_node = self.create_node(
-                strategy=strategy,
-                prompt=prompt,
-                response=response,
-                cot=cot,
-                parent=previous_node
-            )
-            
-            # Check for success condition by verifier
-            verification_result, explanation = self.verify_node(
-                node=current_node,
-                question=question,
-                ground_truth_answer=ground_truth_answer,
-                verifier=verifier,
-                on_error="retry",
-                max_retries=3,
-                logger=logger
-            )
-            logger.info(f"Verification result: {verification_result}, Explanation: {explanation}")
-                        
-            # If verification is successful, return the result
-            if verification_result:
-                return SearchResult(
-                    question=question,
-                    ground_truth_answer=ground_truth_answer,
-                    terminal_nodes=[current_node],
-                    success=True,
-                    metadata={"depth": depth,
-                              "reason": "verifier_success"},
-                )
-        
-        # Max depth reached without success
-        
-        # Set each terminal node as final
-        current_node.is_final = True
+      # If verification is successful, return the result
+      if verification_result:
         return SearchResult(
             question=question,
             ground_truth_answer=ground_truth_answer,
             terminal_nodes=[current_node],
-            success=False,
-            metadata={"depth": self.max_depth,
-                      "reason": "max_depth_reached"}
+            success=True,
+            metadata={"depth": depth,
+                      "reason": "verifier_success"},
         )
+
+    # Max depth reached without success
+
+    # Set each terminal node as final
+    current_node.is_final = True
+    return SearchResult(
+        question=question,
+        ground_truth_answer=ground_truth_answer,
+        terminal_nodes=[current_node],
+        success=False,
+        metadata={"depth": self.max_depth,
+                  "reason": "max_depth_reached"}
+    )

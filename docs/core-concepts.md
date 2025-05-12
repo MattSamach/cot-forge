@@ -29,7 +29,7 @@ builder = CoTBuilder(
 Search strategies determine how the reasoning space is explored:
 
 - **NaiveLinearSearch**: Generates a single reasoning path
-- **SimpleBeamSearch**: Explores multiple reasoning branches simultaneously
+- **BeamSearch**: Explores multiple reasoning branches simultaneously
 - **MonteCarloTreeSearch**: Uses Monte Carlo simulation for exploration (not yet implemented)
 
 ### 3. Reasoning Nodes

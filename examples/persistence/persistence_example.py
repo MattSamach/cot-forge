@@ -1,18 +1,13 @@
-
-import os
-
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch, SimpleBeamSearch
+from cot_forge.reasoning import BeamSearch, CoTBuilder, NaiveLinearSearch
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
 # Setup
-api_key = os.getenv("GEMINI_API_KEY")
-llm = GeminiProvider(api_key=api_key)
+llm = GeminiProvider()
 verifier = LLMJudgeVerifier(llm_provider=llm)
 dataset_name = "dummy_dataset"
 search = NaiveLinearSearch()
-
 
 # Set up the CoTBuilder with persistence
 builder = CoTBuilder.with_persistence(
@@ -58,10 +53,10 @@ results = builder.build_batch(
 results = builder.build_batch(
     questions=batch_2["questions"],
     ground_truth_answers=batch_2["ground_truth_answers"],
-    load_processed=True, 
+    load_processed=True,
 )
 
-beam_search = SimpleBeamSearch(max_depth=3, branching_factor=2)
+beam_search = BeamSearch(max_depth=3, branching_factor=2)
 
 scorer = ProbabilityFinalAnswerScorer(
     llm_provider=llm,

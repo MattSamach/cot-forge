@@ -1,17 +1,17 @@
 class StrategyPromptTemplate:
-    """Base class for modular prompt construction"""
-    
-    @staticmethod
-    def create_header(question: str) -> str:
-        return f"<question>\n{question}\n</question>\n\n"
-    
-    @staticmethod
-    def create_previous_reasoning(previous_cot: str) -> str:
-        return f"<previous_reasoning>\n{previous_cot}\n</previous_reasoning>\n\n"
-    
-    @staticmethod
-    def create_response_requirements() -> str:
-        return """<response_requirements>
+  """Base class for modular prompt construction"""
+
+  @staticmethod
+  def create_header(question: str) -> str:
+    return f"<question>\n{question}\n</question>\n\n"
+
+  @staticmethod
+  def create_previous_reasoning(previous_cot: str) -> str:
+    return f"<previous_reasoning>\n{previous_cot}\n</previous_reasoning>\n\n"
+
+  @staticmethod
+  def create_response_requirements() -> str:
+    return """<response_requirements>
 Your response must include the following steps, each composed of three types of actions: **"Review"**, **"Inner Thinking"** and **"Final Conclusion"**:
 
 1. **Review**: Review the previous reasoning and identify any flaws or errors. This should be a brief summary of the previous reasoning.
@@ -22,20 +22,23 @@ You may skip the **Review** step if you are starting a new reasoning chain.
 </response_requirements>
 \n\n"""
 
-    @staticmethod
-    def create_initial_instruction() -> str:
-        return "Please respond to the above question <question> using the Chain of Thought (CoT) reasoning method.\n"
+  @staticmethod
+  def create_initial_instruction() -> str:
+    return "Please respond to the above question <question> using the Chain of Thought (CoT) reasoning method.\n"
 
-    @staticmethod
-    def create_new_instruction(strategy_description: str) -> str:
-        return f"""<question> represents the question to be answered, and <previous_reasoning> contains your prior reasoning.
+  @staticmethod
+  def create_new_instruction(strategy_description: str) -> str:
+    return f"""<question> represents the question to be answered, and <previous_reasoning> contains your prior reasoning.
 <new_instruction>Your task is to continue from the last ’Final Conclusion’ step. We have assessed the reasoning and
-determined that the **Final Conclusion** is false. Create a new chain of thought by: {strategy_description}. Then construct a new Final Conclusion.</new_instruction>\n\n"""
-    
-    @staticmethod
-    def create_json_format() -> str:
-        return """### Output Format
+determined that the **Final Conclusion** is false. 
+***Create a new chain of thought by implementing this strategy: {strategy_description}.*** It is vital that you follow this strategy in your reasoning!!!
+Then construct a new Final Conclusion.</new_instruction>\n\n"""
+
+  @staticmethod
+  def create_json_format() -> str:
+    return """### Output Format
 Strictly follow the JSON structure below. You do not need to repeat your previous reasoning. Begin directly from the last 'Final Conclusion' stage.
+Ensure a valid json response. Any newlines or special characters (like quotes) within this string must be properly escaped (e.g., use \\n for newlines, \\" for quotes).
 
 ```json
 {
@@ -48,6 +51,7 @@ Strictly follow the JSON structure below. You do not need to repeat your previou
 ]
 }
 ```"""
+
 
 # Default strategy prompts
 initialize_cot_prompt = "responding to the above question <question> using the Chain of Thought (CoT) reasoning method. Because this is the initial reasoning, do not start with the `Review` step. Instead, begin with the `Inner Thinking` step and then conclude with the `Final Conclusion` step."

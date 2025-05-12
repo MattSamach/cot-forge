@@ -14,7 +14,6 @@ persistence = PersistenceManager(
     dataset_name="math_problems",
     search_name="beam_search",
     base_dir="data",
-    auto_resume=True
 )
 ```
 
@@ -42,7 +41,7 @@ base_dir/
 The `CoTBuilder.with_persistence` factory method creates a builder with persistence:
 
 ```python
-from cot_forge.reasoning import CoTBuilder, SimpleBeamSearch
+from cot_forge.reasoning import CoTBuilder, BeamSearch
 from cot_forge.llm import GeminiProvider
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -135,7 +134,6 @@ persistence = PersistenceManager(
     dataset_name="custom_dataset",
     search_name="custom_search",
     base_dir="/path/to/custom/directory",
-    auto_resume=False  # Disable auto-resuming, will overwrite existing data
 )
 ```
 
@@ -155,7 +153,7 @@ linear_builder = CoTBuilder.with_persistence(
 # Beam search on same dataset
 beam_builder = CoTBuilder.with_persistence(
     search_llm=llm,
-    search=SimpleBeamSearch(),
+    search=BeamSearch(),
     verifier=verifier,
     dataset_name="math_problems"
 )

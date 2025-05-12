@@ -1,7 +1,5 @@
 from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning import CoTBuilder, NaiveLinearSearch
-
-# from cot_forge.reasoning import SimpleBeamSearch
+from cot_forge.reasoning import BeamSearch, CoTBuilder
 from cot_forge.reasoning.scorers import ProbabilityFinalAnswerScorer
 from cot_forge.reasoning.verifiers import LLMJudgeVerifier
 
@@ -30,23 +28,26 @@ Margate must show that favoring mothers over fathers is substantially related to
 question = "Decipher this code: 73102109109112338811211510910134."
 ground_truth = "Hello World!"
 
-llm = GeminiProvider()
+gemini = GeminiProvider()
 
 builder = CoTBuilder(
-    search_llm=llm,
-    # search=SimpleBeamSearch(max_depth=2, beam_width=3, branching_factor=2),
-    search=NaiveLinearSearch(max_depth=3),
-    verifier=LLMJudgeVerifier(llm, strict=True),
-    scorer=ProbabilityFinalAnswerScorer(llm)
+    search_llm=gemini,
+    post_processing_llm=gemini,
+    search=BeamSearch(max_depth=3, beam_width=2, branching_factor=2),
+    verifier=LLMJudgeVerifier(gemini, strict=False),
+    scorer=ProbabilityFinalAnswerScorer(gemini)
 )
 
+
 def main():
-    search_result = builder.build(
-        question=question,
-        ground_truth_answer=ground_truth,
-    )
-    return search_result
+  search_result, reasoning = builder.process(
+      question=question,
+      ground_truth_answer=ground_truth,
+      only_successful=False
+  )
+  return search_result, reasoning
+
 
 if __name__ == "__main__":
-    search_result = main()
-    print(search_result)
+  search_result, reasoning = main()
+  print(reasoning)

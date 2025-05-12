@@ -19,20 +19,12 @@ Example Usage:
         dataset_name="my_dataset",
         search_name="my_search",
         base_dir="my_data_dir",
-        output_path="my_output_path/processed_results.jsonl"
     processed_results = processor.process_batch(limit=100)
     
-TODO:
-- Implement line-by-line writing to the output file to support processing of large files
-This will allow for more efficient memory management when dealing with extensive datasets.
 """
 
-import json
 import logging
-from pathlib import Path
 from typing import Any, Literal
-
-from tqdm import tqdm
 
 from cot_forge.llm import LLMProvider
 from cot_forge.persistence import PersistenceManager
@@ -46,318 +38,268 @@ logger = logging.getLogger(__name__)
 
 
 class ReasoningProcessor:
+  """
+  Process batches of saved CoT results to apply post-processing transformations.
+
+  This class handles loading previously generated CoT results from the persistence system,
+  transforming them using a ReasoningProcessor, and saving the transformed results.
+  """
+
+  def __init__(
+      self,
+      llm_provider: LLMProvider,
+      search_name: str = None,
+      dataset_name: str = None,
+      llm_kwargs: dict[str, Any] | None = None,
+      strategy_registry: StrategyRegistry = None,
+      base_dir: str = "data",
+      output_file: str = "processed_results.jsonl",
+      thinking_tag: str = "thinking",
+      **kwargs
+  ):
     """
-    Process batches of saved CoT results to apply post-processing transformations.
-    
-    This class handles loading previously generated CoT results from the persistence system,
-    transforming them using a ReasoningProcessor, and saving the transformed results.
+    Initialize the batch processor.
+
+    Args:
+        llm_provider: LLM provider for generating natural reasoning and formal responses
+        dataset_name: Name of the dataset to process (must match CoTBuilder's dataset_name)
+        search_name: Name of the search to process (must match the search algorithm name)
+        llm_kwargs: Additional arguments for the LLM provider
+        strategy_registry: Strategy registry for deserializing results
+        base_dir: Base directory for loading data (should match CoTBuilder's base_dir)
+        strategy_reg: Strategy registry for deserializing results
+        thinking_tag: Tag for the reasoning process, default is "thinking" i.e. <thinking>
+    """
+    self.llm_kwargs = llm_kwargs or {}
+    self.llm_provider = llm_provider
+    self.dataset_name = dataset_name
+    self.search_name = search_name
+    self.thinking_tag = thinking_tag
+
+    # Create persistence manager to read results (but not write to them)
+    if dataset_name is not None and search_name is not None:
+      self.persistence = PersistenceManager(
+          dataset_name=dataset_name,
+          search_name=search_name,
+          base_dir=base_dir,
+      )
+    # Load the strategy registry for deserializing results
+    if not strategy_registry:
+      self.strategy_registry = self.get_strategy_registry()
+    else:
+      self.strategy_registry = strategy_registry
+
+  def get_strategy_registry(self) -> StrategyRegistry:
+    """
+    Get the strategy registry for deserializing results.
+
+    Returns:
+        StrategyRegistry: The strategy registry
+    """
+    try:
+      return StrategyRegistry.deserialize(self.persistence.load_config()["strategy_registry"])
+    except KeyError:
+      # logger.warning(
+      #     "No strategy registry found in the config. Using default."
+      #   )
+      return default_strategy_registry
+
+  def process_result(
+      self,
+      search_result: SearchResult,
+      id: str = None,
+      only_successful: bool = True,
+      on_error: Literal["continue", "raise", "retry"] = "retry",
+      llm_kwargs: dict[str, Any] = None,
+      max_retries: int = 3,
+      retry_delay: float = 1.0
+  ) -> dict[str, Any]:
+    """
+    Process a single saved CoT result to generate natural reasoning and formal response.
+    Args:
+        search_result: The saved CoT result to process
+        id: The id of the search result
+        only_successful: If True, only process CoTs that were successful
+        on_error: Error handling strategy for the processor
+        llm_kwargs: Additional arguments for the LLM
+        max_retries: Maximum number of retries for failed requests
+        retry_delay: Delay between retries in seconds
+    Returns:
+        Processed result dictionary containing the id, question, ground truth, and generated responses
     """
 
-    def __init__(
-        self,
-        llm_provider: LLMProvider,
-        dataset_name: str,
-        search_name: str,
-        llm_kwargs: dict[str, Any] | None = None,
-        base_dir: str = "data",
-        output_file: str = "processed_results.jsonl",
-        thinking_tag: str = "thinking",
-        **kwargs
-    ):
-        """
-        Initialize the batch processor.
-        
-        Args:
-            llm_provider: LLM provider for generating natural reasoning and formal responses
-            dataset_name: Name of the dataset to process (must match CoTBuilder's dataset_name)
-            search_name: Name of the search to process (must match the search algorithm name)
-            llm_kwargs: Additional arguments for the LLM provider
-            base_dir: Base directory for loading data (should match CoTBuilder's base_dir)
-            strategy_reg: Strategy registry for deserializing results
-            output_file: Path to save post-processed results:
-                (default base_dir/dataset_name/search_name/processed_results.jsonl)
-            thinking_tag: Tag for the reasoning process, default is "thinking" i.e. <thinking>
-        """
-        self.llm_kwargs = llm_kwargs or {}
-        self.llm_provider = llm_provider
-        self.dataset_name = dataset_name
-        self.search_name = search_name
-        self.base_dir = Path(base_dir)
-        self.thinking_tag = thinking_tag
-        
-        # Create persistence manager to read results (but not write to them)
-        self.persistence = PersistenceManager(
-            dataset_name=dataset_name,
-            search_name=search_name,
-            base_dir=base_dir,
-            auto_resume=True
-        )
-        
-        # Set output directory - handle absolute vs relative paths
-        output_path = Path(output_file)
-        if not output_path.is_absolute():
-            output_path = self.persistence.search_dir / output_file
-        self.output_path = output_path
-        
-        # Create output directory if it doesn't exist
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-    def get_strategy_registry(self) -> StrategyRegistry:
-        """
-        Get the strategy registry for deserializing results.
-        
-        Returns:
-            StrategyRegistry: The strategy registry
-        """
-        try:
-            return StrategyRegistry.deserialize(self.persistence.load_config()["strategy_registry"])
-        except KeyError:
-            logger.warning("No strategy registry found in the config. Using default.")
-            return default_strategy_registry
-        
-    def process_batch(
-        self,
-        only_successful: bool = True,
-        limit: int = None,
-        progress_bar: bool = True,
-        llm_kwargs: dict = None,
-        on_error: Literal["continue", "raise", "retry"] = "retry",
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ) -> list[dict[str, Any]]:
-        """
-        Process a batch of saved CoT results.
-        
-        Args:
-            only_successful: If True, only process CoTs that were successful
-            limit: Maximum number of results to process
-            progress_bar: Whether to show a progress bar
-            llm_kwargs: Additional arguments for the LLM
-            on_error: Error handling strategy for the processor
-            max_retries: Maximum number of retries for failed requests
-            retry_delay: Delay between retries in seconds
-            
-        Returns:
-            List of processed results
-        """
-        # Load all results
-        results_data = self.persistence.load_results()
-        
-        # Filter for successful results if required
-        if only_successful:
-            results_data = [r for r in results_data if r["success"]]
-            
-        if limit:
-            results_data = results_data[:limit]
-            
-        processed_results = []
-        if progress_bar:
-            results_data = tqdm(
-                results_data,
-                desc="Post-Processing CoT results",
-                unit="result"
-            )
-        
-        for result in results_data:
-            # Deserialize the SearchResult
-            strategy_registry = self.get_strategy_registry()
-            search_result = SearchResult.deserialize(result["result"], strategy_registry)
-            
-            # Get question and ground truth
-            question = result["question"]
-            ground_truth = result["ground_truth"]
-            
-            # Get the nodes to process. If only_successful is True, we only process successful nodes.
-            # Otherwise, we process all terminal nodes.
-            nodes_to_process = (
-                search_result.get_successful_terminal_nodes()
-                if only_successful
-                else search_result.terminal_nodes
-            )
-            for node in nodes_to_process:
-                cot = node.get_full_cot()
-                
-                # Generate natural reasoning
-                response_dict, error = self.process(
-                    question=question, 
-                    cot=cot,
-                    on_error=on_error,
-                    llm_kwargs=llm_kwargs,
-                    max_retries=max_retries,
-                    retry_delay=retry_delay
-                )
-                if error:
-                    logger.warning(f"Error generating natural reasoning: {error}")
-                    continue
-                natural_reasoning = response_dict.get("natural_reasoning")
-                formal_answer = response_dict.get("formal_answer")
-                
-                # Create the full response with reasoning in thinking tags and formal answer 
-                full_response = (
-                    "<" + self.thinking_tag + ">" + 
-                    natural_reasoning + 
-                    "</" + self.thinking_tag + ">" +
-                    "\n\n" + formal_answer
-                )
+    # Get question and ground truth
+    question = search_result.question
+    ground_truth = search_result.ground_truth_answer
 
-                # Create processed result
-                processed_result = {
-                    "id": result["id"],
-                    "question": question,
-                    "ground_truth": ground_truth,
-                    "chain_of_thought_response": full_response,
-                }
-                
-                # Add to results list
-                processed_results.append(processed_result)
-                
-                # Save to file
-                self._save_processed_result(processed_result)
-            
-        return processed_results
-    
-    def _save_processed_result(self, result: dict[str, Any]) -> None:
-        """Save a processed result to the processed results file."""
-        
-        with open(self.output_path, 'a') as f:
-            f.write(json.dumps(result) + '\n')
-    
-    def load_processed_results(self) -> list[dict[str, Any]]:
-        """
-        Load all processed results from disk.
-        
-        Returns:
-            List of processed result dictionaries
-        """
-        
-        results = []
-        if not self.output_path.exists():
-            return results
-        
-        with open(self.output_path) as f:
-            for line in f:
-                if line.strip():
-                    results.append(json.loads(line))
-        
-        return results
-        
-    def generate_natural_reasoning(
-        self,
-        question: str,
-        cot: dict,
-        on_error: Literal["continue", "raise", "retry"] = "retry",
-        llm_kwargs: dict[str, Any] = None,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ) -> str:
-        """
-        Generate natural reasoning from a CoT.
+    # Get the nodes to process. If only_successful is True, we only process successful nodes.
+    # Otherwise, we process all terminal nodes.
+    nodes_to_process = (
+        search_result.get_successful_terminal_nodes()
+        if only_successful
+        else search_result.terminal_nodes
+    )
 
-        Args:
-            question (str): The question to be answered.
-            cot (dict): The chain of thought to be reformatted.
-            on_error (Literal): Error handling strategy.
-            llm_kwargs (dict): Additional arguments for the LLM provider.
-            max_retries (int): Maximum number of retries for failed requests.
-            retry_delay (float): Delay between retries in seconds.
+    # There may be multiple nodes to process per question
+    # We will store the results in a list
+    thought_chains = []
+    for node in nodes_to_process:
+      cot = node.get_full_cot()
 
-        Returns:
-            str: The generated natural reasoning.
-        """
-        llm_kwargs = llm_kwargs or {}
-        
-        # Build the natural language CoT prompt
-        prompt = build_natural_language_cot_prompt(
-            question=question,
-            cot=cot,
-        )
-        
-        # Generate and parse reasoning using the LLM
-        response, natural_reasoning = generate_and_parse_json(
-            llm_provider=self.llm_provider,
-            prompt=prompt,
-            on_error=on_error,
-            llm_kwargs=llm_kwargs,
-            max_retries=max_retries,
-            retry_delay=retry_delay,
-            retrieval_object="NaturalReasoning"
-        )
-        
-        if not response or not natural_reasoning:
-            logger.error(
-                f"Failed to generate natural reasoning from the CoT: {response}."
-            )
-            return ""
-            
-        return natural_reasoning
-            
-        
-    def generate_formal_answer(
-        self,
-        question: str,
-        natural_reasoning: str
-    ) -> str:
-        """
-        Generate a formal answer based on the natural reasoning.
+      # Generate natural reasoning
+      response_dict, error = self.generate_natural_language_cot(
+          question=question,
+          cot=cot,
+          on_error=on_error,
+          llm_kwargs=llm_kwargs,
+          max_retries=max_retries,
+          retry_delay=retry_delay
+      )
+      if error:
+        # logger.warning(f"Error generating natural reasoning: {error}")
+        continue
+      natural_reasoning = response_dict.get("natural_reasoning")
+      formal_answer = response_dict.get("formal_answer")
 
-        Args:
-            question (str): The question to be answered.
-            natural_reasoning (str): The natural reasoning process.
-        Returns:
-            str: The formatted formal response.
-        """
-        # Build the formal response prompt
-        prompt = build_formal_answer_prompt(
-            question=question,
-            natural_reasoning=natural_reasoning,
-        )
-        
-        # Generate and return the formal response using the LLM
-        return self.llm_provider.generate(prompt)
-    
-    def process(
-        self,
-        question: str,
-        cot: dict,
-        on_error: Literal["continue", "raise", "retry"] = "retry",
-        llm_kwargs: dict[str, Any] = None,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ) -> tuple[dict, str | None]:
-        """
-        Process the CoT to generate natural reasoning and formal response.
+      # Create the full response with reasoning in thinking tags and formal answer
+      full_response = (
+          "<" + self.thinking_tag + ">" +
+          natural_reasoning +
+          "</" + self.thinking_tag + ">" +
+          "\n\n" + formal_answer
+      )
 
-        Args:
-            question (str): The question to be answered.
-            cot (dict): The chain of thought to be reformatted.
-            on_error (Literal): Error handling strategy.
-            llm_kwargs (dict): Additional arguments for the LLM provider.
-            max_retries (int): Maximum number of retries for failed requests.
-            retry_delay (float): Delay between retries in seconds.
+      # Add full response to the list of thought chains
+      thought_chains.append(full_response)
 
-        Returns:
-            tuple[dict, str | None]: The generated reasoning and any error message.
-        """
-        # Generate natural reasoning
-        natural_reasoning = self.generate_natural_reasoning(
-            question=question,
-            cot=cot,
-            on_error=on_error,
-            llm_kwargs=llm_kwargs,
-            max_retries=max_retries,
-            retry_delay=retry_delay
-        )
-        
-        if not natural_reasoning:
-            return {}, "Failed to generate natural reasoning."
-        
-        # Generate formal answer
-        formal_answer = self.generate_formal_answer(
-            question=question,
-            natural_reasoning=natural_reasoning
-        )
-        
-        if not formal_answer:
-            return {}, "Failed to generate formal response."
-        
-        return {"natural_reasoning": natural_reasoning, "formal_answer": formal_answer}, None
+    # Create processed result
+    processed_result = {
+        "question": question,
+        "ground_truth": ground_truth,
+        "chain_of_thought_responses": thought_chains,
+    }
+    if id:
+      processed_result["id"] = id
+
+    # Return the processed result
+    return processed_result
+
+  def generate_natural_reasoning(
+      self,
+      question: str,
+      cot: dict,
+      on_error: Literal["continue", "raise", "retry"] = "retry",
+      llm_kwargs: dict[str, Any] = None,
+      max_retries: int = 3,
+      retry_delay: float = 1.0
+  ) -> str:
+    """
+    Generate natural reasoning from a CoT.
+
+    Args:
+        question (str): The question to be answered.
+        cot (dict): The chain of thought to be reformatted.
+        on_error (Literal): Error handling strategy.
+        llm_kwargs (dict): Additional arguments for the LLM provider.
+        max_retries (int): Maximum number of retries for failed requests.
+        retry_delay (float): Delay between retries in seconds.
+
+    Returns:
+        str: The generated natural reasoning.
+    """
+    llm_kwargs = llm_kwargs or {}
+
+    # Build the natural language CoT prompt
+    prompt = build_natural_language_cot_prompt(
+        question=question,
+        cot=cot,
+    )
+
+    # Generate and parse reasoning using the LLM
+    response, natural_reasoning = generate_and_parse_json(
+        llm_provider=self.llm_provider,
+        prompt=prompt,
+        on_error=on_error,
+        llm_kwargs=llm_kwargs,
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        retrieval_object="NaturalReasoning"
+    )
+
+    if not response or not natural_reasoning:
+      # logger.error(
+      #     f"Failed to generate natural reasoning from the CoT: {response}."
+      # )
+      return ""
+
+    return natural_reasoning
+
+  def generate_formal_answer(
+      self,
+      question: str,
+      natural_reasoning: str
+  ) -> str:
+    """
+    Generate a formal answer based on the natural reasoning.
+
+    Args:
+        question (str): The question to be answered.
+        natural_reasoning (str): The natural reasoning process.
+    Returns:
+        str: The formatted formal response.
+    """
+    # Build the formal response prompt
+    prompt = build_formal_answer_prompt(
+        question=question,
+        natural_reasoning=natural_reasoning,
+    )
+
+    # Generate and return the formal response using the LLM
+    return self.llm_provider.generate(prompt)
+
+  def generate_natural_language_cot(
+      self,
+      question: str,
+      cot: dict,
+      on_error: Literal["continue", "raise", "retry"] = "retry",
+      llm_kwargs: dict[str, Any] = None,
+      max_retries: int = 3,
+      retry_delay: float = 1.0
+  ) -> tuple[dict, str | None]:
+    """
+    Process the CoT to generate natural reasoning and formal response.
+
+    Args:
+        question (str): The question to be answered.
+        cot (dict): The chain of thought to be reformatted.
+        on_error (Literal): Error handling strategy.
+        llm_kwargs (dict): Additional arguments for the LLM provider.
+        max_retries (int): Maximum number of retries for failed requests.
+        retry_delay (float): Delay between retries in seconds.
+
+    Returns:
+        tuple[dict, str | None]: The generated reasoning and any error message.
+    """
+    # Generate natural reasoning
+    natural_reasoning = self.generate_natural_reasoning(
+        question=question,
+        cot=cot,
+        on_error=on_error,
+        llm_kwargs=llm_kwargs,
+        max_retries=max_retries,
+        retry_delay=retry_delay
+    )
+
+    if not natural_reasoning:
+      return {}, "Failed to generate natural reasoning."
+
+    # Generate formal answer
+    formal_answer = self.generate_formal_answer(
+        question=question,
+        natural_reasoning=natural_reasoning
+    )
+
+    if not formal_answer:
+      return {}, "Failed to generate formal response."
+
+    return {"natural_reasoning": natural_reasoning, "formal_answer": formal_answer}, None

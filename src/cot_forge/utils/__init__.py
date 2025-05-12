@@ -21,10 +21,10 @@ ensure reliability in handling errors and parsing responses.
 """
 
 from .parsing import (
-                      extract_cot,
-                      extract_final_answer_from_cot,
-                      extract_final_answer_from_str,
-                      parse_json_response,
+    extract_cot,
+    extract_final_answer_from_cot,
+    extract_final_answer_from_str,
+    parse_json_response,
 )
 from .search_utils import execute_with_fallback, generate_and_parse_cot, generate_and_parse_json
 
