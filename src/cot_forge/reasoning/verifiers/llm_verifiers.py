@@ -101,11 +101,12 @@ class LLMJudgeVerifier(BaseVerifier):
             "prompt_template", DEFAULT_VERIFICATION_PROMPT)
     )
 
-  def build_prompt(self, final_answer: str, ground_truth_answer: str) -> str:
+  def build_prompt(self, question: str, final_answer: str, ground_truth_answer: str) -> str:
     """
     Build the verification prompt for the LLM.
 
     Args:
+        question (str): The original question being answered
         final_answer (str): The answer to verify
         ground_truth_answer (str): The correct answer to compare against
 
@@ -113,6 +114,7 @@ class LLMJudgeVerifier(BaseVerifier):
         str: Formatted prompt string for the LLM
     """
     prompt = self.prompt_template.format(
+        question=question,
         final_answer=final_answer,
         ground_truth_answer=ground_truth_answer
     )
@@ -144,10 +146,12 @@ class LLMJudgeVerifier(BaseVerifier):
       #   logger.error(f"Failed to parse LLM response: {e}")
       return False, f"Error: {str(e)}"
 
-  def verify(self,
-             node: ReasoningNode,
-             question: str,
-             ground_truth_answer: str) -> tuple[bool, str]:
+  def verify(
+      self,
+      node: ReasoningNode,
+      question: str,
+      ground_truth_answer: str
+  ) -> tuple[bool, str]:
     """
     Verify the correctness of a reasoning node's answer using an LLM.
 
@@ -179,7 +183,10 @@ class LLMJudgeVerifier(BaseVerifier):
 
     try:
       prompt = self.build_prompt(
-          final_answer=final_answer, ground_truth_answer=ground_truth_answer)
+          question=question,
+          final_answer=final_answer,
+          ground_truth_answer=ground_truth_answer
+      )
       response = self.llm_provider.generate(
           prompt=prompt,
           llm_kwargs=self.llm_kwargs

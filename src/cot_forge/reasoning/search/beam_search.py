@@ -329,7 +329,6 @@ class BeamSearch(BaseSearch):
       verifier: BaseVerifier,
       strategy_registry: StrategyRegistry = default_strategy_registry,
       llm_kwargs: dict[str, Any] = None,
-      max_depth: int = 2
   ) -> SearchResult:
     """
     Perform a beam search to generate possible chains of thought.
@@ -346,8 +345,6 @@ class BeamSearch(BaseSearch):
         verifier (BaseVerifier): The verifier used to check the correctness of final answers.
         strategy_registry (StrategyRegistry, optional): The registry of available strategies.
         llm_kwargs (dict[str, Any], optional): Additional keyword arguments for reasoning LLM calls.
-        max_depth (int, optional): Maximum depth of the search tree. Defaults to 2.
-        beam_width (int, optional): Number of beams to maintain at each step. Defaults to 3.
 
     Returns:
         SearchResult: An object containing the terminal nodes of the beams, success status, and metadata.
@@ -423,8 +420,9 @@ class BeamSearch(BaseSearch):
                     "reason": "All beams successful at initialization"}
       )
 
+    depth = 1
     # Range starts at 2 because we already have the initial node and beams, zero based indexing
-    for depth in range(2, max_depth+1):
+    for depth in range(2, self.max_depth+1):
       # Get number of activte beams to pass as number of strategies to select
       num_active_beams = len([beam for beam in beams if not beam.is_final])
       # Track new beams
@@ -506,7 +504,7 @@ class BeamSearch(BaseSearch):
     for beam in beams:
       beam.is_final = True
 
-    reason = "Max depth reached" if depth == max_depth else "All beams successful"
+    reason = "Max depth reached" if depth == self.max_depth else "All beams successful"
     result = SearchResult(
         question=question,
         ground_truth_answer=ground_truth_answer,

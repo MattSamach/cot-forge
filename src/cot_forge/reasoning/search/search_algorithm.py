@@ -227,7 +227,7 @@ class BaseSearch(ABC, SearchAlgorithm):
 
     elif error_msg and on_error == "continue":
       # Log the error but continue
-      logger.error(f"Verification call failed: {error_msg}")
+      # logger.error(f"Verification call failed: {error_msg}")
       node.metadata["verification_error"] = error_msg
       node.success = False
       node.is_final = False
@@ -235,7 +235,7 @@ class BaseSearch(ABC, SearchAlgorithm):
 
     # Handle the case where the verification call returned None
     if result is None:
-      logger.error("Verification call returned None")
+      # logger.error("Verification call returned None")
       node.metadata["verification_error"] = "Verification call returned None"
       node.success = False
       node.is_final = False
