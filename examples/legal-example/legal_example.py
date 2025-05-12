@@ -28,15 +28,14 @@ Margate must show that favoring mothers over fathers is substantially related to
 question = "Decipher this code: 73102109109112338811211510910134."
 ground_truth = "Hello World!"
 
-llm = GeminiProvider()
+gemini = GeminiProvider()
 
 builder = CoTBuilder(
-    search_llm=llm,
-    post_processing_llm=llm,
-    search=BeamSearch(max_depth=2, beam_width=3, branching_factor=2),
-    # search=NaiveLinearSearch(max_depth=3),
-    verifier=LLMJudgeVerifier(llm, strict=False),
-    scorer=ProbabilityFinalAnswerScorer(llm)
+    search_llm=gemini,
+    post_processing_llm=gemini,
+    search=BeamSearch(max_depth=3, beam_width=2, branching_factor=2),
+    verifier=LLMJudgeVerifier(gemini, strict=False),
+    scorer=ProbabilityFinalAnswerScorer(gemini)
 )
 
 
