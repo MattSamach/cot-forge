@@ -40,14 +40,18 @@ llm = GeminiProvider(api_key="your-api-key")
 builder = CoTBuilder(
     search_llm=llm,
     search=NaiveLinearSearch(max_depth=3),
+    post_processing_llm=gemini
     verifier=LLMJudgeVerifier(llm)
 )
 
 # Generate CoT reasoning for a question
-question = "What is the capital of France, and why did it become the capital?"
-ground_truth = "Paris is the capital of France. It became the capital due to its central location and political importance."
+# Example question
+question = "If a spaceship travels at half the speed of light (0.5c) for 5 years from Earth's perspective, how much time passes for the astronauts on board according to special relativity?"
 
-search_result = builder.build(
+# Example ground truth answer
+ground_truth = "For the astronauts on the spaceship, approximately 4.33 years would pass."
+
+search_result, reasoning = builder.process(
     question=question,
     ground_truth_answer=ground_truth,
 )
@@ -58,21 +62,8 @@ successful_nodes = search_result.get_successful_terminal_nodes()
 success_node = successful_nodes[0]
 print(success_node.get_full_cot())
 
-# Process reasoning into natural language for training
-from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
-
-processor = ReasoningProcessor(
-    llm_provider=llm, 
-    dataset_name="my_dataset",
-    search_name="naive_search"
-)
-
-processed = processor.process(
-    question=question,
-    cot=success_node.get_full_cot()
-)
-
-print(processed)
+# See the natural language reformatting of the reasoning
+print(reasoning['chain_of_thought_responses'][0])
 ```
 
 ## Core Features ⚙️
@@ -81,7 +72,7 @@ print(processed)
 * **Flexible Search Strategies**: Choose from beam search, naive linear, and more
 * **Quality Verification**: Built-in verifiers to ensure reasoning is correct
 * **Result Scoring**: Various scoring methods to select the best reasoning paths
-* **Natural Language Reformatting**: Convert structured reasoning into natural language for training
+* **Natural Language Reformatting**: Convert structured reasoning into natural language for fine tuning
 * **Persistence**: Save and resume reasoning generation for large datasets
 * **Extensibility**: Easily add custom reasoning strategies, verifiers, and more
 
