@@ -256,12 +256,13 @@ class StrategyRegistry:
     self._strategies[strategy_class.name] = strategy_class
     return strategy_class
 
-  def create_and_register(self,
-                          name: str,
-                          description: str,
-                          is_initial: bool = False,
-                          minimum_depth: int = 0
-                          ) -> Strategy:
+  def create_and_register(
+      self,
+      name: str,
+      description: str,
+      is_initial: bool = False,
+      minimum_depth: int = 0
+  ) -> Strategy:
     """
     Create and register a new strategy in one step.
 
