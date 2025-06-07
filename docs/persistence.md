@@ -36,40 +36,20 @@ base_dir/
 │   │   └── metadata.json     # Tracking information
 ```
 
-## Using with CoTBuilder
-
-The `CoTBuilder.with_persistence` factory method creates a builder with persistence:
-
-```python
-from cot_forge.reasoning import CoTBuilder, BeamSearch
-from cot_forge.llm import GeminiProvider
-from cot_forge.reasoning.verifiers import LLMJudgeVerifier
-
-llm = GeminiProvider(api_key="your-api-key")
-verifier = LLMJudgeVerifier(llm_provider=llm)
-search = NaiveLinearSearch(max_depth=3)
-
-# Create builder with persistence
-builder = CoTBuilder.with_persistence(
-    search_llm=llm,
-    search=search,
-    verifier=verifier,
-    dataset_name="my_dataset",
-    base_dir="data"
-)
-
-# Process batches with automatic persistence
-results = builder.build_batch(
-    questions=["What is 2+2?", "What is the capital of France?"],
-    ground_truth_answers=["4", "Paris"],
-    load_processed=True  # Skip already processed questions
-)
-```
-
 ## Batch Processing with Persistence
 
 ```python
-# Define a large batch of questions
+
+builder = CoTBuilder(
+    search_llm=gpt_4o, # generates reasoning steps
+    search=NaiveLinearSearch(), # Naive linear search chooses random reasoning steps in a chain
+    verifier=LLMJudgeVerifier(llm_provider=sonnet_3_5, strict=False), # claude sonnet to verify answers
+    post_processing_llm=sonnet_3_5, # converts reasoning into natural language
+    dataset_name="medical-o1-verifiable-problem", # dataset name, used for folder structure
+    base_dir= "./data", # base directory to save the results
+)
+
+# Define a batch of questions
 questions = [
     "What is the capital of France?",
     "What is the largest mammal?",
@@ -95,6 +75,13 @@ results = builder.build_batch(
 ## Loading and Managing Results
 
 ```python
+# Load a persistence manager
+persistence = PersistenceManager(
+    dataset_name="math_problems",
+    search_name="naive_linear_search",
+    base_dir="data"
+)
+
 # Load all previously processed results
 all_results = persistence.load_results()
 
@@ -103,58 +90,4 @@ processed_ids = persistence.processed_ids
 
 # Get configuration
 config = persistence.load_config()
-```
-
-## Integrating with ReasoningProcessor
-
-The persistence system integrates seamlessly with the post-processing module:
-
-```python
-from cot_forge.post_processing.reasoning_processor import ReasoningProcessor
-
-# Create processor that uses the same dataset and search name
-processor = ReasoningProcessor(
-    llm_provider=llm,
-    dataset_name="my_dataset",
-    search_name="naive_linear_search",
-    base_dir="data"  # Same base_dir as the persistence manager
-)
-
-# Process all successful results
-processed = processor.process_batch(only_successful=True)
-```
-
-## Customizing Persistence
-
-You can customize the persistence behavior:
-
-```python
-# Create with custom paths
-persistence = PersistenceManager(
-    dataset_name="custom_dataset",
-    search_name="custom_search",
-    base_dir="/path/to/custom/directory",
-)
-```
-
-## Managing Multiple Search Strategies
-
-You can run different search strategies on the same dataset:
-
-```python
-# Linear search
-linear_builder = CoTBuilder.with_persistence(
-    search_llm=llm,
-    search=NaiveLinearSearch(),
-    verifier=verifier,
-    dataset_name="math_problems"
-)
-
-# Beam search on same dataset
-beam_builder = CoTBuilder.with_persistence(
-    search_llm=llm,
-    search=BeamSearch(),
-    verifier=verifier,
-    dataset_name="math_problems"
-)
 ```

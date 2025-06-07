@@ -48,62 +48,6 @@ class MySearchAlgorithm(BaseSearch):
         )
 ```
 
-## Built-in Search Algorithms
-
-CoT Forge provides several search algorithms:
-
-### NaiveLinearSearch
-
-The simplest search strategy that generates a single reasoning path by randomly selecting strategies at each node:
-
-```python
-from cot_forge.reasoning import NaiveLinearSearch
-
-search = NaiveLinearSearch(max_depth=3)
-```
-
-Parameters:
-- `max_depth`: Maximum reasoning steps before terminating (default: 3)
-- `on_error`: Error handling strategy ("continue", "raise", or "retry")
-- `system_prompt`: Optional custom system prompt for the LLM
-
-### BeamSearch
-
-Explores multiple reasoning paths simultaneously, keeping the most promising ones:
-
-```python
-from cot_forge.reasoning import BeamSearch
-
-search = BeamSearch(
-    max_depth=3,
-    beam_width=3,
-    branching_factor=2
-)
-```
-
-Parameters:
-- `max_depth`: Maximum depth of reasoning tree (default: 3)
-- `beam_width`: Number of paths to maintain at each step (default: 3)
-- `branching_factor`: Number of children to generate and evaluate per node (default: 2)
-- `strategy_selector`: How to select strategies at each node (default: RandomStrategySelector)
-
-### MonteCarloTreeSearch
-(Not implemented yet)
-Uses Monte Carlo simulation to explore the reasoning space:
-
-```python
-from cot_forge.reasoning import MonteCarloTreeSearch
-
-search = MonteCarloTreeSearch(
-    max_iterations=10,
-    exploitation_constant=1.0
-)
-```
-
-Parameters:
-- `max_iterations`: Maximum number of iterations (default: 10)
-- `exploitation_constant`: Controls exploration vs exploitation (default: 1.0)
-
 ## Search Process
 
 The general search process follows these steps:
@@ -117,6 +61,12 @@ The general search process follows these steps:
    - If no, continue expanding the node
 6. **Termination**: Stop when success criteria are met or termination conditions reached
 7. **Return**: Package the results into a SearchResult object
+
+## Built-in Search Algorithms
+
+CoT Forge provides several search algorithms:
+* [NaiveLinearSearch](./naivelinearsearch.md)
+* [BeamSearch](./beamsearch.md)
 
 ## Search Result
 
@@ -141,29 +91,6 @@ SearchResult contains:
 - Success/failure status
 - Metadata about the search process
 
-## Node Creation and Verification
-
-Search algorithms use helper methods for common operations:
-
-```python
-# Create a reasoning node
-node = self.create_node(
-    strategy=strategy,
-    prompt=prompt,
-    response=response,
-    cot=extracted_cot,
-    parent=parent_node
-)
-
-# Verify a node to check if it meets the success criteria
-success, error = self.verify_node(
-    node=node,
-    question=question,
-    ground_truth_answer=ground_truth_answer,
-    verifier=verifier
-)
-```
-
 ## Using Search Algorithms
 
 Search algorithms are typically used with the CoTBuilder:
@@ -183,34 +110,6 @@ result = builder.build(
 )
 ```
 
-## Comparing Search Algorithms
-
-You can compare different algorithms on the same question:
-
-```python
-# Define different search algorithms
-linear = NaiveLinearSearch(max_depth=3)
-beam = BeamSearch(max_depth=3, beam_width=2, branching_factor=2)
-mcts = MonteCarloTreeSearch(max_iterations=10)
-
-# Create verifier and scorer
-verifier = LLMJudgeVerifier(llm_provider = llm)
-scorer = ProbabilityFinalAnswerScorer(llm_provider = llm)
-
-# Create builders using each algorithm
-builders = {
-    "linear": CoTBuilder(search_llm=llm, search=linear, verifier=verifier),
-    "beam": CoTBuilder(search_llm=llm, search=beam, verifier=verifier, scorer=scorer),
-    "mcts": CoTBuilder(search_llm=llm, search=mcts, verifier=verifier, scorer=scorer)
-}
-
-# Compare results
-results = {}
-for name, builder in builders.items():
-    results[name] = builder.build(question, ground_truth_answer)
-    print(f"{name} success: {results[name].success}")
-```
-
 ## Serialization
 
 Search algorithms can be serialized for reproducibility:
@@ -221,34 +120,4 @@ search_config = search.to_dict()
 
 # Deserialize later
 restored_search = BeamSearch.from_dict(search_config)
-```
-
-## Custom Search Algorithms
-
-You can implement custom search algorithms by extending BaseSearch:
-
-```python
-class HybridSearch(BaseSearch):
-    def __init__(self, max_depth=3, temperature_schedule=None):
-        self.max_depth = max_depth
-        self.temperature_schedule = temperature_schedule or [1.0, 0.8, 0.5]
-    
-    def _search(self, question, ground_truth_answer, search_llm, verifier, **kwargs):
-        # Custom search implementation
-        # ...
-        return SearchResult(root_nodes, terminal_nodes)
-    
-    def to_dict(self):
-        return {
-            "type": "hybrid_search",
-            "max_depth": self.max_depth,
-            "temperature_schedule": self.temperature_schedule
-        }
-    
-    @classmethod
-    def from_dict(cls, config):
-        return cls(
-            max_depth=config.get("max_depth", 3),
-            temperature_schedule=config.get("temperature_schedule")
-        )
 ```

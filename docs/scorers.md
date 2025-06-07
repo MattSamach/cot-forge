@@ -49,8 +49,8 @@ class BaseScorer:
         
         Args:
             cot_list: List of CoTs to be scored. Each CoT contains:
-                     - strategy_name: Name of the strategy
-                     - cot: Dictionary containing the chain of thought
+                - strategy_name: Name of the strategy
+                - cot: Dictionary containing the chain of thought
             question: The question being answered
             ground_truth_answer: The true answer to compare against
             

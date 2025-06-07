@@ -1,3 +1,5 @@
+<p align="center"><img src="./assets/cot-forge_logo.png" alt="CoT Forge Logo" width="500"></p>
+
 # CoT Forge ✨
 
 A Python library for generating high-quality Chain of Thought (CoT) ⛓️ reasoning data for training and fine-tuning large language models. 🧠
