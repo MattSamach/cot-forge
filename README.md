@@ -175,11 +175,13 @@ Based on an exponential decay model for decoherence and the given information lo
 For detailed documentation, see the [docs folder](./docs/):
 
 - [Core Concepts](./docs/core-concepts.md)
-- [LLM Providers](./docs/llm-providers.md)
 - [Strategies](./docs/strategies.md)
+- [Reasoning Nodes](./docs/reasoning-nodes.md)
 - [Search Algorithms](./docs/search-algorithms.md)
+- [Naive Linear Search](./docs/naivelinearsearch.md)
+- [Beam Search](./docs/beamsearch.md)
+- [LLM Providers](./docs/llm-providers.md)
 - [Verification](./docs/verification.md)
-- [Post-Processing](./docs/post-processing.md)
 - [Persistence](./docs/persistence.md)
 - [Examples](./examples/README.md)
 
