@@ -17,6 +17,8 @@ from uuid import uuid4 as uuid
 from cot_forge.reasoning.strategies import Strategy, StrategyRegistry
 from cot_forge.utils.parsing import extract_final_answer_from_cot
 
+# TODO: Change get_full_cot to give a better printout including strategy names
+
 
 class ReasoningNode:
   """

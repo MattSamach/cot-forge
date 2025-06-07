@@ -59,7 +59,7 @@ Ensure a valid json response. Any newlines or special characters (like quotes) w
 initialize_cot_prompt = "Initilization: Respond to the above question <question> using the Chain of Thought (CoT) reasoning method. Because this is the initial reasoning, do not start with the `Review` step. Instead, begin with the `Inner Thinking` step and then conclude with the `Final Conclusion` step."
 backtrack_strategy_prompt = "Backtrack: Revise the reasoning by **backtracking to an earlier point** in your analysis. Identify a specific earlier step where the reasoning began to go off track, return to that point, and develop a new chain of thought from there rather than continuing from your latest conclusion."
 explore_new_paths_strategy_prompt = "Explore New Path: Expand the reasoning by **exploring new approaches** to solving this problem, proposing new ideas and paths that haven't yet been covered."
-correction_strategy_prompt = "Correction: Refine the reasoning by examining making precise **corrections** to address prior flaws."
+correction_strategy_prompt = "Correction: Refine the reasoning by making precise **corrections** to address prior flaws."
 validation_strategy_prompt = "Validation: Improve the reasoning by conducting a thorough **validation** process that explicitly checks each assumption, verifies logical connections between statements, and ensures that conclusions directly follow from the evidence presented."
 
 # Additional strategy prompts

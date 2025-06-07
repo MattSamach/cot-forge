@@ -145,9 +145,6 @@ class PersistenceManager:
 
   def _save_metadata(self) -> None:
     """Save current progress metadata."""
-    # Check if file at metadata path already exists
-    if self.metadata_path.exists():
-      return
     # Create metadata directory if it doesn't exist
     with self._lock:
       metadata = {
